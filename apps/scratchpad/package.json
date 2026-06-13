@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "effect-boxes": "workspace:*",
-    "effect": "4.0.0-beta.66"
+    "effect": "4.0.0-beta.84"
   },
   "devDependencies": {
-    "@effect/platform-bun": "4.0.0-beta.66",
+    "@effect/platform-bun": "4.0.0-beta.84",
     "@repo/config-typescript": "workspace:*",
     "@types/bun": "^1.3.14"
   }
