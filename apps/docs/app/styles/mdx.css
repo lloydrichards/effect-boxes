@@ -8,6 +8,11 @@ code[data-theme] span {
   text-decoration: var(--shiki-light-text-decoration);
 }
 
+/* Character-level highlighting: override shiki theme colors */
+pre [data-chars-id] span {
+  @apply !text-inherit;
+}
+
 /* Shiki dual theme: switch to dark variant colors when .dark is active */
 html.dark pre[data-theme] span,
 html.dark code[data-theme] span {
@@ -91,10 +96,6 @@ pre [data-line]:not([data-highlighted-line]):not(.highlighted) {
 
 [data-chars-id] {
   @apply border-b-1 px-1 py-0.5 shadow-none;
-}
-
-[data-chars-id] span {
-  @apply !text-inherit;
 }
 
 [data-chars-id="success"] {

@@ -91,7 +91,11 @@ VITE_UMAMI_WEBSITE_ID=<your-umami-website-id>
 When the variable is set, the app injects:
 
 ```html
-<script defer src="https://umami.lloydrichards.dev/script.js" data-website-id="..." />
+<script
+  defer
+  src="https://umami.lloydrichards.dev/script.js"
+  data-website-id="..."
+/>
 ```
 
 ## Styling

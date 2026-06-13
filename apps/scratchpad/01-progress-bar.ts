@@ -17,7 +17,12 @@ import * as Reactive from "effect-boxes/Reactive";
 
 const display = (msg: string) => Effect.sync(() => process.stdout.write(msg));
 
-const StatusBar = (status: string, counter: number, time: string, width: number) =>
+const StatusBar = (
+  status: string,
+  counter: number,
+  time: string,
+  width: number
+) =>
   Flex.row(
     [
       Flex.fixed(Box.text(`Status: ${status}`)),
@@ -57,12 +62,14 @@ const formatTime = (timestamp: number): string => {
 
 export const main = Effect.gen(function* () {
   // Clear screen and hide cursor for cleaner output
-  yield* display(Box.renderPrettySync(Box.combine(Cmd.clearScreen,Cmd.cursorHide)));
+  yield* display(
+    Box.renderPrettySync(Box.combine(Cmd.clearScreen, Cmd.cursorHide))
+  );
 
-  const terminal = yield* Terminal.Terminal
+  const terminal = yield* Terminal.Terminal;
 
   const Complete = 1000;
-  const ContainerWidth = (yield* terminal.columns)-2
+  const ContainerWidth = (yield* terminal.columns) - 2;
   // For reactive updates, pre-compute the progress bar width matching Container's inner math
   // Container padding [1,2] => innerWidth = 85 - 2(border) - 2*2(padding) = 79
   // percentBox = 5 + 2(border) = 7, gap = 2
@@ -88,7 +95,8 @@ export const main = Effect.gen(function* () {
           Reactive.makeReactive("percentage"),
           Box.border("rounded", {
             annotation: Ansi.green,
-            sides:{left:false}}),
+            sides: { left: false },
+          })
         );
         // progress bar fills remaining space after percentage box
         const barWidth = ctx.innerWidth - Box.cols(percentBox) - 2;
@@ -108,13 +116,11 @@ export const main = Effect.gen(function* () {
       }
     ).pipe(Box.border("rounded", { sides: { bottom: false } }));
 
-    const bottom = Container.make(
-      { width: ContainerWidth },
-      (ctx) =>
-        StatusBar(status, counter, timeStr, ctx.innerWidth).pipe(
-          Box.alignHoriz(Box.center1, ctx.innerWidth),
-          Reactive.makeReactive("status-bar")
-        )
+    const bottom = Container.make({ width: ContainerWidth }, (ctx) =>
+      StatusBar(status, counter, timeStr, ctx.innerWidth).pipe(
+        Box.alignHoriz(Box.center1, ctx.innerWidth),
+        Reactive.makeReactive("status-bar")
+      )
     ).pipe(Box.border("single"));
 
     const footer = Flex.row(
