@@ -12,6 +12,7 @@ import { main as textPromptDemo } from "./07-text-prompt";
 import { main as perlinDemo } from "./08-perlin-flow-field";
 import { main as logViewerDemo } from "./09-log-viewer";
 import { main as layoutDemo } from "./10-layout-demo";
+import { main as boidsDemo } from "./11-boids-flocking";
 
 const demos = [
   {
@@ -67,6 +68,12 @@ const demos = [
     description:
       "Flex, Grid, and Container layout demos with a full dashboard example",
   },
+  {
+    title: "11. Boids Flocking",
+    value: "boids",
+    description:
+      "Autonomous agents with separation, alignment, and cohesion (Nature of Code)",
+  },
 ] as const;
 
 type DemoId = (typeof demos)[number]["value"];
@@ -93,6 +100,8 @@ const runDemo = (id: DemoId) => {
       return logViewerDemo;
     case "layout":
       return layoutDemo;
+    case "boids":
+      return boidsDemo;
   }
 };
 
@@ -101,7 +110,7 @@ const root = Command.make(
   {
     run: Flag.integer("run").pipe(
       Flag.optional,
-      Flag.withDescription("Run a demo by number (1-10)")
+      Flag.withDescription("Run a demo by number (1-11)")
     ),
   },
   ({ run }) =>
