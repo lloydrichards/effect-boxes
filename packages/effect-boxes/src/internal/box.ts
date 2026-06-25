@@ -1246,6 +1246,214 @@ const truncateWidth = <A>(
   return result;
 };
 
+const cropLine = (text: string, offset: number, width: number): string => {
+  const start = Math.max(0, offset);
+  const end = start + Math.max(0, width);
+  let column = 0;
+  const result: string[] = [];
+
+  for (const segment of Width.segments(text)) {
+    const segmentWidth = Width.ofString(segment);
+    const nextColumn = column + segmentWidth;
+
+    if (column >= start && nextColumn <= end) {
+      result.push(segment);
+    }
+
+    column = nextColumn;
+    if (column >= end) {
+      break;
+    }
+  }
+
+  return result.join("");
+};
+
+const preserveAnnotation = <A>(
+  self: Box.Box<A>,
+  that: Box.Box<A>
+): Box.Box<A> =>
+  self.annotation && !that.annotation
+    ? make({
+        rows: that.rows,
+        cols: that.cols,
+        content: that.content,
+        annotation: self.annotation,
+      })
+    : that;
+
+/** @internal */
+export const cropWidth = dual<
+  (offset: number, width: number) => <A>(self: Box.Box<A>) => Box.Box<A>,
+  <A>(self: Box.Box<A>, offset: number, width: number) => Box.Box<A>
+>(3, <A>(self: Box.Box<A>, offset: number, width: number): Box.Box<A> => {
+  const start = Math.max(0, offset);
+  const targetWidth = Math.min(
+    Math.max(0, width),
+    Math.max(0, self.cols - start)
+  );
+
+  if (start === 0 && self.cols <= targetWidth) return self;
+
+  const go = (
+    box: Box.Box<A>,
+    columnOffset: number,
+    columnsToKeep: number
+  ): Box.Box<A> =>
+    match(box, {
+      blank: () =>
+        preserveAnnotation(
+          box,
+          emptyBox(
+            box.rows,
+            Math.min(columnsToKeep, Math.max(0, box.cols - columnOffset))
+          )
+        ),
+      text: (text) =>
+        preserveAnnotation(
+          box,
+          unsafeLine(cropLine(text, columnOffset, columnsToKeep))
+        ),
+      row: (boxes) => {
+        const cropped: Box.Box<A>[] = [];
+        let skipped = columnOffset;
+        let remaining = columnsToKeep;
+
+        for (const child of boxes) {
+          if (remaining <= 0) break;
+          if (skipped >= child.cols) {
+            skipped -= child.cols;
+            continue;
+          }
+
+          const childCols = Math.min(remaining, child.cols - skipped);
+          cropped.push(go(child, skipped, childCols));
+          remaining -= childCols;
+          skipped = 0;
+        }
+
+        return cropped.length === 0
+          ? emptyBox(box.rows, columnsToKeep)
+          : hcat(cropped, top);
+      },
+      col: (boxes) =>
+        make({
+          rows: box.rows,
+          cols: columnsToKeep,
+          content: {
+            _tag: "Col",
+            boxes: boxes.map((child) => go(child, columnOffset, columnsToKeep)),
+          },
+          annotation: box.annotation,
+        }),
+      subBox: (inner, xAlign, yAlign) =>
+        make({
+          rows: box.rows,
+          cols: columnsToKeep,
+          content: {
+            _tag: "SubBox",
+            xAlign,
+            yAlign,
+            box: go(inner, columnOffset, columnsToKeep),
+          },
+          annotation: box.annotation,
+        }),
+    });
+
+  const result = go(self, start, targetWidth);
+  return preserveAnnotation(self, result);
+});
+
+const cropHeightInternal = <A>(
+  self: Box.Box<A>,
+  offset: number,
+  height: number
+): Box.Box<A> => {
+  const start = Math.max(0, offset);
+  const targetHeight = Math.min(
+    Math.max(0, height),
+    Math.max(0, self.rows - start)
+  );
+
+  if (start === 0 && self.rows <= targetHeight) return self;
+
+  const go = (
+    box: Box.Box<A>,
+    rowOffset: number,
+    rowsToKeep: number
+  ): Box.Box<A> =>
+    match(box, {
+      blank: () =>
+        preserveAnnotation(
+          box,
+          emptyBox(
+            Math.min(rowsToKeep, Math.max(0, box.rows - rowOffset)),
+            box.cols
+          )
+        ),
+      text: () =>
+        rowOffset === 0 && rowsToKeep > 0 ? box : emptyBox(0, box.cols),
+      row: (boxes) =>
+        make({
+          rows: rowsToKeep,
+          cols: box.cols,
+          content: {
+            _tag: "Row",
+            boxes: boxes.map((child) => go(child, rowOffset, rowsToKeep)),
+          },
+          annotation: box.annotation,
+        }),
+      col: (boxes) => {
+        const cropped: Box.Box<A>[] = [];
+        let skipped = rowOffset;
+        let remaining = rowsToKeep;
+
+        for (const child of boxes) {
+          if (remaining <= 0) break;
+          if (skipped >= child.rows) {
+            skipped -= child.rows;
+            continue;
+          }
+
+          const childRows = Math.min(remaining, child.rows - skipped);
+          cropped.push(go(child, skipped, childRows));
+          remaining -= childRows;
+          skipped = 0;
+        }
+
+        return cropped.length === 0
+          ? emptyBox(rowsToKeep, box.cols)
+          : make({
+              rows: rowsToKeep,
+              cols: box.cols,
+              content: { _tag: "Col", boxes: cropped },
+              annotation: box.annotation,
+            });
+      },
+      subBox: (inner, xAlign, yAlign) =>
+        make({
+          rows: rowsToKeep,
+          cols: box.cols,
+          content: {
+            _tag: "SubBox",
+            xAlign,
+            yAlign,
+            box: go(inner, rowOffset, rowsToKeep),
+          },
+          annotation: box.annotation,
+        }),
+    });
+
+  const result = go(self, start, targetHeight);
+  return preserveAnnotation(self, result);
+};
+
+/** @internal */
+export const cropHeight = dual<
+  (offset: number, height: number) => <A>(self: Box.Box<A>) => Box.Box<A>,
+  <A>(self: Box.Box<A>, offset: number, height: number) => Box.Box<A>
+>(3, cropHeightInternal);
+
 /** @internal */
 export const truncate = dual<
   (width: number, pos: Box.Alignment) => <A>(self: Box.Box<A>) => Box.Box<A>,

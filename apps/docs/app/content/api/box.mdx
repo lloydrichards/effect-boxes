@@ -1143,6 +1143,55 @@ import * as Ansi from "effect-boxes/Ansi";
 const coloredBox = Box.annotate(Box.text("Hello World"), Ansi.red);
 ```
 
+### cropHeight
+
+Crops a box vertically, keeping up to `height` rows after `offset`.
+
+**Signature**
+
+```ts
+export declare const cropHeight: {
+  (offset: number, height: number): <A>(self: Box<A>) => Box<A>;
+  <A>(self: Box<A>, offset: number, height: number): Box<A>;
+};
+```
+
+**Example**
+
+```typescript
+import { pipe } from "effect";
+import * as Box from "effect-boxes/Box";
+
+const result = pipe(Box.text("A\nB\nC\nD"), Box.cropHeight(1, 2));
+console.log(Box.renderPlainSync(result));
+// B
+// C
+```
+
+### cropWidth
+
+Crops a box horizontally, keeping up to `width` columns after `offset`.
+
+**Signature**
+
+```ts
+export declare const cropWidth: {
+  (offset: number, width: number): <A>(self: Box<A>) => Box<A>;
+  <A>(self: Box<A>, offset: number, width: number): Box<A>;
+};
+```
+
+**Example**
+
+```typescript
+import { pipe } from "effect";
+import * as Box from "effect-boxes/Box";
+
+const result = pipe(Box.text("Hello World"), Box.cropWidth(6, 5));
+console.log(Box.renderPlainSync(result));
+// World
+```
+
 ### maxHeight
 
 Caps a box at `n` rows tall, keeping only the first `n` rows.
