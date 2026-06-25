@@ -1,5 +1,6 @@
 import { pipe } from "effect";
 import { describe, expect, it } from "vitest";
+import * as Ansi from "../src/Ansi";
 import * as Box from "../src/Box";
 
 /** Replace spaces with dots for visible whitespace in assertions */
@@ -71,6 +72,69 @@ describe("Box.maxWidth", () => {
   });
 });
 
+describe("Box.cropWidth", () => {
+  it("crops a horizontal window from text", () => {
+    const result = pipe(Box.text("Hello World"), Box.cropWidth(6, 5));
+    expect(Box.cols(result)).toBe(5);
+    expect(Box.renderPlainSync(result)).toBe("World");
+  });
+
+  it("crops each line of a multi-line box", () => {
+    const result = pipe(Box.text("abcdef\n123456"), Box.cropWidth(2, 3));
+    expect(Box.cols(result)).toBe(3);
+    expect(Box.rows(result)).toBe(2);
+    expect(Box.renderPlainSync(result)).toBe("cde\n345");
+  });
+
+  it("is a maxWidth equivalent for non-positive offsets", () => {
+    const result = pipe(Box.text("Hello"), Box.cropWidth(-2, 3));
+    expect(Box.renderPlainSync(result)).toBe("Hel");
+  });
+
+  it("returns zero width when offset is beyond the box", () => {
+    const result = pipe(Box.text("Hello\nWorld"), Box.cropWidth(20, 5));
+    expect(Box.cols(result)).toBe(0);
+    expect(Box.rows(result)).toBe(2);
+    expect(Box.renderPlainSync(result)).toBe("\n");
+  });
+
+  it("does not split wide characters at crop boundaries", () => {
+    const result = pipe(Box.text("a界b"), Box.cropWidth(1, 1));
+    expect(Box.cols(result)).toBe(1);
+    expect(Box.renderPlainSync(result)).toBe(" ");
+  });
+
+  it("crops through horizontally composed boxes", () => {
+    const result = pipe(
+      Box.hcat([Box.text("ABC"), Box.text("DEF")], Box.top),
+      Box.cropWidth(2, 3)
+    );
+    expect(Box.renderPlainSync(result)).toBe("CDE");
+  });
+
+  it("preserves nested annotations when cropping horizontally composed boxes", () => {
+    const result = pipe(
+      Box.hcat(
+        [
+          Box.text("INFO ").pipe(Box.annotate(Ansi.cyan)),
+          Box.text("message").pipe(Box.annotate(Ansi.red)),
+        ],
+        Box.top
+      ),
+      Box.cropWidth(3, 6)
+    );
+
+    expect(Box.renderPlainSync(result)).toBe("O mess");
+    expect(Box.renderPrettySync(result)).toContain("\x1b[36mO ");
+    expect(Box.renderPrettySync(result)).toContain("\x1b[31mmess");
+  });
+
+  it("supports data-first usage", () => {
+    const result = Box.cropWidth(Box.text("Hello World"), 6, 5);
+    expect(Box.renderPlainSync(result)).toBe("World");
+  });
+});
+
 describe("Box.minHeight", () => {
   it("pads a short box to the target height", () => {
     const result = pipe(Box.text("X"), Box.minHeight(5));
@@ -123,6 +187,77 @@ describe("Box.maxHeight", () => {
   it("supports data-first usage", () => {
     const result = Box.maxHeight(Box.text("A\nB\nC\nD\nE"), 2);
     expect(Box.rows(result)).toBe(2);
+  });
+});
+
+describe("Box.cropHeight", () => {
+  it("crops a vertical window from text", () => {
+    const result = pipe(Box.text("A\nB\nC\nD"), Box.cropHeight(1, 2));
+    expect(Box.rows(result)).toBe(2);
+    expect(Box.cols(result)).toBe(1);
+    expect(Box.renderPlainSync(result)).toBe("B\nC");
+  });
+
+  it("is a maxHeight equivalent for non-positive offsets", () => {
+    const result = pipe(Box.text("A\nB\nC"), Box.cropHeight(-1, 2));
+    expect(Box.renderPlainSync(result)).toBe("A\nB");
+  });
+
+  it("returns zero height when offset is beyond the box", () => {
+    const result = pipe(Box.text("A\nB"), Box.cropHeight(5, 2));
+    expect(Box.rows(result)).toBe(0);
+    expect(Box.cols(result)).toBe(1);
+    expect(Box.renderPlainSync(result)).toBe("");
+  });
+
+  it("crops through vertically composed boxes", () => {
+    const result = pipe(
+      Box.vcat([Box.text("A\nB"), Box.text("C\nD")], Box.left),
+      Box.cropHeight(1, 2)
+    );
+    expect(Box.renderPlainSync(result)).toBe("B\nC");
+  });
+
+  it("preserves nested annotations through fixed-size viewport crops", () => {
+    const makeLine = (timestamp: string, level: string, message: string) => {
+      const style = level === "WARN" ? Ansi.yellow : Ansi.cyan;
+      return Box.hsep(
+        [
+          Box.text(timestamp).pipe(Box.annotate(Ansi.dim)),
+          Box.text("●").pipe(Box.annotate(style)),
+          Box.text(level.padEnd(5)).pipe(Box.annotate(style)),
+          Box.text(message).pipe(Box.annotate(style)),
+        ],
+        1,
+        Box.top
+      );
+    };
+
+    const result = pipe(
+      Box.vcat(
+        [
+          makeLine("00:01.1", "INFO", "first"),
+          makeLine("00:03.0", "WARN", "Redis connection slow"),
+        ],
+        Box.left
+      ),
+      Box.cropHeight(1, 1),
+      Box.minHeight(2),
+      Box.cropWidth(0, 40),
+      Box.minWidth(40)
+    );
+
+    const pretty = Box.renderPrettySync(result);
+    expect(Box.renderPlainSync(result)).toContain("00:03.0 ● WARN  Redis");
+    expect(pretty).toContain("\x1b[2m00:03.0\x1b[0m");
+    expect(pretty).toContain("\x1b[33m●\x1b[0m");
+    expect(pretty).toContain("\x1b[33mWARN \x1b[0m");
+    expect(pretty).toContain("\x1b[33mRedis connection slow\x1b[0m");
+  });
+
+  it("supports data-first usage", () => {
+    const result = Box.cropHeight(Box.text("A\nB\nC\nD"), 1, 2);
+    expect(Box.renderPlainSync(result)).toBe("B\nC");
   });
 });
 

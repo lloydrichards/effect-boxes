@@ -1736,6 +1736,26 @@ export const maxWidth: {
 } = internal.maxWidth;
 
 /**
+ * Crops a box horizontally, keeping up to `width` columns after `offset`.
+ *
+ * @example
+ * ```typescript
+ * import { pipe } from "effect"
+ * import * as Box from "effect-boxes/Box"
+ *
+ * const result = pipe(Box.text("Hello World"), Box.cropWidth(6, 5))
+ * console.log(Box.renderPlainSync(result))
+ * // World
+ * ```
+ *
+ * @category transformations
+ */
+export const cropWidth: {
+  (offset: number, width: number): <A>(self: Box<A>) => Box<A>;
+  <A>(self: Box<A>, offset: number, width: number): Box<A>;
+} = internal.cropWidth;
+
+/**
  * Ensures a box is at least `n` rows tall, padding with blank rows at the
  * bottom if the box is shorter.
  *
@@ -1775,3 +1795,24 @@ export const maxHeight: {
   (n: number): <A>(self: Box<A>) => Box<A>;
   <A>(self: Box<A>, n: number): Box<A>;
 } = internal.maxHeight;
+
+/**
+ * Crops a box vertically, keeping up to `height` rows after `offset`.
+ *
+ * @example
+ * ```typescript
+ * import { pipe } from "effect"
+ * import * as Box from "effect-boxes/Box"
+ *
+ * const result = pipe(Box.text("A\nB\nC\nD"), Box.cropHeight(1, 2))
+ * console.log(Box.renderPlainSync(result))
+ * // B
+ * // C
+ * ```
+ *
+ * @category transformations
+ */
+export const cropHeight: {
+  (offset: number, height: number): <A>(self: Box<A>) => Box<A>;
+  <A>(self: Box<A>, offset: number, height: number): Box<A>;
+} = internal.cropHeight;
