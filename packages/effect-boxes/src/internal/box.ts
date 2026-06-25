@@ -1212,13 +1212,12 @@ const truncateWidth = <A>(
       blank: () => emptyBox(box.rows, width),
       text: (t) => onText(t),
       row: () =>
-        go(
-          make({
-            rows: box.rows,
-            cols: box.cols,
-            content: { _tag: "SubBox", xAlign: left, yAlign: top, box },
-          })
-        ),
+        make({
+          rows: box.rows,
+          cols: width,
+          content: { _tag: "SubBox", xAlign: left, yAlign: top, box },
+          annotation: box.annotation,
+        }),
       col: (boxes) =>
         make({
           rows: box.rows,
