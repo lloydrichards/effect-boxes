@@ -1,5 +1,17 @@
 # effect-boxes
 
+## 0.17.0
+
+### Minor Changes
+
+- [#90](https://github.com/lloydrichards/effect-boxes/pull/90) [`880f102`](https://github.com/lloydrichards/effect-boxes/commit/880f10274945e18b2d2bea813cb834afd5359433) Thanks [@lloydrichards](https://github.com/lloydrichards)! - add `Box.cropWidth` and `Box.cropHeight` for viewport-style cropping.
+
+  Transformer that allow callers to crop boxes from an arbitrary horizontal or vertical offset, making it possible to render scrollable 2D viewports without pre-rendering to strings.
+
+### Patch Changes
+
+- [#88](https://github.com/lloydrichards/effect-boxes/pull/88) [`b1f5abb`](https://github.com/lloydrichards/effect-boxes/commit/b1f5abbd91da3f3f2da17e5de1db8627c3aeaaaa) Thanks [@lloydrichards](https://github.com/lloydrichards)! - fix `Box.truncate` stack overflow when truncating wide row layouts.
+
 ## 0.16.1
 
 ### Patch Changes
