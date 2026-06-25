@@ -64,27 +64,23 @@ const renderLayout = (
 
     // Compute visible window
     const totalLines = state.lines.length;
-    const visibleLines = state.lines.slice(
-      state.scrollOffset,
-      state.scrollOffset + height
-    );
 
     // Build content box
     const contentBox =
-      visibleLines.length === 0
+      state.lines.length === 0
         ? Box.text("Waiting for log data...").pipe(Box.annotate(Ansi.dim))
         : pipe(
-            visibleLines.map((entry) => renderLogLine(entry)),
+            state.lines.map((entry) => renderLogLine(entry)),
             (boxes) => Box.vcat(boxes, Box.left)
           );
 
-    // Apply constraints: fixed height, max width with truncation
+    // Apply constraints: fixed-height viewport and left-edge horizontal crop.
     const constrainedContent = pipe(
       contentBox,
+      Box.cropHeight(state.scrollOffset, height),
       Box.minHeight(height),
-      Box.maxHeight(height),
-      Box.minWidth(innerWidth),
-      Box.truncate(innerWidth, Box.left)
+      Box.cropWidth(0, innerWidth),
+      Box.minWidth(innerWidth)
     );
 
     // Header
