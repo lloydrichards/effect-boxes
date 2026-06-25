@@ -195,6 +195,16 @@ describe("Box.truncate", () => {
   // ---------------------------------------------------------------------------
 
   describe("composition", () => {
+    it("does not recurse infinitely when truncating a wide row", () => {
+      const row = Box.hcat(
+        [Box.text("left panel"), Box.text("right panel")],
+        Box.top
+      );
+
+      expect(() => pipe(row, Box.truncate(8, Box.left))).not.toThrow();
+      expect(pipe(row, Box.truncate(8, Box.left)).cols).toBe(8);
+    });
+
     it("works with hcat after truncation", () => {
       const left = pipe(Box.text("Long left text"), Box.truncate(8, Box.left));
       const right = Box.text("Right");
