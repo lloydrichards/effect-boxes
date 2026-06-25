@@ -60,7 +60,7 @@ const demos = [
     title: "9. Log Viewer",
     value: "log-viewer",
     description:
-      "Scrollable stream log viewer with truncate, minWidth, maxWidth, maxHeight",
+      "Scrollable stream log viewer with cropWidth, cropHeight, and sizing constraints",
   },
   {
     title: "10. Layout Combinators",
