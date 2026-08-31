@@ -1,5 +1,11 @@
 # effect-boxes
 
+## 0.17.1
+
+### Patch Changes
+
+- [#91](https://github.com/lloydrichards/effect-boxes/pull/91) [`cd1da55`](https://github.com/lloydrichards/effect-boxes/commit/cd1da55f58daf55e9d8a6a8edb68ab7e82645ae8) Thanks [@lloydrichards](https://github.com/lloydrichards)! - upgrade min effect version to rc
+
 ## 0.17.0
 
 ### Minor Changes
