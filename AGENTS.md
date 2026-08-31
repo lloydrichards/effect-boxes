@@ -393,10 +393,7 @@ export interface Box {
 
 // ✅ Use discriminated unions for variants
 export type Alignment =
-  | "AlignFirst"
-  | "AlignCenter1"
-  | "AlignCenter2"
-  | "AlignLast";
+  "AlignFirst" | "AlignCenter1" | "AlignCenter2" | "AlignLast";
 ```
 
 ### Function Composition

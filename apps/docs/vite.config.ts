@@ -1,3 +1,4 @@
+import path from "node:path";
 import mdx from "@mdx-js/rollup";
 import { reactRouter } from "@react-router/dev/vite";
 import {
@@ -52,6 +53,8 @@ export default defineConfig({
     reactRouter(),
   ],
   resolve: {
-    tsconfigPaths: true,
+    alias: {
+      "~": path.resolve(import.meta.dirname, "app"),
+    },
   },
 });

@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import { TSDocConfiguration, TSDocParser } from "@microsoft/tsdoc";
 import { TSDocConfigFile } from "@microsoft/tsdoc-config";
 import { Array as A, Console, Effect, Option, Order, pipe } from "effect";
-import * as ts from "typescript";
+import * as ts from "typescript-6";
 
 // -----------------------------------------------------------------------------
 // Types

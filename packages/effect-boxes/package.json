@@ -82,19 +82,20 @@
     "benchmark": "vitest bench --run"
   },
   "peerDependencies": {
-    "effect": ">=4.0.0-beta.59"
+    "effect": ">=4.0.0-rc.108"
   },
   "devDependencies": {
     "@effect/docgen": "^0.5.2",
-    "@effect/platform-bun": "^4.0.0-beta.84",
+    "@effect/platform-bun": "^4.0.0-rc.112",
     "@microsoft/tsdoc": "^0.16.0",
     "@microsoft/tsdoc-config": "^0.18.1",
     "@repo/config-typescript": "workspace:*",
     "@types/bun": "^1.3.14",
-    "@vitest/coverage-v8": "4.1.9",
-    "tinybench": "^6.0.2",
+    "@vitest/coverage-v8": "4.1.11",
+    "tinybench": "^6.1.4",
+    "typescript-6": "npm:typescript@^6.0.3",
     "tsup": "^8.5.1",
-    "tsx": "^4.22.4",
-    "vitest": "^4.1.9"
+    "tsx": "^4.23.13",
+    "vitest": "^4.1.11"
   }
 }
