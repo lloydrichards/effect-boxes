@@ -20,7 +20,7 @@ import {
   Option,
   Path,
 } from "effect";
-import * as ts from "typescript";
+import * as ts from "typescript-6";
 
 const PUBLIC_MODULES = [
   "src/Annotation.ts",
