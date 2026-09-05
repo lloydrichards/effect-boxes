@@ -1,4 +1,5 @@
 import { pipe } from "effect";
+import * as Equal from "effect/Equal";
 import { describe, expect, it } from "vitest";
 import * as Annotation from "../src/Annotation";
 import * as Box from "../src/Box";
@@ -182,11 +183,12 @@ describe("Box.truncate", () => {
       expect(result.cols).toBe(5);
     });
 
-    it("preserves annotations through truncation", () => {
+    it("should preserve the annotation value when truncating annotated text", () => {
       const annotation = Annotation.createAnnotation("test-annotation");
       const box = pipe(Box.text("Hello World"), Box.annotate(annotation));
       const result = pipe(box, Box.truncate(8, Box.left));
-      expect(result.annotation).toBeDefined();
+
+      expect(Equal.equals(result.annotation, annotation)).toBe(true);
     });
   });
 

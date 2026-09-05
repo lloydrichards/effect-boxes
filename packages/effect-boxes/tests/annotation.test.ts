@@ -1,5 +1,8 @@
 import * as Equal from "effect/Equal";
 import * as Hash from "effect/Hash";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
 import { describe, expect, it } from "vitest";
 import * as Annotation from "../src/Annotation";
 
@@ -144,26 +147,23 @@ describe("Annotation", () => {
       expect(Hash.hash(annotation1)).toBe(Hash.hash(annotation2));
     });
 
-    it("enables annotations to be used as Map keys", () => {
-      const annotation1 = Annotation.createAnnotation("key1");
-      const annotation2 = Annotation.createAnnotation("key2");
-      const map = new Map();
-      map.set(annotation1, "value1");
-      map.set(annotation2, "value2");
-      expect(map.get(annotation1)).toBe("value1");
-      expect(map.get(annotation2)).toBe("value2");
-      expect(map.size).toBe(2);
+    it("should retrieve values when equivalent annotations are used as HashMap keys", () => {
+      const storedKey = Annotation.createAnnotation("key");
+      const equivalentKey = Annotation.createAnnotation("key");
+      const map = HashMap.make([storedKey, "value"]);
+
+      expect(Option.getOrUndefined(HashMap.get(map, equivalentKey))).toBe(
+        "value"
+      );
     });
 
-    it("enables annotations to be used in Sets", () => {
-      const annotation1 = Annotation.createAnnotation("item1");
-      const annotation2 = Annotation.createAnnotation("item2");
-      const annotation3 = Annotation.createAnnotation("item3");
-      const set = new Set([annotation1, annotation2, annotation3]);
-      expect(set.size).toBe(3);
-      expect(set.has(annotation1)).toBe(true);
-      expect(set.has(annotation2)).toBe(true);
-      expect(set.has(annotation3)).toBe(true);
+    it("should find equivalent annotations when stored in a HashSet", () => {
+      const stored = Annotation.createAnnotation("item");
+      const equivalent = Annotation.createAnnotation("item");
+      const set = HashSet.make(stored);
+
+      expect(HashSet.has(set, equivalent)).toBe(true);
+      expect(HashSet.size(HashSet.add(set, equivalent))).toBe(1);
     });
   });
 
