@@ -163,6 +163,15 @@ export const center1: Box.Alignment = "AlignCenter1";
 
 export const center2: Box.Alignment = "AlignCenter2";
 
+const alignmentOffset = (alignment: Box.Alignment, space: number): number =>
+  Match.value(alignment).pipe(
+    Match.when("AlignFirst", () => 0),
+    Match.when("AlignLast", () => space),
+    Match.when("AlignCenter1", () => Math.trunc(space / 2)),
+    Match.when("AlignCenter2", () => space - Math.trunc(space / 2)),
+    Match.exhaustive
+  );
+
 // -----------------------------------------------------------------------------
 // Constructors
 // -----------------------------------------------------------------------------
@@ -1312,6 +1321,34 @@ const preserveAnnotation = <A>(
       })
     : that;
 
+const alignedCrop = (
+  alignment: Box.Alignment,
+  outerSize: number,
+  innerSize: number,
+  offset: number,
+  size: number
+): {
+  readonly leadingBlank: number;
+  readonly innerOffset: number;
+  readonly innerSize: number;
+  readonly trailingBlank: number;
+} => {
+  const innerStart = alignmentOffset(alignment, outerSize - innerSize);
+  const innerEnd = innerStart + innerSize;
+  const cropEnd = offset + size;
+  const visibleStart = Math.max(offset, innerStart);
+  const visibleEnd = Math.min(cropEnd, innerEnd);
+  const visibleSize = Math.max(0, visibleEnd - visibleStart);
+  const leadingBlank = Math.min(size, Math.max(0, innerStart - offset));
+
+  return {
+    leadingBlank,
+    innerOffset: Math.max(0, offset - innerStart),
+    innerSize: visibleSize,
+    trailingBlank: size - leadingBlank - visibleSize,
+  };
+};
+
 /** @internal */
 export const cropWidth = dual<
   (offset: number, width: number) => <A>(self: Box.Box<A>) => Box.Box<A>,
@@ -1376,18 +1413,37 @@ export const cropWidth = dual<
           },
           annotation: box.annotation,
         }),
-      subBox: (inner, xAlign, yAlign) =>
-        make({
-          rows: box.rows,
-          cols: columnsToKeep,
-          content: {
-            _tag: "SubBox",
-            xAlign,
-            yAlign,
-            box: go(inner, columnOffset, columnsToKeep),
-          },
-          annotation: box.annotation,
-        }),
+      subBox: (inner, xAlign, yAlign) => {
+        const crop = alignedCrop(
+          xAlign,
+          box.cols,
+          inner.cols,
+          columnOffset,
+          columnsToKeep
+        );
+
+        if (crop.innerSize === 0) {
+          return preserveAnnotation(box, emptyBox(box.rows, columnsToKeep));
+        }
+
+        const content = alignVert(
+          go(inner, crop.innerOffset, crop.innerSize),
+          yAlign,
+          box.rows
+        );
+
+        return preserveAnnotation(
+          box,
+          hcat(
+            [
+              emptyBox(box.rows, crop.leadingBlank),
+              content,
+              emptyBox(box.rows, crop.trailingBlank),
+            ],
+            top
+          )
+        );
+      },
     });
 
   const result = go(self, start, targetWidth);
@@ -1460,18 +1516,37 @@ const cropHeightInternal = <A>(
               annotation: box.annotation,
             });
       },
-      subBox: (inner, xAlign, yAlign) =>
-        make({
-          rows: rowsToKeep,
-          cols: box.cols,
-          content: {
-            _tag: "SubBox",
-            xAlign,
-            yAlign,
-            box: go(inner, rowOffset, rowsToKeep),
-          },
-          annotation: box.annotation,
-        }),
+      subBox: (inner, xAlign, yAlign) => {
+        const crop = alignedCrop(
+          yAlign,
+          box.rows,
+          inner.rows,
+          rowOffset,
+          rowsToKeep
+        );
+
+        if (crop.innerSize === 0) {
+          return preserveAnnotation(box, emptyBox(rowsToKeep, box.cols));
+        }
+
+        const content = alignHoriz(
+          go(inner, crop.innerOffset, crop.innerSize),
+          xAlign,
+          box.cols
+        );
+
+        return preserveAnnotation(
+          box,
+          vcat(
+            [
+              emptyBox(crop.leadingBlank, box.cols),
+              content,
+              emptyBox(crop.trailingBlank, box.cols),
+            ],
+            left
+          )
+        );
+      },
     });
 
   const result = go(self, start, targetHeight);
