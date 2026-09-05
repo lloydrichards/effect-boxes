@@ -368,6 +368,71 @@ export const truncatePreservingAnsi = (
 
   return result;
 };
+
+const truncateAlignedPreservingAnsi = (
+  str: string,
+  maxVisibleLength: number,
+  alignment: Box.Alignment
+): string => {
+  if (maxVisibleLength <= 0) {
+    return "";
+  }
+  if (!str.includes(ESC)) {
+    return takePA(Width.segments(str), alignment, " ", maxVisibleLength).join(
+      ""
+    );
+  }
+
+  const visibleLength = Width.ofString(str);
+  const overflow = visibleLength - maxVisibleLength;
+  const start = (() => {
+    switch (alignment) {
+      case "AlignFirst":
+        return 0;
+      case "AlignLast":
+        return overflow;
+      case "AlignCenter1":
+        return Math.ceil(overflow / 2);
+      case "AlignCenter2":
+        return Math.floor(overflow / 2);
+    }
+  })();
+  const end = start + maxVisibleLength;
+  const segments = Width.segments(str);
+  let result = "";
+  let column = 0;
+  let skipNext = 0;
+
+  for (let index = 0; index < segments.length; index++) {
+    if (skipNext > 0) {
+      skipNext--;
+      continue;
+    }
+
+    const segment = segments[index] ?? "";
+    if (segment === ESC && segments[index + 1] === "[") {
+      const sequenceEnd = findAnsiSequenceEnd(segments, index);
+      result += segments.slice(index, sequenceEnd).join("");
+      skipNext = sequenceEnd - index - 1;
+      continue;
+    }
+
+    const segmentWidth = Width.ofString(segment);
+    const nextColumn = column + segmentWidth;
+    if (column >= start && nextColumn <= end) {
+      result += segment;
+    }
+
+    column = nextColumn;
+    if (column >= end) {
+      break;
+    }
+  }
+
+  return result.includes(ESC) && !result.endsWith(RESET)
+    ? result + RESET
+    : result;
+};
 /** @internal */
 export const padPreservingAnsi = (
   str: string,
@@ -375,8 +440,11 @@ export const padPreservingAnsi = (
   alignment: Box.Alignment = "AlignFirst"
 ): string => {
   const currentVisibleLength = Width.ofString(str);
-  if (currentVisibleLength >= targetVisibleLength) {
-    return truncatePreservingAnsi(str, targetVisibleLength);
+  if (currentVisibleLength === targetVisibleLength) {
+    return str;
+  }
+  if (currentVisibleLength > targetVisibleLength) {
+    return truncateAlignedPreservingAnsi(str, targetVisibleLength, alignment);
   }
 
   // Fast path for simple cases without ANSI sequences
