@@ -29,10 +29,11 @@ jobs:
       - run: bun run build
       - name: Create Release PR or Publish
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          publish: npx changeset publish
-          title: "chore: version packages"
-          commit: "chore: version packages"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          publish-script: npx changeset publish
+          pr-title: "chore: version packages"
+          commit-message: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
