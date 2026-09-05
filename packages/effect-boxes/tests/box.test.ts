@@ -810,10 +810,22 @@ describe("Hash", () => {
     expect(Hash.hash(box1)).toBe(Hash.hash(box2));
   });
 
-  it("uses cached hash implementation for performance", () => {
-    const hash1 = Hash.hash(Box.text("cached"));
-    const hash2 = Hash.hash(Box.text("cached"));
+  it("should reuse the cached hash when hashing the same box repeatedly", () => {
+    const box = Box.text("cached");
+    const computeHash = box[Hash.symbol].bind(box);
+    let computations = 0;
+    Object.defineProperty(box, Hash.symbol, {
+      value: () => {
+        computations += 1;
+        return computeHash();
+      },
+    });
+
+    const hash1 = Hash.hash(box);
+    const hash2 = Hash.hash(box);
+
     expect(hash1).toBe(hash2);
+    expect(computations).toBe(1);
   });
 });
 
