@@ -10,8 +10,8 @@
 - **Type check:** `bun run type-check`
 - **Lint & format:** `bun run lint` / `bun run format`
 - **Validate docs:** `bun run docs:check`
-- **Run scratchpad:** `bun run scratch`
-- **Test a single file:** `bun run test tests/box.test.ts`
+- **Run scratchpad:** `bun run --cwd apps/scratchpad dev`
+- **Test a single file:** `bun run --cwd packages/effect-boxes test tests/box.test.ts`
 - **Search code:** `rg "pattern"`
 
 ---
@@ -53,16 +53,14 @@ functional composition.
 ### Directory Structure
 
 ```txt
-src/
-├── Box.ts          # Core Box data type and operations
-├── Annotation.ts   # Text annotation system
-└── Ansi.ts         # Terminal rendering with ANSI codes
-tests/
-├── box.test.ts     # Pure function tests (regular vitest)
-├── ansi.test.ts    # Integration tests
-└── *.test.ts       # Additional test suites
-scratchpad/         # Development playground
-└── index.ts        # Live examples and experimentation
+packages/effect-boxes/
+├── src/           # Box, Annotation, Ansi, Cmd, Reactive, Renderer, Html, Layout
+├── tests/         # Vitest suites
+├── benchmarks/    # Vitest benchmarks
+└── scripts/       # Documentation validation
+apps/
+├── docs/          # Documentation website
+└── scratchpad/    # Runnable examples; 00-index.ts is the launcher
 ```
 
 ### Library Design Patterns
@@ -86,7 +84,7 @@ All Box types implement `Pipeable` for fluent composition:
 
 ```typescript
 import { pipe } from "effect";
-import * as Box from "./src/Box";
+import * as Box from "effect-boxes/Box";
 
 // Fluent composition with pipe
 const layout = pipe(
@@ -108,15 +106,17 @@ const layout2 = Box.text("Hello World")
 For structural equality and efficient comparisons:
 
 ```typescript
-import { Equal, Hash } from "effect";
+import { Equal, HashSet } from "effect";
 
 // Boxes implement Equal for value-based comparison
 const box1 = Box.text("hello");
 const box2 = Box.text("hello");
 console.log(Equal.equals(box1, box2)); // true
 
-// Hash enables efficient Set/Map operations
-const boxSet = new Set([box1, box2]); // Contains only one item
+// Effect collections use Equal and Hash for structural equality.
+const boxSet = HashSet.make(box1, box2);
+console.log(HashSet.size(boxSet)); // 1
+// Native Set and Map compare object references instead.
 ```
 
 #### 3. Dual Functions
@@ -214,29 +214,32 @@ describe("Box", () => {
 });
 ```
 
-#### Use @effect/vitest for Effect-based Code
+#### Test Effect-based rendering with Vitest
 
-**MANDATORY**: Use `@effect/vitest` when testing functions that return `Effect`
-types:
+The current renderer suites use regular `vitest` with `Effect.runSync` or
+`Effect.runPromise`. Provide the renderer layer explicitly:
 
 ```typescript
-import { describe, it, assert } from "@effect/vitest";
-import { Effect, Console } from "effect";
+import { describe, expect, it } from "vitest";
+import { Effect } from "effect";
 import * as Box from "../src/Box";
+import * as Renderer from "../src/Renderer";
 
-describe("Box Effects", () => {
-  it.effect("should render box to console", () =>
-    Effect.gen(function* () {
-      const box = Box.text("Hello\nWorld");
-      yield* Box.printBox(box); // Hypothetical Effect-returning function
-
-      // Use assert methods from @effect/vitest
-      assert.strictEqual(box.rows, 2);
-      assert.strictEqual(box.cols, 5);
-    })
-  );
+describe("Box rendering", () => {
+  it("renders text with the plain renderer", () => {
+    const output = Effect.runSync(
+      Renderer.render(Box.text("Hello"), {}).pipe(
+        Effect.provide(Renderer.PlainRendererLive)
+      )
+    );
+    expect(output).toBe("Hello");
+  });
 });
 ```
+
+If future tests need managed fibers, scopes, or a test clock, choose a compatible
+Effect test runner and document its setup when adding it. `@effect/vitest` is
+not currently a dependency.
 
 ### Testing Pure Functions
 
@@ -312,6 +315,8 @@ bench(
 
 ### Development Commands
 
+Run commands from the repository root unless stated otherwise. Tests use
+Vitest through the package scripts; do not substitute Bun's native `bun test`.
 This project uses **Bun** as the runtime and **Biome** for linting/formatting:
 
 ```bash
@@ -320,8 +325,8 @@ bun install
 
 # Run tests
 bun run test        # Run all tests once
-bun run test --watch  # Watch mode for development
-bun run benchmark:quick  # Run benchmarks
+bun run --cwd packages/effect-boxes test --watch  # Watch mode for development
+bun run --cwd packages/effect-boxes benchmark benchmarks/quick.bench.ts  # Run benchmarks
 
 # Type checking
 bun run type-check  # TypeScript compilation check
@@ -332,25 +337,25 @@ bun run format      # Auto-format code
 bun run docs:check  # Validate TSDoc/JSDoc syntax
 
 # Development playground
-bun run scratch     # Run scratchpad examples
+bun run --cwd apps/scratchpad dev     # Run scratchpad examples
 ```
 
 ### Scratchpad Development Workflow
 
-For efficient example development, use the `./scratchpad/` directory:
+For efficient example development, use the `./apps/scratchpad/` directory:
 
 ```bash
 # Create temporary development files
-touch ./scratchpad/test-example.ts
+touch ./apps/scratchpad/test-example.ts
 
-# Check TypeScript compilation
-bun run type-check
+# Check scratchpad TypeScript compilation
+bun run --cwd apps/scratchpad build
 
 # Fix formatting using project rules
 bun run format
 
 # Test execution
-bun run scratchpad/test-example.ts
+bun run apps/scratchpad/test-example.ts
 ```
 
 **Scratchpad Benefits:**
@@ -364,8 +369,8 @@ bun run scratchpad/test-example.ts
 
 ```bash
 # Clean up test files when done
-rm scratchpad/test-*.ts
-rm scratchpad/temp*.ts scratchpad/example*.ts
+rm apps/scratchpad/test-*.ts
+rm apps/scratchpad/temp*.ts apps/scratchpad/example*.ts
 ```
 
 ## 📋 Style & Conventions
@@ -595,8 +600,8 @@ Use `/** @internal */` for implementation details not part of public API.
   guidelines.
 - For coding agents: this `AGENTS.md` is your primary source for build, test,
   and style instructions.
-- For API documentation and examples: see inline TSDoc comments in `src/`, and
-  live usage in `scratchpad/index.ts`.
+- For API documentation and examples: see inline TSDoc comments in `packages/effect-boxes/src/`, and
+  live usage in `apps/scratchpad/00-index.ts`.
 - For troubleshooting or advanced usage, consult the official
   [Effect documentation](https://effect.website/) and
   [TypeScript Handbook](https://www.typescriptlang.org/docs/).
@@ -616,9 +621,9 @@ documentation for all coding agents and future maintainers.
 - **What if instructions here conflict with README.md?**  
   AGENTS.md takes precedence for agent tasks.
 - **How do I run a specific test?**  
-  Use `bun run test tests/<file>.test.ts`
+  Use `bun run --cwd packages/effect-boxes test tests/<file>.test.ts`
 - **Where do I add new test files?**  
-  Place them in the `tests/` directory, named `<module>.test.ts`
+  Place them in the `packages/effect-boxes/tests/` directory, named `<module>.test.ts`
 - **How do I check formatting?**  
   Run `bun run lint` and `bun run format`
 - **How do I validate JSDoc/TSDoc comments?**  

@@ -11,8 +11,8 @@ The project includes a `flake.nix` that provides Bun, Node.js, and all other
 tools automatically. Nothing else to install.
 
 ```bash
-git clone https://github.com/lloydrichards/proj_effect-boxes.git
-cd proj_effect-boxes
+git clone https://github.com/lloydrichards/effect-boxes.git
+cd effect-boxes
 
 # If you use direnv (recommended alongside nix):
 direnv allow
@@ -32,92 +32,92 @@ Install these yourself:
 - Node.js 24+
 
 ```bash
-git clone https://github.com/lloydrichards/proj_effect-boxes.git
-cd proj_effect-boxes
+git clone https://github.com/lloydrichards/effect-boxes.git
+cd effect-boxes
 bun install
 ```
 
 ## Development Commands
 
+Run these commands from the repository root. The root test script delegates to
+Vitest through Turbo; `bun test` invokes a different test runner.
+
 ```bash
 # Run tests
-bun test
+bun run test
 
 # Run tests in watch mode
-bun test --watch
+bun run --cwd packages/effect-boxes test --watch
 
 # Type check
-bun type-check
+bun run type-check
 
 # Lint code
-bun lint
+bun run lint
 
 # Format code
-bun format
+bun run format
 
 # Validate documentation
-bun docs:check
+bun run docs:check
 
 # Run examples/scratchpad
-bun run scratch
+bun run --cwd apps/scratchpad dev
 ```
 
 ## Project Structure
 
 ```txt
-src/
-├── Box.ts          # Core Box data type and operations
-├── Annotation.ts   # Text annotation system
-├── Ansi.ts         # ANSI terminal styling
-├── Cmd.ts          # Terminal control commands
-├── Reactive.ts     # Position tracking for interactive UIs
-└── Width.ts        # Text width calculations
-tests/
-├── box.test.ts     # Core Box tests
-├── ansi.test.ts    # ANSI integration tests
-└── *.test.ts       # Additional test suites
-scratchpad/         # Development playground
+packages/effect-boxes/
+├── src/           # Public modules and internal implementations
+├── tests/         # Vitest suites
+├── benchmarks/    # Vitest benchmarks
+└── scripts/       # Documentation validation
+apps/
+├── docs/          # Documentation website
+└── scratchpad/    # Runnable examples; 00-index.ts is the launcher
 ```
 
 ## Development Workflow
 
 ### Using the Scratchpad
 
-The `scratchpad/` directory is your playground for experimenting with the
+The `apps/scratchpad/` directory is your playground for experimenting with the
 library:
 
 ```bash
 # Create a test file
-touch scratchpad/my-experiment.ts
+touch apps/scratchpad/my-experiment.ts
 
 # Run it
-bun run scratchpad/my-experiment.ts
+bun run apps/scratchpad/my-experiment.ts
 
 # Clean up when done
-rm scratchpad/my-experiment.ts
+rm apps/scratchpad/my-experiment.ts
 ```
 
 ### Running Specific Tests
 
 ```bash
 # Run a single test file
-bun test tests/box.test.ts
+bun run --cwd packages/effect-boxes test tests/box.test.ts
 
 # Run tests matching a pattern
-bun test --grep "alignment"
+bun run --cwd packages/effect-boxes test -t "alignment"
 ```
 
 ## Testing Guidelines
 
 - Use regular `vitest` for pure functions that don't return Effect types
-- Use `@effect/vitest` for functions that return Effect types
+- Use regular `vitest` with `Effect.runSync` or `Effect.runPromise` for the current renderer tests. Provide the renderer layer explicitly.
+- If tests need managed fibers, scopes, or a test clock, choose a compatible Effect test runner and document that setup when introducing it.
 - Focus on testing mathematical properties and edge cases
-- See existing tests in `tests/` for patterns
+- See existing tests in `packages/effect-boxes/tests/` for patterns
 
 ## Code Style
 
 This project uses [Biome](https://biomejs.dev/) for linting and formatting. Run
-`bun lint` and `bun format` before committing.
+`bun run lint` and `bun run format` before committing.
 
 Key conventions:
 
@@ -149,7 +149,7 @@ versioning and publishing.
 When making a noteworthy change, add a changeset:
 
 ```bash
-bun changeset
+bunx changeset
 ```
 
 Follow the prompts to:
@@ -168,7 +168,7 @@ This creates a markdown file in `.changeset/`.
    and removes consumed changeset files
 4. **Automatic publish**: After merging, CI publishes to npm automatically
 5. **Verify**: Check
-   [GitHub Actions](https://github.com/lloydrichards/proj_effect-boxes/actions)
+   [GitHub Actions](https://github.com/lloydrichards/effect-boxes/actions)
    and [npm](https://www.npmjs.com/package/effect-boxes)
 
 ## Getting Help

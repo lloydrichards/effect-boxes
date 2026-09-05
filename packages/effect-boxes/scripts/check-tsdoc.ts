@@ -52,6 +52,7 @@ const PUBLIC_MODULES = [
   "src/Box.ts",
   "src/Cmd.ts",
   "src/Html.ts",
+  "src/Layout.ts",
   "src/Reactive.ts",
   "src/Renderer.ts",
 ] as const;
