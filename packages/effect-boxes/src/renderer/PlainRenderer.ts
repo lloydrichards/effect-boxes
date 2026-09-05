@@ -1,7 +1,6 @@
 import { Effect, Layer } from "effect";
 import type * as Annotation from "../Annotation.js";
 import type * as Box from "../Box.js";
-import { takeP, takePA } from "../internal/box.js";
 import { Renderer, renderBox } from "../internal/renderer.js";
 import * as Width from "../internal/width.js";
 import type * as R from "../Renderer.js";
@@ -13,12 +12,12 @@ export const makePlainRenderer = Layer.effect(
   Effect.gen(function* () {
     const processor: R.TextProcessor = {
       processLine: (text: string, targetWidth: number) =>
-        takeP(Width.segments(text), " ", targetWidth).join(""),
+        Width.fitString(text, targetWidth, "AlignFirst"),
       processLineAligned: (
         text: string,
         targetWidth: number,
         alignment: Box.Alignment
-      ) => takePA(Width.segments(text), alignment, " ", targetWidth).join(""),
+      ) => Width.fitString(text, targetWidth, alignment),
       preservesFormatting: false,
     };
 
