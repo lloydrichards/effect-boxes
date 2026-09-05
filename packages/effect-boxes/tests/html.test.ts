@@ -185,6 +185,45 @@ describe("Html", () => {
       expect(result).toBe("<div>\nLine 1\nLine 2\nLine 3\n</div>");
     });
 
+    it("preserves blank lines in preformatted content", async () => {
+      const box = Box.text("Line 1\n\nLine 3").pipe(Box.annotate(Html.pre()));
+      const result = await pipe(
+        box,
+        Renderer.render(),
+        Effect.provide(Renderer.HtmlRendererLive),
+        Effect.runPromise
+      );
+
+      expect(result).toBe("<pre>\nLine 1\n\nLine 3\n</pre>");
+    });
+
+    it("preserves leading and trailing blank lines in preformatted content", async () => {
+      const box = Box.text("\nLine 2\n").pipe(Box.annotate(Html.pre()));
+      const result = await pipe(
+        box,
+        Renderer.render(),
+        Effect.provide(Renderer.HtmlRendererLive),
+        Effect.runPromise
+      );
+
+      expect(result).toBe("<pre>\n\nLine 2\n\n</pre>");
+    });
+
+    it("preserves nested blank lines in pretty preformatted content", async () => {
+      const code = Box.text("Line 1\n\nLine 3").pipe(Box.annotate(Html.code()));
+      const box = Box.vcat([code], Box.left).pipe(Box.annotate(Html.pre()));
+      const result = await pipe(
+        box,
+        Renderer.render({ preserveWhitespace: true }),
+        Effect.provide(Renderer.HtmlPrettyRendererLive),
+        Effect.runPromise
+      );
+
+      expect(result).toBe(
+        "<pre>\n    <code>\n      Line 1\n\n      Line 3\n    </code>\n</pre>"
+      );
+    });
+
     it("renders empty box with div", async () => {
       const box = Box.emptyBox(0, 0).pipe(Box.annotate(Html.div()));
       const result = await pipe(
