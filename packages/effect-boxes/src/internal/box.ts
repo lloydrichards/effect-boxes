@@ -878,12 +878,42 @@ export const annotate = dual<
 );
 
 /** @internal */
-export const unAnnotate = <A>(self: Box.Box<A>): Box.Box<never> =>
-  make({
+export const unAnnotate = <A>(self: Box.Box<A>): Box.Box<never> => {
+  let content: Box.Content<never>;
+  switch (self.content._tag) {
+    case "Blank": {
+      content = { _tag: "Blank" };
+      break;
+    }
+    case "Text": {
+      content = { _tag: "Text", text: self.content.text };
+      break;
+    }
+    case "Row": {
+      content = { _tag: "Row", boxes: self.content.boxes.map(unAnnotate) };
+      break;
+    }
+    case "Col": {
+      content = { _tag: "Col", boxes: self.content.boxes.map(unAnnotate) };
+      break;
+    }
+    case "SubBox": {
+      content = {
+        _tag: "SubBox",
+        xAlign: self.content.xAlign,
+        yAlign: self.content.yAlign,
+        box: unAnnotate(self.content.box),
+      };
+      break;
+    }
+  }
+
+  return make({
     rows: self.rows,
     cols: self.cols,
-    content: self.content as Box.Content<never>, // Safe cast - removing annotations
+    content,
   });
+};
 
 /** @internal */
 export const reAnnotate = dual<

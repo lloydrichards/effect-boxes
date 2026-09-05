@@ -1013,6 +1013,55 @@ describe("Annotation Functions", () => {
         Box.renderPrettySync(complexBox)
       );
     });
+
+    it("removes annotations nested in rows and columns", () => {
+      const annotated = Box.vcat(
+        [
+          Box.hcat(
+            [
+              Box.text("red").pipe(Box.annotate(Ansi.red)),
+              Box.text("blue").pipe(Box.annotate(Ansi.blue)),
+            ],
+            Box.top
+          ),
+          Box.text("bold").pipe(Box.annotate(Ansi.bold)),
+        ],
+        Box.left
+      ).pipe(Box.annotate(Ansi.underlined));
+      const expected = Box.vcat(
+        [Box.hcat([Box.text("red"), Box.text("blue")], Box.top), Box.text("bold")],
+        Box.left
+      );
+
+      const result = Box.unAnnotate(annotated);
+
+      expect(Box.renderPrettySync(annotated)).toContain("\x1b[");
+      expect(Box.renderPrettySync(result)).toBe("redblue\nbold");
+      expect(Equal.equals(result, expected)).toBe(true);
+    });
+
+    it("removes annotations nested in an aligned sub-box", () => {
+      const annotated = Box.align(
+        Box.text("center").pipe(Box.annotate(Ansi.magenta)),
+        Box.center1,
+        Box.center2,
+        3,
+        10
+      ).pipe(Box.annotate(Ansi.bold));
+      const expected = Box.align(
+        Box.text("center"),
+        Box.center1,
+        Box.center2,
+        3,
+        10
+      );
+
+      const result = Box.unAnnotate(annotated);
+
+      expect(Box.renderPrettySync(annotated)).toContain("\x1b[");
+      expect(Box.renderPrettySync(result)).toBe(Box.renderPrettySync(expected));
+      expect(Equal.equals(result, expected)).toBe(true);
+    });
   });
 
   describe("reAnnotate", () => {
