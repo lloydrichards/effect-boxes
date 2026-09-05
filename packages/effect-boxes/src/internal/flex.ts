@@ -74,8 +74,8 @@ const computeSizes = <A>(
       Match.tag("Fixed", () => 0),
       Match.orElse((c) =>
         totalFactor > 0
-          ? Math.max(1, Math.floor((c.factor / totalFactor) * available))
-          : 1
+          ? Math.max(0, Math.floor((c.factor / totalFactor) * available))
+          : 0
       )
     )
   );
@@ -83,7 +83,7 @@ const computeSizes = <A>(
   const growIndices = pipe(
     children,
     Arr.reduce<number[], Flex.Child<A>>([], (acc, child, i) =>
-      child._tag !== "Fixed" ? Arr.append(acc, i) : acc
+      child._tag !== "Fixed" && child.factor > 0 ? Arr.append(acc, i) : acc
     )
   );
 

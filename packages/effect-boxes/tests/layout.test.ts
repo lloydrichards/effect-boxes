@@ -82,6 +82,19 @@ describe("Flex.row", () => {
     expect(received).toBe(8);
   });
 
+  it("does not distribute remainder to zero-factor children", () => {
+    const received: number[] = [];
+    const child = (factor: number) =>
+      Flex.fill((size) => {
+        received.push(size);
+        return Box.emptyBox(1, size);
+      }, factor);
+
+    Flex.row([child(0), child(1), child(1)], 1);
+
+    expect(received).toEqual([0, 1, 0]);
+  });
+
   it("supports data-last pipe usage", () => {
     const children = [Flex.fixed(Box.text("A")), Flex.grow(Box.text("B"))];
     const result = pipe(children, Flex.row(20));
@@ -95,6 +108,16 @@ describe("Flex.row", () => {
     );
     // fixed is 10 > container 5, grow gets 0 (clamped), result > container
     expect(Box.cols(result)).toBeGreaterThanOrEqual(10);
+  });
+
+  it("should allocate zero width to grow children when fixed children use all available width", () => {
+    const result = Flex.row(
+      [Flex.fixed(Box.text("ABCDE")), Flex.grow(Box.text("x"))],
+      5
+    );
+
+    expect(Box.cols(result)).toBe(5);
+    expect(Box.renderPlainSync(result)).toBe("ABCDE");
   });
 });
 
