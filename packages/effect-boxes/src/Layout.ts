@@ -200,6 +200,7 @@ export declare namespace Flex {
     readonly _tag: "Fill";
     readonly builder: (size: number) => Box.Box<A>;
     readonly factor: number;
+    readonly isSpacer?: true;
   }
 
   /**
