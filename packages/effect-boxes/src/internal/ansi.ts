@@ -271,12 +271,12 @@ export const applyAnsiStyling = (
       onNone: () => lines,
       onSome: (sequence) =>
         Array.map(lines, (line) => {
-          if (line.startsWith(sequence)) {
-            return line;
-          }
+          const content = line.startsWith(sequence)
+            ? line.slice(sequence.length)
+            : line;
 
-          if (line.includes(RESET)) {
-            const injected = line.split(RESET).join(`${RESET}${sequence}`);
+          if (content.includes(RESET)) {
+            const injected = content.split(RESET).join(`${RESET}${sequence}`);
             const withPrefix = `${sequence}${injected}`;
             return withPrefix.endsWith(RESET)
               ? withPrefix
@@ -284,11 +284,11 @@ export const applyAnsiStyling = (
           }
 
           // Don't apply styling to empty lines
-          if (line === "") {
-            return line;
+          if (content === "") {
+            return content;
           }
 
-          return `${sequence}${line}${RESET}`;
+          return `${sequence}${content}${RESET}`;
         }),
     })
   );
