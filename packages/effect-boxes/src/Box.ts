@@ -56,10 +56,10 @@ import type * as Equal from "effect/Equal";
 import type * as Hash from "effect/Hash";
 import type * as Inspectable from "effect/Inspectable";
 import type { Pipeable } from "effect/Pipeable";
-import type { Annotation } from "./Annotation";
-import * as internal from "./internal/box";
-import * as internalRender from "./internal/box-render";
-import type * as Renderer from "./Renderer";
+import type { Annotation } from "./Annotation.js";
+import * as internal from "./internal/box.js";
+import * as internalRender from "./internal/box-render.js";
+import type * as Renderer from "./Renderer.js";
 
 /**
  * Symbol used to identify Box values at runtime.

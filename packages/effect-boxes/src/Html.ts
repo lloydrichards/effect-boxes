@@ -11,9 +11,9 @@
  *
  * @module
  */
-import type * as Annotation from "./Annotation";
-import * as internal from "./internal/html";
-import type * as Renderer from "./Renderer";
+import type * as Annotation from "./Annotation.js";
+import * as internal from "./internal/html.js";
+import type * as Renderer from "./Renderer.js";
 
 /**
  * Data payload stored in HTML annotations.

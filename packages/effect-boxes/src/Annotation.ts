@@ -25,7 +25,7 @@
 import type * as Equal from "effect/Equal";
 import type * as Hash from "effect/Hash";
 import type { Pipeable } from "effect/Pipeable";
-import * as internal from "./internal/annotation";
+import * as internal from "./internal/annotation.js";
 
 /**
  * @category models

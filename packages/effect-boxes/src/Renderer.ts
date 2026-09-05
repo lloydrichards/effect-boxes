@@ -18,11 +18,11 @@
  * @module
  */
 import { type Effect, Layer } from "effect";
-import type * as Box from "./Box";
-import * as internal from "./internal/renderer";
-import { makeAnsiRenderer } from "./renderer/AnsiRenderer";
-import { HtmlRenderConfig, makeHtmlRenderer } from "./renderer/HtmlRenderer";
-import { makePlainRenderer } from "./renderer/PlainRenderer";
+import type * as Box from "./Box.js";
+import * as internal from "./internal/renderer.js";
+import { makeAnsiRenderer } from "./renderer/AnsiRenderer.js";
+import { HtmlRenderConfig, makeHtmlRenderer } from "./renderer/HtmlRenderer.js";
+import { makePlainRenderer } from "./renderer/PlainRenderer.js";
 
 /**
  * Text processing interface for customizing line rendering behavior.

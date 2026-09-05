@@ -1,6 +1,6 @@
 import { Console, Effect, pipe } from "effect";
-import type * as Box from "../Box";
-import * as Renderer from "../Renderer";
+import type * as Box from "../Box.js";
+import * as Renderer from "../Renderer.js";
 
 /** @internal */
 export const defaultRenderConfig: Renderer.RenderStyle = {

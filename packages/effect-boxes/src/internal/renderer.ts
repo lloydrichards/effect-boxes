@@ -1,11 +1,11 @@
 import { Array, Context, Effect, Option, pipe } from "effect";
 import { dual } from "effect/Function";
-import type * as Annotation from "../Annotation";
-import type * as Box from "../Box";
-import type * as Reactive from "../Reactive";
-import type * as R from "../Renderer";
-import { blanks, isBox, match, merge, takeP, takePA } from "./box";
-import { getPositions } from "./reactive";
+import type * as Annotation from "../Annotation.js";
+import type * as Box from "../Box.js";
+import type * as Reactive from "../Reactive.js";
+import type * as R from "../Renderer.js";
+import { blanks, isBox, match, merge, takeP, takePA } from "./box.js";
+import { getPositions } from "./reactive.js";
 
 export class Renderer extends Context.Service<
   Renderer,

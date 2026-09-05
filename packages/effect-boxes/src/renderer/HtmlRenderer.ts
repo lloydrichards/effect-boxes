@@ -1,10 +1,10 @@
 import { Array, Context, Effect, Layer } from "effect";
-import type * as Annotation from "../Annotation";
-import type * as Box from "../Box";
-import { match } from "../internal/box";
-import { isHtml, isVoidElement } from "../internal/html";
-import { Renderer, renderBoxArray } from "../internal/renderer";
-import type * as R from "../Renderer";
+import type * as Annotation from "../Annotation.js";
+import type * as Box from "../Box.js";
+import { match } from "../internal/box.js";
+import { isHtml, isVoidElement } from "../internal/html.js";
+import { Renderer, renderBoxArray } from "../internal/renderer.js";
+import type * as R from "../Renderer.js";
 
 const escapeHtml = (text: string): string =>
   text

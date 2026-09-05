@@ -1,8 +1,8 @@
 import { Array, Option, pipe } from "effect";
-import type * as Ansi from "../Ansi";
-import type * as Box from "../Box";
-import { createAnnotation } from "./annotation";
-import { annotate, nullBox } from "./box";
+import type * as Ansi from "../Ansi.js";
+import type * as Box from "../Box.js";
+import { createAnnotation } from "./annotation.js";
+import { annotate, nullBox } from "./box.js";
 
 const ESC = "\x1b";
 const CSI = `${ESC}[`;
