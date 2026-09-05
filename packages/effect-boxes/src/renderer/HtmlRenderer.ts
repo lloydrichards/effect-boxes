@@ -154,6 +154,15 @@ export const makeHtmlRenderer = Layer.effect(
               ),
           ]);
         }
+
+        if (box.rows > 0) {
+          return postProcess(
+            Array.makeBy(box.rows, () => ""),
+            box.annotation,
+            depth
+          );
+        }
+
         return Effect.succeed([
           indent +
             ((element: string, attributes?: Record<string, string>): string =>
@@ -170,8 +179,12 @@ export const makeHtmlRenderer = Layer.effect(
         const currentDepth = isHtml(box.annotation?.data) ? depth + 1 : depth;
 
         const lines = yield* Effect.gen(function* () {
-          if (box.rows === 0 || box.cols === 0) {
+          if (box.rows === 0) {
             return [];
+          }
+
+          if (box.cols === 0) {
+            return Array.makeBy(box.rows, () => "");
           }
 
           return yield* match(box, {
