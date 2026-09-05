@@ -4,6 +4,35 @@ import * as Ansi from "../src/Ansi";
 import * as Box from "../src/Box";
 
 describe("Ansi Render Configuration", () => {
+  describe("Aligned clipping", () => {
+    it("should retain the rightmost columns in both renderers when right-aligned content is clipped", () => {
+      const box = Box.alignHoriz(Box.text("abc"), Box.right, 2);
+
+      expect(Box.renderPlainSync(box)).toBe("bc");
+      expect(Box.renderPrettySync(box)).toBe("bc");
+    });
+
+    it("should preserve each center bias in both renderers when odd-width content is clipped", () => {
+      const center1 = Box.alignHoriz(Box.text("abc"), Box.center1, 2);
+      const center2 = Box.alignHoriz(Box.text("abc"), Box.center2, 2);
+
+      expect(Box.renderPlainSync(center1)).toBe("bc");
+      expect(Box.renderPrettySync(center1)).toBe("bc");
+      expect(Box.renderPlainSync(center2)).toBe("ab");
+      expect(Box.renderPrettySync(center2)).toBe("ab");
+    });
+
+    it("should retain the requested columns and ANSI style when aligned styled content is clipped", () => {
+      const box = Box.alignHoriz(
+        Box.text("abc").pipe(Box.annotate(Ansi.red)),
+        Box.right,
+        2
+      );
+
+      expect(Box.renderPrettySync(box)).toBe("\x1b[31mbc\x1b[0m");
+    });
+  });
+
   // ============================================================================
   // Pretty vs Plain Rendering (FR-011, FR-012)
   // ============================================================================
