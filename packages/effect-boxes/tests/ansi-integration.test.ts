@@ -106,6 +106,34 @@ describe("Ansi Annotation Integration", () => {
   // ============================================================================
 
   describe("Style Inheritance and Scoping", () => {
+    it("should restore a parent style after a child with the same style resets", () => {
+      const layout = Box.hcat(
+        [
+          Box.text("a").pipe(Box.annotate(Ansi.red)),
+          Box.text("b"),
+        ],
+        Box.top
+      ).pipe(Box.annotate(Ansi.red));
+
+      expect(Box.renderPrettySync(layout)).toBe(
+        "\x1b[31ma\x1b[0m\x1b[31mb\x1b[0m"
+      );
+    });
+
+    it("should restore a parent style after a child with a different style resets", () => {
+      const layout = Box.hcat(
+        [
+          Box.text("a").pipe(Box.annotate(Ansi.blue)),
+          Box.text("b"),
+        ],
+        Box.top
+      ).pipe(Box.annotate(Ansi.red));
+
+      expect(Box.renderPrettySync(layout)).toBe(
+        "\x1b[31m\x1b[34ma\x1b[0m\x1b[31mb\x1b[0m"
+      );
+    });
+
     it("should maintain separate annotation scopes for nested boxes", () => {
       const innerBox = Box.text("Inner").pipe(Box.annotate(Ansi.red));
       const outerBox = Box.text("Outer").pipe(Box.annotate(Ansi.blue));
