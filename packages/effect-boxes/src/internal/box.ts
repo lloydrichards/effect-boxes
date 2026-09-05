@@ -1068,7 +1068,7 @@ export const border = dual<
     options?: BorderOptions<B>
   ) => Box.Box<A | B>
 >(
-  3,
+  (args) => isBox(args[0]),
   <A, B>(
     self: Box.Box<A>,
     style: BorderStyle = "single",
@@ -1169,7 +1169,7 @@ export const pad = dual<
     fourth?: number
   ) => Box.Box<A>
 >(
-  5,
+  (args) => isBox(args[0]),
   <A>(
     self: Box.Box<A>,
     first: number,
