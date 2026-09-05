@@ -1467,8 +1467,8 @@ export const unAnnotate: <A>(self: Box<A>) => Box<never> = internal.unAnnotate;
  * Transforms the annotation of a box using a provided function.
  *
  * Applies a transformation function to the box's annotation, allowing you
- * to modify or convert annotation data. If the box has no annotation,
- * returns the box unchanged.
+ * to modify or convert annotation data. Throws an error if the box has no
+ * annotation to transform.
  *
  * @example
  * ```typescript

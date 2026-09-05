@@ -1050,7 +1050,7 @@ describe("Annotation Functions", () => {
       expect(result.annotation?.data).toBe(20);
     });
 
-    it("throws error when trying to reAnnotate box without annotation", () => {
+    it("should throw when no annotation exists", () => {
       const box = Box.text("no annotation");
       const transform = (data: string) => data.toUpperCase();
 
