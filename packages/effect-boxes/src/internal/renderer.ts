@@ -139,17 +139,20 @@ export const renderBoxToLines = <A>(
 export const renderLinesToString = dual<
   (config?: R.RenderConfig) => (lines: string[]) => string,
   (lines: string[], config?: R.RenderConfig) => string
->(2, (lines, config) => {
-  const { preserveWhitespace } = {
-    ...defaultRenderConfig,
-    ...config,
-  };
+>(
+  (args) => Array.isArray(args[0]),
+  (lines, config) => {
+    const { preserveWhitespace } = {
+      ...defaultRenderConfig,
+      ...config,
+    };
 
-  if (preserveWhitespace) {
-    return lines.join("\n");
+    if (preserveWhitespace) {
+      return lines.join("\n");
+    }
+    return lines.map((line) => line.trimEnd()).join("\n");
   }
-  return lines.map((line) => line.trimEnd()).join("\n");
-});
+);
 
 // -----------------------------------------------------------------------------
 // Renderer Selection Utilities
@@ -164,11 +167,13 @@ export const render = dual<
     self: Box.Box<A>,
     config?: R.RenderConfig
   ) => Effect.Effect<string, never, Renderer>
->(2, (self, config) =>
-  Effect.gen(function* () {
-    const lines = yield* renderBoxToLines(self);
-    return renderLinesToString(lines, config);
-  })
+>(
+  (args) => isBox(args[0]),
+  (self, config) =>
+    Effect.gen(function* () {
+      const lines = yield* renderBoxToLines(self);
+      return renderLinesToString(lines, config);
+    })
 );
 
 // -----------------------------------------------------------------------------
