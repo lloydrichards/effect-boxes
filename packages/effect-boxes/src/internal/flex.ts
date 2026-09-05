@@ -41,6 +41,7 @@ export const spacer = (factor = 1): Flex.Child<never> => ({
   _tag: "Fill",
   builder: (size: number) => internal.emptyBox(0, size),
   factor,
+  isSpacer: true,
 });
 
 /*
@@ -103,7 +104,8 @@ const resolveFlexChildren = <A>(
   children: ReadonlyArray<Flex.Child<A>>,
   available: number,
   totalFactor: number,
-  alignFn: (box: Box.Box<A>, size: number) => Box.Box<A>
+  alignFn: (box: Box.Box<A>, size: number) => Box.Box<A>,
+  makeSpacer: (size: number) => Box.Box<never>
 ): Box.Box<A>[] => {
   const sizes = computeSizes(children, available, totalFactor);
 
@@ -111,7 +113,9 @@ const resolveFlexChildren = <A>(
     const size = sizes[i] ?? 0;
     return Match.value(child).pipe(
       Match.tag("Fixed", (c) => c.box),
-      Match.tag("Fill", (c) => c.builder(size)),
+      Match.tag("Fill", (c) =>
+        c.isSpacer === true ? makeSpacer(size) : c.builder(size)
+      ),
       Match.tag("Grow", (c) => alignFn(c.box, size)),
       Match.exhaustive
     );
@@ -156,8 +160,12 @@ export const row = dual<
     );
     const totalFactor = Arr.reduce(self, 0, (sum, c) => sum + flexFactor(c));
 
-    const sized = resolveFlexChildren(self, available, totalFactor, (box, w) =>
-      internal.alignHoriz(box, internal.left, w)
+    const sized = resolveFlexChildren(
+      self,
+      available,
+      totalFactor,
+      (box, w) => internal.alignHoriz(box, internal.left, w),
+      (size) => internal.emptyBox(0, size)
     );
 
     return internal.hsep(sized, gap, align);
@@ -202,8 +210,12 @@ export const col = dual<
     );
     const totalFactor = Arr.reduce(self, 0, (sum, c) => sum + flexFactor(c));
 
-    const sized = resolveFlexChildren(self, available, totalFactor, (box, h) =>
-      internal.alignVert(box, internal.top, h)
+    const sized = resolveFlexChildren(
+      self,
+      available,
+      totalFactor,
+      (box, h) => internal.alignVert(box, internal.top, h),
+      (size) => internal.emptyBox(size, 0)
     );
 
     return internal.vsep(sized, gap, align);

@@ -34,7 +34,11 @@ export const make = <A>(
 ): Box.Box<A> => {
   const height = options.height ?? 0;
   const [py, px] = resolvePadding(options);
-  const innerWidth = Math.max(0, options.width - px * 2);
+  const horizontalPadding = Math.min(
+    px,
+    Math.floor(Math.max(0, options.width) / 2)
+  );
+  const innerWidth = Math.max(0, options.width - horizontalPadding * 2);
   const innerHeight = Math.max(0, height - py * 2);
 
   const ctx: Container.Context = {
@@ -48,8 +52,8 @@ export const make = <A>(
     builder(ctx),
     (content) => internal.alignHoriz(content, internal.left, innerWidth),
     (widthEnforced) =>
-      py > 0 || px > 0
-        ? (internal.pad(py, px)(widthEnforced) as Box.Box<A>)
+      py > 0 || horizontalPadding > 0
+        ? (internal.pad(py, horizontalPadding)(widthEnforced) as Box.Box<A>)
         : widthEnforced
   );
 };

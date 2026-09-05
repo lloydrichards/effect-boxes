@@ -67,6 +67,22 @@ describe("Flex.row", () => {
     expect(rendered).toContain("R");
   });
 
+  it("should distribute row space across weighted spacers", () => {
+    const result = Flex.row(
+      [
+        Flex.fixed(Box.text("A")),
+        Flex.spacer(1),
+        Flex.fixed(Box.text("B")),
+        Flex.spacer(2),
+        Flex.fixed(Box.text("C")),
+      ],
+      10
+    );
+
+    expect(Box.cols(result)).toBe(10);
+    expect(Box.renderPlainSync(result)).toBe("A   B    C");
+  });
+
   it("fill builder receives allocated size", () => {
     let received = 0;
     Flex.row(
@@ -145,6 +161,53 @@ describe("Flex.col", () => {
     const result = pipe(children, Flex.col(8));
     expect(Box.rows(result)).toBe(8);
   });
+
+  it("should consume remaining height with one spacer", () => {
+    const result = Flex.col(
+      [Flex.fixed(Box.text("A")), Flex.spacer(), Flex.fixed(Box.text("B"))],
+      5
+    );
+
+    expect(Box.rows(result)).toBe(5);
+    expect(Box.renderPlainSync(result)).toBe("A\n \n \n \nB");
+  });
+
+  it("should distribute column space across weighted spacers", () => {
+    const result = Flex.col(
+      [
+        Flex.fixed(Box.text("A")),
+        Flex.spacer(1),
+        Flex.fixed(Box.text("B")),
+        Flex.spacer(2),
+        Flex.fixed(Box.text("C")),
+      ],
+      10
+    );
+
+    expect(Box.rows(result)).toBe(10);
+    expect(Box.renderPlainSync(result)).toBe("A\n \n \n \nB\n \n \n \n \nC");
+  });
+
+  it("should include gaps while a spacer consumes the remaining height", () => {
+    const result = Flex.col(
+      [Flex.fixed(Box.text("A")), Flex.spacer(), Flex.fixed(Box.text("B"))],
+      7,
+      { gap: 1 }
+    );
+
+    expect(Box.rows(result)).toBe(7);
+    expect(Box.renderPlainSync(result)).toBe("A\n \n \n \n \n \nB");
+  });
+
+  it("should allocate zero height to a spacer when no space remains", () => {
+    const result = Flex.col(
+      [Flex.fixed(Box.text("A")), Flex.spacer(), Flex.fixed(Box.text("B"))],
+      2
+    );
+
+    expect(Box.rows(result)).toBe(2);
+    expect(Box.renderPlainSync(result)).toBe("A\nB");
+  });
 });
 
 // ─── Container ───────────────────────────────────────────────────────────────
@@ -181,6 +244,46 @@ describe("Container", () => {
     });
     expect(ctx?.innerWidth).toBe(24); // 30 - 3*2
     expect(ctx?.innerHeight).toBe(16); // 20 - 2*2
+  });
+
+  it("should clamp symmetric horizontal padding to the declared width", () => {
+    let innerWidth = -1;
+    const result = Container.make({ width: 3, padding: 4 }, (ctx) => {
+      innerWidth = ctx.innerWidth;
+      return Box.text("content");
+    });
+
+    expect(innerWidth).toBe(1);
+    expect(Box.cols(result)).toBe(3);
+  });
+
+  it("should keep a zero-width container at zero with horizontal padding", () => {
+    let innerWidth = -1;
+    const result = Container.make({ width: 0, padding: 2 }, (ctx) => {
+      innerWidth = ctx.innerWidth;
+      return Box.text("content");
+    });
+
+    expect(innerWidth).toBe(0);
+    expect(Box.cols(result)).toBe(0);
+  });
+
+  it("should clamp tuple horizontal padding without changing vertical padding", () => {
+    let context:
+      | { readonly innerWidth: number; readonly innerHeight: number }
+      | undefined;
+    const result = Container.make(
+      { width: 4, height: 9, padding: [2, 3] },
+      (ctx) => {
+        context = ctx;
+        return Box.text("content");
+      }
+    );
+
+    expect(context?.innerWidth).toBe(0);
+    expect(context?.innerHeight).toBe(5);
+    expect(Box.cols(result)).toBe(4);
+    expect(Box.rows(result)).toBe(5);
   });
 });
 
