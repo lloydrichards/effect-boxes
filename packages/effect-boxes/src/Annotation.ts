@@ -313,11 +313,11 @@ export const extractAnnotationData: <A>(
 export type AnnotationData<T> = T extends Annotation<infer A> ? A : never;
 
 /**
- * Predefined empty annotation for use as a default or placeholder.
+ * Predefined annotation containing `undefined` for use as a default or
+ * placeholder.
  *
- * Provides a safe default annotation that contains no data. Useful for
- * initializing annotation systems, providing fallback values, or creating
- * placeholder annotations that can be replaced later.
+ * Its data type remains `undefined`, so it cannot be treated as an annotation
+ * containing another data type.
  *
  * @example
  * ```typescript
@@ -336,7 +336,7 @@ export type AnnotationData<T> = T extends Annotation<infer A> ? A : never;
  *
  * @category constructors
  */
-export const empty: Annotation<never> = internal.empty;
+export const empty: Annotation<undefined> = internal.empty;
 
 /**
  * Creates a copy of an annotation with the same data.

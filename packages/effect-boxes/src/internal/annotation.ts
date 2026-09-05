@@ -79,9 +79,8 @@ export const extractAnnotationData = <A>(
 ): A[] => annotations.map(getAnnotationData);
 
 /** @internal */
-export const empty: Annotation.Annotation<never> = createAnnotation(
-  undefined as never
-);
+export const empty: Annotation.Annotation<undefined> =
+  createAnnotation(undefined);
 
 /** @internal */
 export const cloneAnnotation = <A>(
