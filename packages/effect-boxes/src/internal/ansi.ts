@@ -1,10 +1,10 @@
 import { Array, Option, pipe } from "effect";
 import { dual } from "effect/Function";
-import type * as Ansi from "../Ansi";
-import type * as Box from "../Box";
-import { createAnnotation } from "./annotation";
-import { blanks, make, match, merge, takeP, takePA } from "./box";
-import * as Width from "./width";
+import type * as Ansi from "../Ansi.js";
+import type * as Box from "../Box.js";
+import { createAnnotation } from "./annotation.js";
+import { blanks, make, match, merge, takeP, takePA } from "./box.js";
+import * as Width from "./width.js";
 
 // ANSI escape sequence constants
 const ESC = "\x1b";

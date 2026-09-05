@@ -24,9 +24,9 @@
  *
  * @module
  */
-import type { Annotation } from "./Annotation";
-import type { Box } from "./Box";
-import * as internal from "./internal/ansi";
+import type { Annotation } from "./Annotation.js";
+import type { Box } from "./Box.js";
+import * as internal from "./internal/ansi.js";
 
 /**
  * @category models

@@ -17,10 +17,10 @@
  * @module
  */
 import type { HashMap, Option } from "effect";
-import type { Annotation } from "./Annotation";
-import type { AnsiStyle } from "./Ansi";
-import type { Box } from "./Box";
-import * as internal from "./internal/reactive";
+import type { Annotation } from "./Annotation.js";
+import type { AnsiStyle } from "./Ansi.js";
+import type { Box } from "./Box.js";
+import * as internal from "./internal/reactive.js";
 
 /*
  *  --------------------------------------------------------------------------------

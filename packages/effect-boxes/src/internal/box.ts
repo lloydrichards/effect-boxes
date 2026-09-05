@@ -10,9 +10,9 @@ import {
 } from "effect";
 import { dual } from "effect/Function";
 import { pipeArguments } from "effect/Pipeable";
-import type * as Annotation from "../Annotation";
-import type * as Box from "../Box";
-import * as Width from "./width";
+import type * as Annotation from "../Annotation.js";
+import type * as Box from "../Box.js";
+import * as Width from "./width.js";
 
 /** @internal */
 const BoxSymbolKey = "@effect/boxes/Box";
@@ -173,7 +173,7 @@ export const make = <A>(self: {
   rows: number;
   cols: number;
   content: Box.Content<A>;
-  annotation?: import("../Annotation").Annotation<A> | undefined;
+  annotation?: import("../Annotation.js").Annotation<A> | undefined;
 }): Box.Box<A> => {
   const box = Object.create(proto);
   box.rows = Math.max(0, self.rows);
@@ -857,17 +857,17 @@ export const match = dual<
 /** @internal */
 export const annotate = dual<
   <A>(
-    annotation: import("../Annotation").Annotation<A>
+    annotation: import("../Annotation.js").Annotation<A>
   ) => <B>(self: Box.Box<B>) => Box.Box<A>,
   <B, A>(
     self: Box.Box<B>,
-    annotation: import("../Annotation").Annotation<A>
+    annotation: import("../Annotation.js").Annotation<A>
   ) => Box.Box<A>
 >(
   2,
   <B, A>(
     self: Box.Box<B>,
-    annotation: import("../Annotation").Annotation<A>
+    annotation: import("../Annotation.js").Annotation<A>
   ): Box.Box<A> =>
     make({
       rows: self.rows,
@@ -954,7 +954,7 @@ export const alterAnnotation = dual<
       annotation: {
         ...self.annotation,
         data: newAnnotation,
-      } as import("../Annotation").Annotation<B>,
+      } as import("../Annotation.js").Annotation<B>,
     })
   );
 });

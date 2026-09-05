@@ -11,9 +11,9 @@
  *
  * @module
  */
-import type { AnsiStyle } from "./Ansi";
-import type { Box } from "./Box";
-import * as internalAnsi from "./internal/cmd";
+import type { AnsiStyle } from "./Ansi.js";
+import type { Box } from "./Box.js";
+import * as internalAnsi from "./internal/cmd.js";
 
 //  --------------------------------------------------------------------------------
 //  --  Cursor Movement Commands  --------------------------------------------------

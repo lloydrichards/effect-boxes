@@ -1,5 +1,5 @@
-import type * as Annotation from "../Annotation";
-import { createAnnotation } from "./annotation";
+import type * as Annotation from "../Annotation.js";
+import { createAnnotation } from "./annotation.js";
 
 export interface HtmlAnnotationData {
   readonly _tag: "Html";

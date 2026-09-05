@@ -73,7 +73,7 @@
   },
   "scripts": {
     "clean": "git clean -xdf dist node_modules .cache .turbo docs tsconfig.tsbuildinfo",
-    "build": "tsup && tsc --project tsconfig.build.json",
+    "build": "tsup && tsc --project tsconfig.build.json && tsc --project compatibility/node-next/tsconfig.json",
     "lint": "biome lint .",
     "test": "vitest run",
     "type-check": "tsc --noEmit",

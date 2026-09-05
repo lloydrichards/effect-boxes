@@ -1,10 +1,10 @@
 import { Effect, Layer } from "effect";
-import type * as Annotation from "../Annotation";
-import type * as Box from "../Box";
-import { takeP, takePA } from "../internal/box";
-import { Renderer, renderBox } from "../internal/renderer";
-import * as Width from "../internal/width";
-import type * as R from "../Renderer";
+import type * as Annotation from "../Annotation.js";
+import type * as Box from "../Box.js";
+import { takeP, takePA } from "../internal/box.js";
+import { Renderer, renderBox } from "../internal/renderer.js";
+import * as Width from "../internal/width.js";
+import type * as R from "../Renderer.js";
 
 /** @internal */
 

@@ -1,12 +1,12 @@
 import { Array, HashMap, Match, Option, pipe } from "effect";
 import { dual } from "effect/Function";
-import type * as Annotation from "../Annotation";
-import type * as Ansi from "../Ansi";
-import type * as Box from "../Box";
-import type * as Reactive from "../Reactive";
-import { createAnnotation } from "./annotation";
-import { annotate, merge, resizeBox, resizeBoxAligned } from "./box";
-import { cursorTo } from "./cmd";
+import type * as Annotation from "../Annotation.js";
+import type * as Ansi from "../Ansi.js";
+import type * as Box from "../Box.js";
+import type * as Reactive from "../Reactive.js";
+import { createAnnotation } from "./annotation.js";
+import { annotate, merge, resizeBox, resizeBoxAligned } from "./box.js";
+import { cursorTo } from "./cmd.js";
 
 /*
  *  --------------------------------------------------------------------------------

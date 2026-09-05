@@ -1,6 +1,6 @@
 import { Array as Arr, Effect, Layer } from "effect";
-import type * as Annotation from "../Annotation";
-import type * as Box from "../Box";
+import type * as Annotation from "../Annotation.js";
+import type * as Box from "../Box.js";
 import {
   applyAnsiStyling,
   getAnsiEscapeSequence,
@@ -8,10 +8,10 @@ import {
   isCommandAnnotation,
   padPreservingAnsi,
   truncatePreservingAnsi,
-} from "../internal/ansi";
-import { match } from "../internal/box";
-import { Renderer, renderBox } from "../internal/renderer";
-import type * as R from "../Renderer";
+} from "../internal/ansi.js";
+import { match } from "../internal/box.js";
+import { Renderer, renderBox } from "../internal/renderer.js";
+import type * as R from "../Renderer.js";
 
 /** @internal */
 
