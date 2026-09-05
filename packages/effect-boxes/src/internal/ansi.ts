@@ -319,88 +319,18 @@ const findAnsiSequenceEnd = (
   return chars.length;
 };
 
-/** @internal */
-export const truncatePreservingAnsi = (
-  str: string,
-  maxVisibleLength: number
+const sliceAnsiColumns = (
+  input: string,
+  offset: number,
+  width: number
 ): string => {
-  if (Width.ofString(str) <= maxVisibleLength) {
-    return str;
-  }
-
-  const segments = Width.segments(str);
-
-  // Optimized imperative loop for better performance in hot path
-  let result = "";
-  let visibleCount = 0;
-  let skipNext = 0;
-
-  for (let index = 0; index < segments.length; index++) {
-    if (skipNext > 0) {
-      skipNext--;
-      continue;
-    }
-    if (visibleCount >= maxVisibleLength) {
-      break;
-    }
-
-    const cur = segments[index];
-
-    if (cur === ESC && segments[index + 1] === "[") {
-      const sequenceEnd = findAnsiSequenceEnd(segments, index);
-      // Batch append ANSI sequence for efficiency
-      const sequenceParts: string[] = [];
-      for (let i = index; i < sequenceEnd; i++) {
-        sequenceParts.push(segments[i] || "");
-      }
-      result += sequenceParts.join("");
-      skipNext = sequenceEnd - index - 1;
-    } else {
-      result += cur;
-      visibleCount++;
-    }
-  }
-
-  // Ensure ANSI sequences are properly terminated to prevent color bleed
-  if (result.includes(ESC) && !result.endsWith(RESET)) {
-    return result + RESET;
-  }
-
-  return result;
-};
-
-const truncateAlignedPreservingAnsi = (
-  str: string,
-  maxVisibleLength: number,
-  alignment: Box.Alignment
-): string => {
-  if (maxVisibleLength <= 0) {
-    return "";
-  }
-  if (!str.includes(ESC)) {
-    return takePA(Width.segments(str), alignment, " ", maxVisibleLength).join(
-      ""
-    );
-  }
-
-  const visibleLength = Width.ofString(str);
-  const overflow = visibleLength - maxVisibleLength;
-  const start = (() => {
-    switch (alignment) {
-      case "AlignFirst":
-        return 0;
-      case "AlignLast":
-        return overflow;
-      case "AlignCenter1":
-        return Math.ceil(overflow / 2);
-      case "AlignCenter2":
-        return Math.floor(overflow / 2);
-    }
-  })();
-  const end = start + maxVisibleLength;
-  const segments = Width.segments(str);
+  const start = Math.max(0, offset);
+  const targetWidth = Math.max(0, width);
+  const end = start + targetWidth;
+  const segments = Width.segments(input);
   let result = "";
   let column = 0;
+  let hasVisibleContent = false;
   let skipNext = 0;
 
   for (let index = 0; index < segments.length; index++) {
@@ -421,6 +351,13 @@ const truncateAlignedPreservingAnsi = (
     const nextColumn = column + segmentWidth;
     if (column >= start && nextColumn <= end) {
       result += segment;
+      hasVisibleContent ||= segmentWidth > 0;
+    } else {
+      const overlap = Math.max(
+        0,
+        Math.min(nextColumn, end) - Math.max(column, start)
+      );
+      result += " ".repeat(overlap);
     }
 
     column = nextColumn;
@@ -429,9 +366,46 @@ const truncateAlignedPreservingAnsi = (
     }
   }
 
+  if (!hasVisibleContent) {
+    return " ".repeat(targetWidth);
+  }
+
   return result.includes(ESC) && !result.endsWith(RESET)
     ? result + RESET
     : result;
+};
+
+/** @internal */
+export const truncatePreservingAnsi = (
+  str: string,
+  maxVisibleLength: number
+): string => {
+  if (Width.ofString(str) <= maxVisibleLength) {
+    return str;
+  }
+
+  return sliceAnsiColumns(str, 0, maxVisibleLength);
+};
+
+const truncateAlignedPreservingAnsi = (
+  str: string,
+  maxVisibleLength: number,
+  alignment: Box.Alignment
+): string => {
+  if (maxVisibleLength <= 0) {
+    return "";
+  }
+  if (!str.includes(ESC)) {
+    return Width.fitString(str, maxVisibleLength, alignment);
+  }
+
+  const visibleLength = Width.ofString(str);
+  const start = -Width.alignmentOffset(
+    alignment,
+    visibleLength,
+    maxVisibleLength
+  );
+  return sliceAnsiColumns(str, start, maxVisibleLength);
 };
 /** @internal */
 export const padPreservingAnsi = (
@@ -447,34 +421,14 @@ export const padPreservingAnsi = (
     return truncateAlignedPreservingAnsi(str, targetVisibleLength, alignment);
   }
 
-  // Fast path for simple cases without ANSI sequences
-  if (!str.includes(ESC)) {
-    const padding = " ".repeat(targetVisibleLength - currentVisibleLength);
-    switch (alignment) {
-      case "AlignFirst":
-        return str + padding;
-      case "AlignLast":
-        return padding + str;
-      case "AlignCenter1":
-      case "AlignCenter2": {
-        const leftPad = Math.floor(
-          (targetVisibleLength - currentVisibleLength) / 2
-        );
-        const rightPad = targetVisibleLength - currentVisibleLength - leftPad;
-        return " ".repeat(leftPad) + str + " ".repeat(rightPad);
-      }
-    }
-  }
-
-  // Use grapheme segmentation for proper emoji handling (complex case with ANSI)
-  const segments = Width.segments(str);
-
-  return takePA(
-    segments,
+  const padding = targetVisibleLength - currentVisibleLength;
+  const leftPadding = Width.alignmentOffset(
     alignment,
-    " ",
-    segments.length + targetVisibleLength - currentVisibleLength
-  ).join("");
+    currentVisibleLength,
+    targetVisibleLength
+  );
+
+  return " ".repeat(leftPadding) + str + " ".repeat(padding - leftPadding);
 };
 
 const resizeBox = dual<

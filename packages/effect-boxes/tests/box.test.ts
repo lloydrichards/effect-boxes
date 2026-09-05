@@ -430,11 +430,11 @@ describe("para", () => {
     expect(Box.renderPrettySync(box)).toBe(
       String.stripMargin(
         `|This is a
-         |  test
+         |   test
          |paragraph
-         |  that
-         | should
-         |  flow
+         |   that
+         |  should
+         |   flow
          | nicely.`
       )
     );
@@ -1253,7 +1253,7 @@ describe("Annotation Functions", () => {
       expect(Box.renderPlainSync(emojiBox).replaceAll(" ", ".")).toBe(
         String.stripMargin(
           `|...
-           |.😁.
+           |.😁
            |...`
         )
       );
@@ -1270,7 +1270,7 @@ describe("Annotation Functions", () => {
       expect(Box.renderPlainSync(emojiBox).replaceAll(" ", ".")).toBe(
         String.stripMargin(
           `|...
-           |.👩‍💻.
+           |.👩‍💻
            |...`
         )
       );

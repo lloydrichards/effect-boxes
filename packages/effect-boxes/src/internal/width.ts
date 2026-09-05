@@ -1,4 +1,5 @@
-import { Array, pipe } from "effect";
+import { Array, Match, pipe } from "effect";
+import type * as Box from "../Box.js";
 
 const ST = "(?:\\u0007|\\u001B\\u005C|\\u009C)"; // Valid string terminator sequences are BEL, ESC\, and 0x9c
 const osc = `(?:\\u001B\\][\\s\\S]*?${ST})`; // ESC ] ... ST (non-greedy until first ST)
@@ -197,4 +198,81 @@ export const ofString = (input: string): number => {
   }
 
   return result;
+};
+
+/** @internal */
+export const sliceColumns = (
+  input: string,
+  offset: number,
+  width: number
+): string => {
+  if (width <= 0) {
+    return "";
+  }
+
+  const start = Math.max(0, offset);
+  const end = start + width;
+  let column = 0;
+  const result: string[] = [];
+
+  for (const segment of segments(input)) {
+    const segmentWidth = ofString(segment);
+    const nextColumn = column + segmentWidth;
+
+    if (column >= start && nextColumn <= end) {
+      result.push(segment);
+    } else {
+      const overlap = Math.max(
+        0,
+        Math.min(nextColumn, end) - Math.max(column, start)
+      );
+      if (overlap > 0) {
+        result.push(" ".repeat(overlap));
+      }
+    }
+
+    column = nextColumn;
+    if (column >= end) {
+      break;
+    }
+  }
+
+  return result.join("");
+};
+
+const alignmentAnchor = (alignment: Box.Alignment, width: number): number =>
+  Match.value(alignment).pipe(
+    Match.when("AlignFirst", () => 0),
+    Match.when("AlignLast", () => width),
+    Match.when("AlignCenter1", () => Math.ceil(width / 2)),
+    Match.when("AlignCenter2", () => Math.floor(width / 2)),
+    Match.exhaustive
+  );
+
+/** @internal */
+export const alignmentOffset = (
+  alignment: Box.Alignment,
+  inputWidth: number,
+  targetWidth: number
+): number =>
+  alignmentAnchor(alignment, targetWidth) -
+  alignmentAnchor(alignment, inputWidth);
+
+/** @internal */
+export const fitString = (
+  input: string,
+  width: number,
+  alignment: Box.Alignment
+): string => {
+  const targetWidth = Math.max(0, width);
+  const inputWidth = ofString(input);
+
+  if (inputWidth > targetWidth) {
+    const offset = -alignmentOffset(alignment, inputWidth, targetWidth);
+    return sliceColumns(input, offset, targetWidth);
+  }
+
+  const padding = targetWidth - inputWidth;
+  const before = alignmentOffset(alignment, inputWidth, targetWidth);
+  return " ".repeat(before) + input + " ".repeat(padding - before);
 };

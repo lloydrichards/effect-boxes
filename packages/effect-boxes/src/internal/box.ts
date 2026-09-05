@@ -5,6 +5,7 @@ import {
   Hash,
   Inspectable,
   Match,
+  Option,
   pipe,
   String,
 } from "effect";
@@ -215,7 +216,11 @@ export const emptyBox = (rows = 0, cols = 0): Box.Box<never> =>
 /** @internal */
 
 export const char = (c: string): Box.Box<never> => {
-  const grapheme = Width.segments(c)[0] ?? " ";
+  const grapheme = pipe(
+    Width.segments(c),
+    Array.head,
+    Option.getOrElse(() => " ")
+  );
   return make({
     rows: 1,
     cols: Width.ofString(grapheme),
@@ -533,7 +538,7 @@ const flow = dual<
     Array.filter((word) => word.length > 0),
     Array.reduce(emptyPara(width), addWordP),
     getLines,
-    Array.map((line) => line.slice(0, width))
+    Array.map((line) => Width.sliceColumns(line, 0, width))
   );
 });
 
@@ -572,13 +577,13 @@ const wordFits = (
   word: string
 ): boolean => {
   if (paraContent.lastLine.length === 0) {
-    return word.length <= paraWidth;
+    return Width.ofString(word) <= paraWidth;
   }
   const currentLength = paraContent.lastLine.reduce(
-    (acc: number, w: string) => acc + w.length,
+    (acc: number, word: string) => acc + Width.ofString(word),
     paraContent.lastLine.length - 1
   );
-  return currentLength + 1 + word.length <= paraWidth;
+  return currentLength + 1 + Width.ofString(word) <= paraWidth;
 };
 
 /*
@@ -772,7 +777,7 @@ export const resizeBox = dual<
   (self: string[], r: number, c: number) => string[]
 >(3, (self, r, c) =>
   pipe(
-    self.map((line) => takeP(Width.segments(line), " ", c).join("")),
+    self.map((line) => Width.fitString(line, c, left)),
     takeP(blanks(c), r)
   )
 );
@@ -782,7 +787,7 @@ export const resizeBoxAligned =
   (r: number, c: number, ha: Box.Alignment, va: Box.Alignment) =>
   (self: string[]) =>
     takePA(
-      self.map((line) => takePA(Width.segments(line), ha, " ", c).join("")),
+      self.map((line) => Width.fitString(line, c, ha)),
       va,
       blanks(c),
       r
@@ -1287,29 +1292,6 @@ const truncateWidth = <A>(
   return result;
 };
 
-const cropLine = (text: string, offset: number, width: number): string => {
-  const start = Math.max(0, offset);
-  const end = start + Math.max(0, width);
-  let column = 0;
-  const result: string[] = [];
-
-  for (const segment of Width.segments(text)) {
-    const segmentWidth = Width.ofString(segment);
-    const nextColumn = column + segmentWidth;
-
-    if (column >= start && nextColumn <= end) {
-      result.push(segment);
-    }
-
-    column = nextColumn;
-    if (column >= end) {
-      break;
-    }
-  }
-
-  return result.join("");
-};
-
 const preserveAnnotation = <A>(
   self: Box.Box<A>,
   that: Box.Box<A>
@@ -1381,7 +1363,7 @@ export const cropWidth = dual<
       text: (text) =>
         preserveAnnotation(
           box,
-          unsafeLine(cropLine(text, columnOffset, columnsToKeep))
+          unsafeLine(Width.sliceColumns(text, columnOffset, columnsToKeep))
         ),
       row: (boxes) => {
         const cropped: Box.Box<A>[] = [];
@@ -1569,7 +1551,6 @@ export const truncate = dual<
   const ellipsis = "…";
 
   const truncateLine = (text: string): Box.Box<A> => {
-    const segs = Width.segments(text);
     const textWidth = Width.ofString(text);
 
     if (textWidth <= width) {
@@ -1582,28 +1563,26 @@ export const truncate = dual<
 
     const available = width - 1; // reserve 1 column for ellipsis
 
-    return Match.value(pos).pipe(
-      Match.when("AlignFirst", () =>
-        unsafeLine(segs.slice(0, available).join("") + ellipsis)
+    const [prefixWidth, suffixWidth] = Match.value(pos).pipe(
+      Match.when("AlignFirst", () => [available, 0] as const),
+      Match.when("AlignLast", () => [0, available] as const),
+      Match.when(
+        "AlignCenter1",
+        () =>
+          [Math.ceil(available / 2), Math.floor(available / 2)] as const
       ),
-      Match.when("AlignLast", () =>
-        unsafeLine(ellipsis + segs.slice(segs.length - available).join(""))
-      ),
-      Match.when("AlignCenter1", () =>
-        unsafeLine(
-          segs.slice(0, Math.ceil(available / 2)).join("") +
-            ellipsis +
-            segs.slice(segs.length - Math.floor(available / 2)).join("")
-        )
-      ),
-      Match.when("AlignCenter2", () =>
-        unsafeLine(
-          segs.slice(0, Math.floor(available / 2)).join("") +
-            ellipsis +
-            segs.slice(segs.length - Math.ceil(available / 2)).join("")
-        )
+      Match.when(
+        "AlignCenter2",
+        () =>
+          [Math.floor(available / 2), Math.ceil(available / 2)] as const
       ),
       Match.exhaustive
+    );
+
+    return unsafeLine(
+      Width.sliceColumns(text, 0, prefixWidth) +
+        ellipsis +
+        Width.sliceColumns(text, textWidth - suffixWidth, suffixWidth)
     );
   };
 
@@ -1627,9 +1606,7 @@ export const maxWidth = dual<
 >(
   2,
   <A>(self: Box.Box<A>, n: number): Box.Box<A> =>
-    truncateWidth(self, n, (t) =>
-      unsafeLine(Width.segments(t).slice(0, n).join(""))
-    )
+    truncateWidth(self, n, (t) => unsafeLine(Width.sliceColumns(t, 0, n)))
 );
 
 /** @internal */

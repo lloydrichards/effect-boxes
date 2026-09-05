@@ -31,6 +31,16 @@ describe("Ansi Render Configuration", () => {
 
       expect(Box.renderPrettySync(box)).toBe("\x1b[31mbc\x1b[0m");
     });
+
+    it("should preserve each center bias when content needs odd padding", () => {
+      const center1 = Box.alignHoriz(Box.text("abcd"), Box.center1, 9);
+      const center2 = Box.alignHoriz(Box.text("abcd"), Box.center2, 9);
+
+      expect(Box.renderPlainSync(center1)).toBe("   abcd  ");
+      expect(Box.renderPrettySync(center1)).toBe("   abcd");
+      expect(Box.renderPlainSync(center2)).toBe("  abcd   ");
+      expect(Box.renderPrettySync(center2)).toBe("  abcd");
+    });
   });
 
   // ============================================================================
