@@ -253,10 +253,10 @@ export const emptyBox: (rows?: number, cols?: number) => Box<never> =
   internal.emptyBox;
 
 /**
- * Creates a 1x1 box containing a single character.
+ * Creates a one-row box containing a single grapheme.
  *
- * If the string is longer than one character, only the first character
- * is used. Useful for creating single-character elements or borders.
+ * If the string contains multiple graphemes, only the first is used. The
+ * box width matches the grapheme's terminal display width.
  *
  * @example
  * ```typescript
