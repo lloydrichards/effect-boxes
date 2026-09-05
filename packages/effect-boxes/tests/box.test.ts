@@ -10,6 +10,20 @@ import * as Ansi from "../src/Ansi";
 import * as Box from "../src/Box";
 
 describe("Box", () => {
+  it("should preserve joined emoji sequences when constructing text", () => {
+    const box = Box.text("👩‍💻");
+
+    expect(box.cols).toBe(2);
+    expect(Box.renderPrettySync(box)).toBe("👩‍💻");
+  });
+
+  it("should preserve the first complete grapheme when constructing a char", () => {
+    const box = Box.char("👩‍💻developer");
+
+    expect(box.cols).toBe(2);
+    expect(Box.renderPrettySync(box)).toBe("👩‍💻");
+  });
+
   it("text trims trailing spaces per line", () => {
     const s = "abc   \nxy  ";
     expect(Box.renderPrettySync(Box.text(s))).toBe(
@@ -1195,7 +1209,7 @@ describe("Annotation Functions", () => {
       expect(Box.renderPlainSync(emojiBox).replaceAll(" ", ".")).toBe(
         String.stripMargin(
           `|...
-           |.👩💻
+           |.👩‍💻.
            |...`
         )
       );

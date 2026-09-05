@@ -205,18 +205,20 @@ export const emptyBox = (rows = 0, cols = 0): Box.Box<never> =>
 
 /** @internal */
 
-export const char = (c: string): Box.Box<never> =>
-  make({
+export const char = (c: string): Box.Box<never> => {
+  const grapheme = Width.segments(c)[0] ?? " ";
+  return make({
     rows: 1,
-    cols: 1,
-    content: { _tag: "Text", text: c[0] ?? " " },
+    cols: Width.ofString(grapheme),
+    content: { _tag: "Text", text: grapheme },
   });
+};
 
 const unsafeLine = (t: string): Box.Box<never> =>
   make({
     rows: 1,
     cols: Width.ofString(t),
-    content: { _tag: "Text", text: t.replace(/\u200d/g, "") },
+    content: { _tag: "Text", text: t },
   });
 
 /** @internal */

@@ -390,7 +390,7 @@ describe("Ansi Module", () => {
     it("should render multi-character emojis correctly", () => {
       const box = Box.text("👩‍💻").pipe(Box.annotate(Ansi.bgCyan));
       const rendered = Ansi.renderAnnotatedBox(box);
-      expect(rendered.join("\n")).toBe("\u001b[46m👩💻\u001b[0m");
+      expect(rendered.join("\n")).toBe("\u001b[46m👩‍💻\u001b[0m");
     });
   });
 });
