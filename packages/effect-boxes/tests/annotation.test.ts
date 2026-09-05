@@ -3,7 +3,7 @@ import * as Hash from "effect/Hash";
 import * as HashMap from "effect/HashMap";
 import * as HashSet from "effect/HashSet";
 import * as Option from "effect/Option";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import * as Annotation from "../src/Annotation";
 
 describe("Annotation", () => {
@@ -291,9 +291,12 @@ describe("Annotation", () => {
   });
 
   describe("Constants", () => {
-    it("provides empty annotation constant", () => {
+    it("should expose undefined data when the annotation is empty", () => {
       expect(Annotation.isAnnotation(Annotation.empty)).toBe(true);
       expect(Annotation.empty.data).toBe(undefined);
+      expectTypeOf(Annotation.empty).toEqualTypeOf<
+        Annotation.Annotation<undefined>
+      >();
     });
   });
 });
