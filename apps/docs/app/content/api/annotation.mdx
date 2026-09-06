@@ -125,16 +125,16 @@ const colorAnnotations = Annotation.createAnnotations(colorData);
 
 ### empty
 
-Predefined empty annotation for use as a default or placeholder.
+Predefined annotation containing `undefined` for use as a default or
+placeholder.
 
-Provides a safe default annotation that contains no data. Useful for
-initializing annotation systems, providing fallback values, or creating
-placeholder annotations that can be replaced later.
+Its data type remains `undefined`, so it cannot be treated as an annotation
+containing another data type.
 
 **Signature**
 
 ```ts
-export declare const empty: Annotation<never>;
+export declare const empty: Annotation<undefined>;
 ```
 
 **Example**

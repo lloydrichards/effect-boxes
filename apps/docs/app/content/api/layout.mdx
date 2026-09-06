@@ -172,6 +172,7 @@ export interface Fill<A = never> {
   readonly _tag: "Fill";
   readonly builder: (size: number) => Box.Box<A>;
   readonly factor: number;
+  readonly isSpacer?: true;
 }
 ```
 
