@@ -1,4 +1,4 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from "tsdown";
 
 export default defineConfig({
   entry: [
@@ -13,9 +13,11 @@ export default defineConfig({
     "src/Layout.ts",
   ],
   format: ["esm"],
+  outExtensions: () => ({ js: ".js" }),
   target: "es2022",
   dts: false,
   sourcemap: false,
-  clean: true,
-  external: ["effect"],
+  deps: {
+    neverBundle: ["effect"],
+  },
 });
