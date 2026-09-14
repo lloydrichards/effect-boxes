@@ -73,7 +73,7 @@
   },
   "scripts": {
     "clean": "git clean -xdf dist node_modules .cache .turbo docs tsconfig.tsbuildinfo",
-    "build": "tsup && tsc --project tsconfig.build.json && tsc --project compatibility/node-next/tsconfig.json",
+    "build": "tsdown && tsc --project tsconfig.build.json && tsc --project compatibility/node-next/tsconfig.json",
     "lint": "biome lint .",
     "test": "vitest run",
     "type-check": "tsc --noEmit",
@@ -94,7 +94,7 @@
     "@vitest/coverage-v8": "4.1.11",
     "tinybench": "^6.1.4",
     "typescript-6": "npm:typescript@^6.0.3",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.23.0",
     "tsx": "^4.23.13",
     "vitest": "^4.1.11"
   }
