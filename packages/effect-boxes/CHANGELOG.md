@@ -1,5 +1,11 @@
 # effect-boxes
 
+## 0.17.3
+
+### Patch Changes
+
+- [#130](https://github.com/lloydrichards/effect-boxes/pull/130) [`0396e30`](https://github.com/lloydrichards/effect-boxes/commit/0396e30bb33b60a5a84d382f8978e3b26f00210c) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Require stable Effect v4 as the minimum peer dependency.
+
 ## 0.17.2
 
 ### Patch Changes
