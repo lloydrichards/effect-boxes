@@ -31,9 +31,12 @@ const replaceTocHeader = (content: string): string =>
     "## Table of contents"
   );
 
-/** Remove the inline Table of Contents section (heading + list + separator) */
+/** Remove docgen's inline contents section (heading + list + separator). */
 const stripInlineToc = (content: string): string =>
-  content.replace(/^## Table of contents\n(?:\n|[ \t]*-[^\n]*\n)*---\n*/m, "");
+  content.replace(
+    /^## (?:Table of contents|Exports Grouped by Category)\n(?:\n|[ \t]*-[^\n]*\n)*---\n*/m,
+    ""
+  );
 
 const escapeLineForMdx = (line: string): string =>
   pipe(
@@ -106,7 +109,7 @@ const program = Effect.gen(function* () {
 
   const result = yield* Effect.tryPromise({
     try: () => {
-      const proc = Bun.spawn(["./node_modules/.bin/docgen"], {
+      const proc = Bun.spawn(["docgen"], {
         cwd: pkg,
         env: { ...process.env, PATH: pathEnv },
         stdout: "pipe",
