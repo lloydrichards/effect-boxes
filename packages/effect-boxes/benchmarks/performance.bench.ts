@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/suspicious/noConsole: Testing files */
 import { Array, pipe } from "effect";
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import * as Ansi from "../src/Ansi";
 import * as Box from "../src/Box";
 import * as AnsiInternal from "../src/internal/ansi";
@@ -127,9 +127,19 @@ const generateBoxArrays = () => {
 
 const boxArrays = generateBoxArrays();
 
+const benchmark = (
+  name: string,
+  fn: () => unknown,
+  options: { readonly time: number }
+): void => {
+  test(name, async ({ bench }) => {
+    await bench(name, fn).run(options);
+  });
+};
+
 describe("Width Calculation Benchmarks", () => {
   describe("Width.ofString", () => {
-    bench(
+    benchmark(
       "ASCII small (100 chars)",
       () => {
         Width.ofString(TestData.small.ascii);
@@ -137,7 +147,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "ASCII medium (1000 chars)",
       () => {
         Width.ofString(TestData.medium.ascii);
@@ -145,7 +155,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "ASCII large (5000 chars)",
       () => {
         Width.ofString(TestData.large.ascii);
@@ -153,7 +163,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Unicode small (100 chars)",
       () => {
         Width.ofString(TestData.small.unicode);
@@ -161,7 +171,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Unicode medium (1000 chars)",
       () => {
         Width.ofString(TestData.medium.unicode);
@@ -169,7 +179,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Unicode large (5000 chars)",
       () => {
         Width.ofString(TestData.large.unicode);
@@ -177,7 +187,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Mixed small (100 chars)",
       () => {
         Width.ofString(TestData.small.mixed);
@@ -185,7 +195,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Mixed medium (1000 chars)",
       () => {
         Width.ofString(TestData.medium.mixed);
@@ -193,7 +203,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Mixed large (5000 chars)",
       () => {
         Width.ofString(TestData.large.mixed);
@@ -201,7 +211,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "ANSI small (100 chars)",
       () => {
         Width.ofString(TestData.small.ansi);
@@ -209,7 +219,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "ANSI medium (1000 chars)",
       () => {
         Width.ofString(TestData.medium.ansi);
@@ -217,7 +227,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "ANSI large (5000 chars)",
       () => {
         Width.ofString(TestData.large.ansi);
@@ -225,7 +235,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Complex ANSI small (100 chars)",
       () => {
         Width.ofString(TestData.small.complexAnsi);
@@ -233,7 +243,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Complex ANSI medium (1000 chars)",
       () => {
         Width.ofString(TestData.medium.complexAnsi);
@@ -243,7 +253,7 @@ describe("Width Calculation Benchmarks", () => {
   });
 
   describe("Width.segments", () => {
-    bench(
+    benchmark(
       "ASCII medium (1000 chars)",
       () => {
         Width.segments(TestData.medium.ascii);
@@ -251,7 +261,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Unicode medium (1000 chars)",
       () => {
         Width.segments(TestData.medium.unicode);
@@ -259,7 +269,7 @@ describe("Width Calculation Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Mixed medium (1000 chars)",
       () => {
         Width.segments(TestData.medium.mixed);
@@ -271,7 +281,7 @@ describe("Width Calculation Benchmarks", () => {
 
 describe("Box Merging Benchmarks", () => {
   describe("Box.hcat", () => {
-    bench(
+    benchmark(
       "small array (5 boxes)",
       () => {
         Box.hcat(boxArrays.small, Box.top);
@@ -279,7 +289,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "medium array (20 boxes)",
       () => {
         Box.hcat(boxArrays.medium, Box.top);
@@ -287,7 +297,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "large array (50 boxes)",
       () => {
         Box.hcat(boxArrays.large, Box.top);
@@ -295,7 +305,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "xlarge array (100 boxes)",
       () => {
         Box.hcat(boxArrays.xlarge, Box.top);
@@ -305,7 +315,7 @@ describe("Box Merging Benchmarks", () => {
   });
 
   describe("Box.vcat", () => {
-    bench(
+    benchmark(
       "small array (5 boxes)",
       () => {
         Box.vcat(boxArrays.small, Box.left);
@@ -313,7 +323,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "medium array (20 boxes)",
       () => {
         Box.vcat(boxArrays.medium, Box.left);
@@ -321,7 +331,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "large array (50 boxes)",
       () => {
         Box.vcat(boxArrays.large, Box.left);
@@ -329,7 +339,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "xlarge array (100 boxes)",
       () => {
         Box.vcat(boxArrays.xlarge, Box.left);
@@ -339,7 +349,7 @@ describe("Box Merging Benchmarks", () => {
   });
 
   describe("BoxInternal.merge", () => {
-    bench(
+    benchmark(
       "small rendered boxes (5)",
       () => {
         BoxInternal.merge(
@@ -349,7 +359,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "medium rendered boxes (20)",
       () => {
         BoxInternal.merge(
@@ -359,7 +369,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "large rendered boxes (50)",
       () => {
         BoxInternal.merge(
@@ -371,7 +381,7 @@ describe("Box Merging Benchmarks", () => {
   });
 
   describe("Box.render", () => {
-    bench(
+    benchmark(
       "nested small structure",
       () => {
         Box.renderPrettySync(
@@ -387,7 +397,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "nested medium structure",
       () => {
         Box.renderPrettySync(
@@ -405,7 +415,7 @@ describe("Box Merging Benchmarks", () => {
   });
 
   describe("Box Alignment", () => {
-    bench(
+    benchmark(
       "Box.alignHoriz - medium box",
       () => {
         Box.alignHoriz(boxArrays.medium[0], Box.center1, 100);
@@ -413,7 +423,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Box.alignVert - medium box",
       () => {
         Box.alignVert(boxArrays.medium[0], Box.center1, 50);
@@ -421,7 +431,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Box.moveRight - medium box",
       () => {
         Box.moveRight(boxArrays.medium[0], 10);
@@ -429,7 +439,7 @@ describe("Box Merging Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Box.moveDown - medium box",
       () => {
         Box.moveDown(boxArrays.medium[0], 5);
@@ -441,7 +451,7 @@ describe("Box Merging Benchmarks", () => {
 
 describe("ANSI Processing Benchmarks", () => {
   describe("AnsiInternal.truncatePreservingAnsi", () => {
-    bench(
+    benchmark(
       "ANSI small",
       () => {
         AnsiInternal.truncatePreservingAnsi(TestData.small.ansi, 50);
@@ -449,7 +459,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "ANSI medium",
       () => {
         AnsiInternal.truncatePreservingAnsi(TestData.medium.ansi, 500);
@@ -457,7 +467,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "ANSI large",
       () => {
         AnsiInternal.truncatePreservingAnsi(TestData.large.ansi, 2500);
@@ -465,7 +475,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Complex ANSI small",
       () => {
         AnsiInternal.truncatePreservingAnsi(TestData.small.complexAnsi, 50);
@@ -473,7 +483,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Complex ANSI medium",
       () => {
         AnsiInternal.truncatePreservingAnsi(TestData.medium.complexAnsi, 500);
@@ -483,7 +493,7 @@ describe("ANSI Processing Benchmarks", () => {
   });
 
   describe("AnsiInternal.padPreservingAnsi", () => {
-    bench(
+    benchmark(
       "ANSI small",
       () => {
         AnsiInternal.padPreservingAnsi(TestData.small.ansi, 150, Box.center1);
@@ -491,7 +501,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "ANSI medium",
       () => {
         AnsiInternal.padPreservingAnsi(TestData.medium.ansi, 1500, Box.center1);
@@ -499,7 +509,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "Complex ANSI small",
       () => {
         AnsiInternal.padPreservingAnsi(
@@ -513,7 +523,7 @@ describe("ANSI Processing Benchmarks", () => {
   });
 
   describe("AnsiInternal.getAnsiEscapeSequence", () => {
-    bench(
+    benchmark(
       "simple",
       () => {
         AnsiInternal.getAnsiEscapeSequence(Ansi.red.data);
@@ -521,7 +531,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "combined",
       () => {
         AnsiInternal.getAnsiEscapeSequence(
@@ -531,7 +541,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "complex",
       () => {
         AnsiInternal.getAnsiEscapeSequence(
@@ -544,7 +554,7 @@ describe("ANSI Processing Benchmarks", () => {
 
   describe("AnsiInternal.applyAnsiStyling", () => {
     const testLines = ["Line 1", "Line 2 with more text", "Line 3"];
-    bench(
+    benchmark(
       "simple lines",
       () => {
         AnsiInternal.applyAnsiStyling(testLines, "\x1b[31m");
@@ -552,7 +562,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "complex escape",
       () => {
         AnsiInternal.applyAnsiStyling(testLines, "\x1b[1;4;31;43m");
@@ -562,7 +572,7 @@ describe("ANSI Processing Benchmarks", () => {
   });
 
   describe("AnsiInternal.renderAnnotatedBox", () => {
-    bench(
+    benchmark(
       "simple ANSI",
       () => {
         AnsiInternal.renderAnnotatedBox(
@@ -572,7 +582,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "complex ANSI",
       () => {
         AnsiInternal.renderAnnotatedBox(
@@ -589,7 +599,7 @@ describe("ANSI Processing Benchmarks", () => {
   });
 
   describe("Ansi.combine", () => {
-    bench(
+    benchmark(
       "multiple styles",
       () => {
         Ansi.combine(Ansi.red, Ansi.bold, Ansi.underlined, Ansi.bgBlue);
@@ -597,7 +607,7 @@ describe("ANSI Processing Benchmarks", () => {
       { time: 1000 }
     );
 
-    bench(
+    benchmark(
       "conflicting styles",
       () => {
         Ansi.combine(Ansi.red, Ansi.green, Ansi.blue, Ansi.bgRed, Ansi.bgGreen);
@@ -618,7 +628,7 @@ describe("Integrated Performance Benchmarks", () => {
     return Box.vcat(sections, Box.left);
   };
 
-  bench(
+  benchmark(
     "Large document creation",
     () => {
       createLargeDocument();
@@ -626,7 +636,7 @@ describe("Integrated Performance Benchmarks", () => {
     { time: 1000 }
   );
 
-  bench(
+  benchmark(
     "Large document rendering",
     () => {
       const doc = createLargeDocument();
@@ -661,7 +671,7 @@ describe("Integrated Performance Benchmarks", () => {
     return Box.vcat([headerRow, ...dataRows], Box.left);
   };
 
-  bench(
+  benchmark(
     "Colored table creation",
     () => {
       createColoredTable();
@@ -669,7 +679,7 @@ describe("Integrated Performance Benchmarks", () => {
     { time: 1000 }
   );
 
-  bench(
+  benchmark(
     "Colored table rendering",
     () => {
       const table = createColoredTable();
@@ -705,7 +715,7 @@ describe("Integrated Performance Benchmarks", () => {
     return Box.hcat([sidebar, main], Box.top);
   };
 
-  bench(
+  benchmark(
     "Complex layout creation",
     () => {
       createComplexLayout();
@@ -713,7 +723,7 @@ describe("Integrated Performance Benchmarks", () => {
     { time: 1000 }
   );
 
-  bench(
+  benchmark(
     "Complex layout rendering",
     () => {
       const layout = createComplexLayout();
