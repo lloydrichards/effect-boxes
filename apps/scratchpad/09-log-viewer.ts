@@ -1,6 +1,6 @@
 import { BunServices } from "@effect/platform-bun";
 import { Data, Effect, Match, pipe, Queue, Terminal } from "effect";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
 import * as Cmd from "effect-boxes/Cmd";
@@ -176,7 +176,7 @@ export const LogViewer = ({
     prevRows: 0,
   };
 
-  return Prompt.custom<LogViewerState, string, LogEntry>(initialState, events, {
+  return Prompt.Custom<LogViewerState, string, LogEntry>(initialState, events, {
     render: Effect.fnUntraced(function* (
       state: LogViewerState,
       action: Prompt.Action<LogViewerState, string>

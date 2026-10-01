@@ -11,7 +11,7 @@ import { pipe } from "effect";
 # Tutorial: Select prompt
 
 In this tutorial you'll build an interactive select prompt using effect-boxes
-for layout and `Prompt.custom` from Effect for input handling. The final
+for layout and `Prompt.Custom` from Effect for input handling. The final
 result renders a styled menu that responds to keyboard input:
 
 export const preview = Box.renderPrettySync(
@@ -57,7 +57,7 @@ export const preview = Box.renderPrettySync(
 <AnsiTerminal input={preview} />
 
 This tutorial assumes familiarity with Effect's `Effect.gen` and basic
-understanding of the `Prompt` module from `effect/unstable/cli`.
+understanding of the `Prompt` module from `effect/cli`.
 
 ## Step 1: Define choices and state
 
@@ -65,7 +65,7 @@ A select prompt needs a list of choices and a cursor position:
 
 ```typescript
 import { Data, Effect, Match } from "effect";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 import { Ansi, Box, Cmd } from "effect-boxes";
 
 type Choice<A> = {
@@ -125,14 +125,14 @@ const renderLayout = (cursor: number, submitted: boolean) => {
 The function has two modes: the active selection view, and a compact
 submitted view that shows the final choice.
 
-## Step 3: Understand the Prompt.custom contract
+## Step 3: Understand the Prompt.Custom contract
 
-`Prompt.custom` takes an initial state and three callbacks:
+`Prompt.Custom` takes an initial state and three callbacks:
 
 ```typescript
 const Action = Data.taggedEnum<Prompt.ActionDefinition>();
 
-Prompt.custom<State, Value>(initialState, {
+Prompt.Custom<State, Value>(initialState, {
   render: (state, action) => Effect<string>,
   process: (input, state) => Effect<Action>,
   clear: (state) => Effect<string>,
@@ -152,7 +152,7 @@ previous output before re-rendering:
 ```typescript
 let hasRendered = false;
 
-const select = Prompt.custom<number, string>(0, {
+const select = Prompt.Custom<number, string>(0, {
   render: Effect.fnUntraced(function* (cursor, action) {
     const layout = Action.$match(action, {
       Submit: () => renderLayout(cursor, true),
@@ -187,7 +187,7 @@ The `process` callback maps key presses to actions. Arrow keys move the
 cursor, enter submits:
 
 ```typescript
-const select = Prompt.custom<number, string>(0, {
+const select = Prompt.Custom<number, string>(0, {
   // render: ...,
   process: Effect.fnUntraced(function* (input, cursor) {
     return Match.value(input).pipe(
@@ -220,7 +220,7 @@ exits the prompt. `Beep` signals invalid input without changing state.
 ## Step 6: Run it
 
 ```typescript
-import { NodeRuntime } from "effect/unstable/cli";
+import { NodeRuntime } from "@effect/platform-node";
 
 const program = Effect.gen(function* () {
   const result = yield* select;
@@ -232,7 +232,7 @@ NodeRuntime.runMain(program);
 
 ## What you've learned
 
-- `Prompt.custom` gives you a state machine with render, process, and clear slots
+- `Prompt.Custom` gives you a state machine with render, process, and clear slots
 - effect-boxes handles the layout and styling (Box composition + Ansi annotations)
 - `Cmd` module handles terminal control (clearing lines, cursor visibility)
 - Keeping `renderLayout` pure makes it testable without terminal interaction
@@ -254,8 +254,8 @@ enables cursor-based navigation in larger layouts.
 
 ```typescript showLineNumbers title="SelectPrompt.ts"
 import { Data, Effect, Match } from "effect";
-import { Prompt } from "effect/unstable/cli";
-import { NodeRuntime } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
+import { NodeRuntime } from "@effect/platform-node";
 import { Ansi, Box, Cmd } from "effect-boxes";
 
 type Choice<A> = {
@@ -304,7 +304,7 @@ const renderLayout = (cursor: number, submitted: boolean) => {
 
 let hasRendered = false;
 
-const select = Prompt.custom<number, string>(0, {
+const select = Prompt.Custom<number, string>(0, {
   render: Effect.fnUntraced(function* (cursor, action) {
     const layout = Action.$match(action, {
       Submit: () => renderLayout(cursor, true),
