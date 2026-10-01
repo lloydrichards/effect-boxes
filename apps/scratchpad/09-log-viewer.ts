@@ -1,3 +1,4 @@
+/** @effect-diagnostics unstableApiUsage:skip-file */
 import { BunServices } from "@effect/platform-bun";
 import { Data, Effect, Match, pipe, Queue, Terminal } from "effect";
 import { Prompt } from "effect/cli";

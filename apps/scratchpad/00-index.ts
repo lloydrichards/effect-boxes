@@ -1,3 +1,4 @@
+/** @effect-diagnostics unstableApiUsage:skip-file */
 import { BunRuntime, BunServices } from "@effect/platform-bun";
 import { Cause, Console, Effect, Option } from "effect";
 import { Command, Flag, Prompt } from "effect/cli";

@@ -1,3 +1,4 @@
+/** @effect-diagnostics unstableApiUsage:skip-file */
 /**
  * Interactive layout demo showcasing Flex, Grid, and Container combinators.
  *

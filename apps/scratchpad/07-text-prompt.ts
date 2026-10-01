@@ -1,3 +1,4 @@
+/** @effect-diagnostics unstableApiUsage:skip-file */
 import { BunServices } from "@effect/platform-bun";
 import {
   Console,
