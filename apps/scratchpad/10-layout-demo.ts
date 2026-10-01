@@ -6,7 +6,7 @@
  */
 import { BunServices } from "@effect/platform-bun";
 import { Data, Effect, Match, Terminal } from "effect";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 import { Ansi, Box, Cmd, Container, Flex, Grid } from "effect-boxes";
 
 // ---------------------------------------------------------------------------
@@ -656,7 +656,7 @@ const LayoutPrompt = (initialWidth: number): Prompt.Prompt<string> => {
     sectionIndex: 0,
   };
 
-  return Prompt.custom<LayoutState, string>(initialState, {
+  return Prompt.Custom<LayoutState, string>(initialState, {
     render: Effect.fnUntraced(function* (
       _state: LayoutState,
       action: Prompt.Action<LayoutState, string>

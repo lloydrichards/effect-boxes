@@ -1,6 +1,6 @@
 import { BunRuntime, BunServices } from "@effect/platform-bun";
 import { Cause, Console, Effect, Option } from "effect";
-import { Command, Flag, Prompt } from "effect/unstable/cli";
+import { Command, Flag, Prompt } from "effect/cli";
 import { Ansi, Box, Cmd } from "effect-boxes";
 import { main as progressBarDemo } from "./01-progress-bar";
 import { main as cursorDemo } from "./02-cursor";
@@ -108,7 +108,7 @@ const runDemo = (id: DemoId) => {
 const root = Command.make(
   "scratch",
   {
-    run: Flag.integer("run").pipe(
+    run: Flag.Int("run").pipe(
       Flag.optional,
       Flag.withDescription("Run a demo by number (1-11)")
     ),
@@ -123,7 +123,7 @@ const root = Command.make(
         }
       }
 
-      const selected = yield* Prompt.select({
+      const selected = yield* Prompt.Select({
         message: "Select a demo to run",
         choices: [...demos],
       });

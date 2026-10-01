@@ -9,7 +9,7 @@ import {
   Schedule,
   Terminal,
 } from "effect";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
 import * as Cmd from "effect-boxes/Cmd";
@@ -264,7 +264,7 @@ export const main = Effect.gen(function* () {
   // Build the prompt
   let entered = false;
 
-  const prompt = Prompt.custom<FlowFieldState, void, number>(
+  const prompt = Prompt.Custom<FlowFieldState, void, number>(
     { walkers: initialWalkers },
     Queue.asDequeue(tickQueue),
     {
