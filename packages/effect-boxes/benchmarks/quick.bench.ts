@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noConsole: testing file*/
 
 import { Array } from "effect";
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import * as Ansi from "../src/Ansi";
 import * as Box from "../src/Box";
 import * as Width from "../src/internal/width";
@@ -16,8 +16,18 @@ const testData = {
 
 const quickBoxes = Array.makeBy(10, (i) => Box.text(`Box ${i}\nContent line`));
 
+const benchmark = (
+  name: string,
+  fn: () => unknown,
+  options: { readonly time: number }
+): void => {
+  test(name, async ({ bench }) => {
+    await bench(name, fn).run(options);
+  });
+};
+
 describe("Quick Performance Benchmarks", () => {
-  bench(
+  benchmark(
     "Width.ofString - mixed content",
     () => {
       Width.ofString(testData.unicode);
@@ -25,7 +35,7 @@ describe("Quick Performance Benchmarks", () => {
     { time: 500 }
   );
 
-  bench(
+  benchmark(
     "Box.hcat - medium array",
     () => {
       Box.hcat(quickBoxes, Box.top);
@@ -33,7 +43,7 @@ describe("Quick Performance Benchmarks", () => {
     { time: 500 }
   );
 
-  bench(
+  benchmark(
     "ANSI truncate - colored text",
     () => {
       Ansi.truncatePreservingAnsi(testData.ansi, 20);
@@ -41,7 +51,7 @@ describe("Quick Performance Benchmarks", () => {
     { time: 500 }
   );
 
-  bench(
+  benchmark(
     "Box render - complex structure",
     () => {
       const nested = Box.vcat(
@@ -56,7 +66,7 @@ describe("Quick Performance Benchmarks", () => {
     { time: 500 }
   );
 
-  bench(
+  benchmark(
     "ANSI annotation - end-to-end",
     () => {
       const annotated = Box.annotate(
