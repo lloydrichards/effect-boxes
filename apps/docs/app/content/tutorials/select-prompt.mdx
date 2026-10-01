@@ -220,14 +220,14 @@ exits the prompt. `Beep` signals invalid input without changing state.
 ## Step 6: Run it
 
 ```typescript
-import { NodeRuntime } from "@effect/platform-node";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
 
 const program = Effect.gen(function* () {
   const result = yield* select;
   yield* Effect.log(`You chose: ${result}`);
 });
 
-NodeRuntime.runMain(program);
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)));
 ```
 
 ## What you've learned
@@ -255,7 +255,7 @@ enables cursor-based navigation in larger layouts.
 ```typescript showLineNumbers title="SelectPrompt.ts"
 import { Data, Effect, Match } from "effect";
 import { Prompt } from "effect/cli";
-import { NodeRuntime } from "@effect/platform-node";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
 import { Ansi, Box, Cmd } from "effect-boxes";
 
 type Choice<A> = {
@@ -351,7 +351,7 @@ const program = Effect.gen(function* () {
   yield* Effect.log(`You chose: ${result}`);
 });
 
-NodeRuntime.runMain(program);
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)));
 ```
 
 </CollapsibleContent>
