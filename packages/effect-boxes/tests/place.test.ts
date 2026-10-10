@@ -1,4 +1,4 @@
-import { Equal, HashMap, Option, pipe } from "effect";
+import { Equal, HashMap, Option, pipe, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import * as Annotation from "../src/Annotation";
 import * as Ansi from "../src/Ansi";
@@ -252,4 +252,25 @@ it("rejects invalid anchors supplied by JavaScript callers", () => {
   );
   // @ts-expect-error JavaScript callers can supply a horizontal anchor on y.
   expect(() => Place.vertical(source, 1, "right")).toThrow(RangeError);
+});
+
+it("returns placement validation failures without throwing and preserves successful output", () => {
+  const source = Box.text("A").pipe(Box.annotate(Ansi.red));
+  const options: Place.Options = { width: 3, height: 1, x: "right" };
+  expect(
+    Equal.equals(
+      Result.getOrThrow(Place.makeResult(source, options)),
+      Place.make(source, options)
+    )
+  ).toBe(true);
+  expect(Place.makeResult(source, { width: -1, height: 1 })).toMatchObject({
+    _tag: "Failure",
+    failure: { reason: "InvalidInput" },
+  });
+  expect(
+    Place.makeResult(Cmd.eraseScreen, { width: 0, height: 0 })
+  ).toMatchObject({
+    _tag: "Failure",
+    failure: { reason: "UnsupportedCommand" },
+  });
 });

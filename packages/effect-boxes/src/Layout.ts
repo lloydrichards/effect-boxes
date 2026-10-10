@@ -16,6 +16,7 @@ import type * as Box from "./Box.js";
 import * as internalContainer from "./internal/container.js";
 import * as internalFlex from "./internal/flex.js";
 import * as internalGrid from "./internal/grid.js";
+import * as internalValidation from "./internal/layout-validation.js";
 import * as internalPlace from "./internal/place.js";
 
 /*
@@ -438,6 +439,24 @@ export const Place = {
   make: internalPlace.make,
 
   /**
+   * Places a Box, returning validation failures instead of throwing them.
+   * Uses the same clipping and annotation preservation as Place.make.
+   *
+   * @example
+   * ```typescript
+   * import { Result } from "effect"
+   * import * as Box from "effect-boxes/Box"
+   * import { Place } from "effect-boxes/Layout"
+   * const result = Box.text("Hello").pipe(
+   *   Place.makeResult({ width: 20, height: 4, x: "center" })
+   * )
+   * if (Result.isSuccess(result)) console.log(result.success.cols) // 20
+   * ```
+   * @category transformations
+   */
+  makeResult: internalPlace.makeResult,
+
+  /**
    * Places a Box horizontally within an exact width, preserving its height.
    *
    * Uses the same clipping, validation, and command rejection as Place.make.
@@ -473,6 +492,24 @@ export const Place = {
    */
   vertical: internalPlace.vertical,
 } as const;
+
+/**
+ * Reports invalid layout input or unsupported command annotations.
+ *
+ * @example
+ * ```typescript
+ * import { Result } from "effect"
+ * import * as Box from "effect-boxes/Box"
+ * import { Place } from "effect-boxes/Layout"
+ * const result = Place.makeResult(Box.text("A"), { width: -1, height: 1 })
+ * if (Result.isFailure(result)) console.log(result.failure.reason) // "InvalidInput"
+ * ```
+ * @category errors
+ */
+export const LayoutValidationError: typeof internalValidation.LayoutValidationError =
+  internalValidation.LayoutValidationError;
+/** @category errors */
+export type LayoutValidationError = internalValidation.LayoutValidationError;
 
 /**
  * @category models

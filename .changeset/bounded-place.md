@@ -11,3 +11,5 @@ const placed = Box.text("Hello").pipe(
 ```
 
 Dimensions must be non-negative safe integers and numeric offsets must be safe integers. Invalid values and command annotations throw `RangeError`.
+
+Use `Place.makeResult` to receive a typed `LayoutValidationError` instead of throwing on invalid input or command annotations.
