@@ -148,6 +148,8 @@ Resolution supports nested ANSI style annotations and reactive IDs. Commands,
 embedded terminal controls, arbitrary annotations, and invalid Box dimensions
 fail with `FrameResolutionError`. The resolver checks hidden layers too.
 Encoder failures use `FrameEncodingError`.
+If independently resolved glyphs join into a different grapheme when composed,
+resolution fails with `FrameResolutionError` to preserve frame coordinates.
 
 Keep terminal commands separate from frame content. HTML frames, transparent
 layers, Stack inside Box composition, and incremental redraw are deferred.
