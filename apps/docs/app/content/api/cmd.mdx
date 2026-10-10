@@ -1,4 +1,4 @@
-# Cmd overview
+# Cmd
 
 Terminal command sequences for cursor control and screen manipulation.
 
@@ -6,30 +6,32 @@ Provides ANSI escape sequences as pure string values for cursor movement,
 screen clearing, and alternate screen buffer management. Intended for
 composing terminal UIs alongside box rendering.
 
+**See**
+
+- [`cursorTo`](#cursorto) — move cursor to absolute position
+- [`clearScreen`](#clearscreen) — clear entire terminal screen
+- [`altScreenEnter`](#altscreenenter) — switch to alternate screen buffer
+
 ---
 
 ## erase
 
 ### clearLines
 
-Clears the content of the specified number of lines above the cursor
-without deleting them from the scroll buffer.
+Clears the current terminal line and the specified remaining lines above it.
 
-Unlike `eraseLines` which uses the DL (Delete Line) escape to remove
-lines and scroll content upward, `clearLines` erases each line's content
+The row count includes the current line, so clearLines(3) clears that line
+and the two lines above it. Lines remain in place in the scroll buffer.
+
+Unlike [`eraseLines`](#eraselines) which uses the DL (Delete Line) escape to remove
+lines and scroll content upward, [`clearLines`](#clearlines) erases each line's content
 in place and repositions the cursor to the beginning of the topmost
 cleared line. This is the approach used by libraries like `ansi-escapes`
 for rewriting previous output (spinners, progress bars, etc.).
 
-**Signature**
-
-```ts
-export declare const clearLines: (rows: number) => Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 
@@ -41,9 +43,17 @@ const update = Box.vcat(
     Box.text("Replaced line 2"),
     Box.text("Replaced line 3"),
   ],
-  Box.left
+  Box.left,
 );
 ```
+
+**Signature**
+
+```ts
+declare const clearLines: (rows: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L621)
 
 ### eraseDown
 
@@ -53,15 +63,9 @@ Creates a Box containing ANSI escape sequence to clear all content
 from the current cursor position downward to the bottom of the screen.
 Ideal for clearing content below while preserving headers or navigation.
 
-**Signature**
-
-```ts
-export declare const eraseDown: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -77,10 +81,18 @@ const refreshContent = pipe(
       Box.text("New content area").pipe(Box.annotate(Ansi.blue)),
       Box.text("Data refreshed at: " + new Date().toLocaleTimeString()),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const eraseDown: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L475)
 
 ### eraseEndLine
 
@@ -90,15 +102,9 @@ Creates a Box containing ANSI escape sequence to clear content from
 the current cursor position forward to the end of the line.
 Essential for truncating lines and cleaning up trailing content.
 
-**Signature**
-
-```ts
-export declare const eraseEndLine: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -112,10 +118,18 @@ const truncateOutput = pipe(
       Cmd.eraseEndLine, // Clear everything after cursor
       Box.text("...").pipe(Box.annotate(Ansi.dim)), // Add ellipsis
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const eraseEndLine: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L560)
 
 ### eraseLine
 
@@ -125,15 +139,9 @@ Creates a Box containing ANSI escape sequence to completely clear the
 current line while keeping the cursor at its current position. Perfect
 for updating status lines or replacing line content.
 
-**Signature**
-
-```ts
-export declare const eraseLine: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -148,48 +156,55 @@ const updateStatus = pipe(
       Cmd.eraseLine, // Clear the status line
       Box.text("Status: ✓ Complete").pipe(Box.annotate(Ansi.green)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
-
-### eraseLines
-
-Erases content from current cursor position upwards by specified number of rows.
-
-Creates a Box containing ANSI escape sequence to clear a specific number
-of lines above the current cursor position. Useful for clearing known
-amounts of content while preserving other screen areas.
 
 **Signature**
 
 ```ts
-export declare const eraseLines: (rows: number) => Box<AnsiStyle>;
+declare const eraseLine: Box<AnsiStyle>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L504)
+
+### eraseLines
+
+Deletes the current terminal row and the following rows.
+
+Emits the DL (Delete Line) sequence for the specified number of rows.
+Later rows shift upward. Move the cursor to the first row to delete before
+writing this command. Use [`clearLines`](#clearlines) to erase previous output in place.
 
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-import { pipe } from "effect";
 
-const clearPreviousOutput = pipe(
-  Box.vcat(
-    [
-      Box.text("Line 1: Old output"),
-      Box.text("Line 2: Old output"),
-      Box.text("Line 3: Old output"),
-      Cmd.eraseLines(3), // Clear the 3 lines above
-      Box.text("Line 1: New output").pipe(Box.annotate(Ansi.green)),
-      Box.text("Line 2: New output").pipe(Box.annotate(Ansi.green)),
-      Box.text("Line 3: New output").pipe(Box.annotate(Ansi.green)),
-    ],
-    Box.left
-  )
+const previous = Box.vcat(
+  [Box.text("Old line 1"), Box.text("Old line 2"), Box.text("Old line 3")],
+  Box.left,
 );
+// Start at column 0 with room for three terminal rows. No trailing newline
+// means the cursor stays on the third row after rendering previous.
+const output =
+  Box.renderPrettySync(previous).replaceAll("\n", "\r\n") +
+  Box.renderPrettySync(Cmd.cursorPrevLine(2)) +
+  Box.renderPrettySync(Cmd.eraseLines(3)) +
+  Box.renderPrettySync(Box.text("Replacement"));
+// Write output directly with Terminal.display. Do not append a newline
+// between the frame and its cursor commands.
 ```
+
+**Signature**
+
+```ts
+declare const eraseLines: (rows: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L590)
 
 ### eraseScreen
 
@@ -199,15 +214,9 @@ Creates a Box containing ANSI escape sequence to completely clear the
 terminal screen and reset cursor to home position. Essential for
 creating fresh displays and implementing screen-based applications.
 
-**Signature**
-
-```ts
-export declare const eraseScreen: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -218,21 +227,29 @@ const newScreenDisplay = pipe(
     [
       Cmd.eraseScreen, // Clear everything, cursor to top
       Box.text("╔═══════════════════════════════╗").pipe(
-        Box.annotate(Ansi.cyan)
+        Box.annotate(Ansi.cyan),
       ),
       Box.text("║      APPLICATION STARTUP      ║").pipe(
-        Box.annotate(Ansi.cyan)
+        Box.annotate(Ansi.cyan),
       ),
       Box.text("╚═══════════════════════════════╝").pipe(
-        Box.annotate(Ansi.cyan)
+        Box.annotate(Ansi.cyan),
       ),
       Box.text(""),
       Box.text("Initializing...").pipe(Box.annotate(Ansi.yellow)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const eraseScreen: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L417)
 
 ### eraseStartLine
 
@@ -242,15 +259,9 @@ Creates a Box containing ANSI escape sequence to clear content from
 the current cursor position backward to the start of the line.
 Useful for selective line editing and partial content replacement.
 
-**Signature**
-
-```ts
-export declare const eraseStartLine: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -264,10 +275,18 @@ const updateLinePrefix = pipe(
       Cmd.eraseStartLine, // Clear "ERROR: " prefix
       Box.text("SUCCESS:").pipe(Box.annotate(Ansi.green)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const eraseStartLine: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L532)
 
 ### eraseUp
 
@@ -277,15 +296,9 @@ Creates a Box containing ANSI escape sequence to clear all content
 from the current cursor position upward to the top of the screen.
 Useful for clearing headers or top sections while preserving content below.
 
-**Signature**
-
-```ts
-export declare const eraseUp: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -300,10 +313,18 @@ const refreshHeader = pipe(
       Box.text("NEW HEADER").pipe(Box.annotate(Ansi.bold)),
       Box.text("Updated: " + new Date().toLocaleTimeString()),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const eraseUp: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L445)
 
 ## movement
 
@@ -315,15 +336,9 @@ Creates a Box containing ANSI escape sequence for leftward cursor movement.
 Useful for backtracking, correcting output positioning, or creating
 dynamic updates that overwrite previous content.
 
-**Signature**
-
-```ts
-export declare const cursorBackward: (columns?: number) => Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -336,10 +351,18 @@ const progressUpdate = pipe(
       Cmd.cursorBackward(3), // Move back to overwrite percentage
       Box.text("67%").pipe(Box.annotate(Ansi.green)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorBackward: (columns?: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L132)
 
 ### cursorDown
 
@@ -349,15 +372,9 @@ Creates a Box containing ANSI escape sequence for downward cursor movement.
 Useful for advancing to next sections in terminal output or building
 vertical navigation interfaces.
 
-**Signature**
-
-```ts
-export declare const cursorDown: (lines?: number) => Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -372,10 +389,18 @@ const stepByStepOutput = pipe(
       Cmd.cursorDown(1),
       Box.text("Step 3: Complete").pipe(Box.annotate(Ansi.green)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorDown: (lines?: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L71)
 
 ### cursorForward
 
@@ -385,15 +410,9 @@ Creates a Box containing ANSI escape sequence for rightward cursor movement.
 Essential for precise positioning within lines, creating indentation,
 or building horizontal navigation interfaces.
 
-**Signature**
-
-```ts
-export declare const cursorForward: (columns?: number) => Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import { pipe } from "effect";
@@ -407,14 +426,22 @@ const indentedList = pipe(
           Cmd.cursorForward(4), // Indent 4 spaces
           Box.text("- Sub item 1"),
         ],
-        Box.left
+        Box.left,
       ),
       Box.hcat([Cmd.cursorForward(4), Box.text("- Sub item 2")], Box.left),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorForward: (columns?: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L104)
 
 ### cursorMove
 
@@ -425,18 +452,9 @@ Creates a Box containing ANSI escape sequence for relative cursor movement.
 Ideal for making incremental adjustments to cursor position without
 knowing the absolute coordinates.
 
-**Signature**
-
-```ts
-export declare const cursorMove: (
-  column?: number,
-  row?: number
-) => Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -449,10 +467,18 @@ const correctTypo = pipe(
       Cmd.cursorMove(-6, 0), // Move back 6 characters
       Box.text("world").pipe(Box.annotate(Ansi.green)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorMove: (column?: number, row?: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L190)
 
 ### cursorNextLine
 
@@ -462,15 +488,9 @@ Creates a Box containing ANSI escape sequence that combines downward movement
 with positioning at column 0. Equivalent to moving down and then to the
 start of the line.
 
-**Signature**
-
-```ts
-export declare const cursorNextLine: (rows?: number) => Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -485,10 +505,18 @@ const structuredOutput = pipe(
       Cmd.cursorNextLine(2),
       Box.text("Section 3: Results").pipe(Box.annotate(Ansi.green)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorNextLine: (rows?: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L220)
 
 ### cursorPrevLine
 
@@ -498,15 +526,9 @@ Creates a Box containing ANSI escape sequence that combines upward movement
 with positioning at column 0. Useful for updating previous output or
 creating scrolling effects.
 
-**Signature**
-
-```ts
-export declare const cursorPrevLine: (rows?: number) => Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -520,10 +542,18 @@ const updatePreviousStatus = pipe(
       Cmd.cursorPrevLine(2), // Go back to Task 1 line
       Box.text("Task 1: ✓ Complete").pipe(Box.annotate(Ansi.green)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorPrevLine: (rows?: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L249)
 
 ### cursorTo
 
@@ -533,18 +563,9 @@ Creates a Box containing ANSI escape sequence for absolute cursor positioning.
 Essential for creating complex terminal layouts, updating specific screen
 regions, or implementing cursor-based interfaces.
 
-**Signature**
-
-```ts
-export declare const cursorTo: (
-  column?: number,
-  row?: number
-) => Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -558,10 +579,18 @@ const statusAtPosition = pipe(
       Cmd.cursorTo(50, 0), // Top-right area
       Box.text("Online").pipe(Box.annotate(Ansi.green)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorTo: (column?: number, row?: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L161)
 
 ### cursorUp
 
@@ -571,15 +600,9 @@ Creates a Box containing ANSI escape sequence for upward cursor movement.
 Essential for building interactive terminal applications, animations,
 and dynamic content updates.
 
-**Signature**
-
-```ts
-export declare const cursorUp: (lines?: number) => Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 
@@ -588,6 +611,14 @@ const output = Box.renderPrettySync(moveUp);
 // Contains ANSI escape sequence to move cursor up 3 lines
 ```
 
+**Signature**
+
+```ts
+declare const cursorUp: (lines?: number) => Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L41)
+
 ## state
 
 ### cursorRestorePosition
@@ -595,18 +626,12 @@ const output = Box.renderPrettySync(moveUp);
 Restores the cursor to the last saved position with encoding shift state and formatting.
 
 Creates a Box containing ANSI escape sequence that restores the terminal
-state saved by `cursorSavePosition`. Must be used in pair with save operations
+state saved by [`cursorSavePosition`](#cursorsaveposition). Must be used in pair with save operations
 to properly restore cursor position and terminal attributes.
-
-**Signature**
-
-```ts
-export declare const cursorRestorePosition: Box<AnsiStyle>;
-```
 
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -622,10 +647,18 @@ const saveRestoreDemo = pipe(
       Cmd.cursorRestorePosition, // Back to original position
       Box.text(" - continued").pipe(Box.annotate(Ansi.green)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorRestorePosition: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L317)
 
 ### cursorSavePosition
 
@@ -635,15 +668,9 @@ Creates a Box containing ANSI escape sequence that saves the current terminal
 state. Essential for implementing complex terminal applications where you
 need to temporarily move the cursor and then return to the original position.
 
-**Signature**
-
-```ts
-export declare const cursorSavePosition: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -659,10 +686,18 @@ const temporaryStatus = pipe(
       Cmd.cursorRestorePosition, // Return to saved position
       Box.text("Continuing main content..."),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorSavePosition: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L286)
 
 ## utilities
 
@@ -673,21 +708,15 @@ Switches the terminal to the alternate screen buffer.
 The alternate screen buffer is a separate terminal buffer (used by tools
 like `vim`, `less`, and `fzf`) that has no scrollback history. Content
 rendered on the alternate screen disappears completely when the terminal
-switches back to the main screen via `altScreenLeave`.
+switches back to the main screen via [`altScreenLeave`](#altscreenleave).
 
 This is the correct primitive for rendering tall interactive content that
-must be fully removed on dismiss, since `cursorUp` and `eraseDown` cannot
+must be fully removed on dismiss, since [`cursorUp`](#cursorup) and [`eraseDown`](#erasedown) cannot
 reach lines that have scrolled into the main buffer's scrollback.
-
-**Signature**
-
-```ts
-export declare const altScreenEnter: Box<AnsiStyle>;
-```
 
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 
@@ -698,29 +727,39 @@ const fullScreenUI = Box.combineAll([
 ]);
 ```
 
+**Signature**
+
+```ts
+declare const altScreenEnter: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L744)
+
 ### altScreenLeave
 
 Switches the terminal back to the main screen buffer.
 
-Restores the main screen buffer that was saved when `altScreenEnter`
+Restores the main screen buffer that was saved when [`altScreenEnter`](#altscreenenter)
 was invoked. All content rendered on the alternate screen is discarded,
 and the terminal display returns to its previous state.
 
-**Signature**
-
-```ts
-export declare const altScreenLeave: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 
 // Leave alternate screen to restore main buffer
 const cleanup = Cmd.altScreenLeave;
 ```
+
+**Signature**
+
+```ts
+declare const altScreenLeave: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L764)
 
 ### bell
 
@@ -730,15 +769,9 @@ Creates a Box containing ANSI escape sequence to produce an audible
 bell or visual flash in the terminal. Useful for alerts, notifications,
 or indicating completion of long-running operations.
 
-**Signature**
-
-```ts
-export declare const bell: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -752,28 +785,30 @@ const criticalAlert = pipe(
       Box.text("System requires immediate attention"),
       Cmd.bell, // Second alert for emphasis
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const bell: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L716)
 
 ### clearScreen
 
 Clears the entire screen and moves cursor to home position (0,0).
 
 Creates a Box containing ANSI escape sequence to completely clear the
-terminal screen and position cursor at the top-left. Similar to `eraseScreen`
+terminal screen and position cursor at the top-left. Similar to [`eraseScreen`](#erasescreen)
 but specifically optimized for full screen resets.
-
-**Signature**
-
-```ts
-export declare const clearScreen: Box<AnsiStyle>;
-```
 
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -784,24 +819,32 @@ const initializeApp = pipe(
     [
       Cmd.clearScreen, // Start with clean screen
       Box.text("╔════════════════════════════════════════╗").pipe(
-        Box.annotate(Ansi.cyan)
+        Box.annotate(Ansi.cyan),
       ),
       Box.text("║               WELCOME TO               ║").pipe(
-        Box.annotate(Ansi.cyan)
+        Box.annotate(Ansi.cyan),
       ),
       Box.text("║            EFFECT BOXES CLI            ║").pipe(
-        Box.annotate(Ansi.cyan)
+        Box.annotate(Ansi.cyan),
       ),
       Box.text("╚════════════════════════════════════════╝").pipe(
-        Box.annotate(Ansi.cyan)
+        Box.annotate(Ansi.cyan),
       ),
       Box.text(""),
       Box.text("Loading...").pipe(Box.annotate(Ansi.yellow)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const clearScreen: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L659)
 
 ### home
 
@@ -811,15 +854,9 @@ Creates a Box containing ANSI escape sequence to move the cursor to
 the top-left corner of the terminal. Essential for returning to a
 known position without clearing screen content.
 
-**Signature**
-
-```ts
-export declare const home: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -834,10 +871,18 @@ const updateTopStatus = pipe(
       Box.text(" | "),
       Box.text("Users: 42").pipe(Box.annotate(Ansi.blue)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const home: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L688)
 
 ## visibility
 
@@ -849,15 +894,9 @@ Creates a Box containing ANSI escape sequence to hide the terminal cursor.
 Useful for creating clean output displays, progress indicators, or
 animations where the blinking cursor would be distracting.
 
-**Signature**
-
-```ts
-export declare const cursorHide: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -871,10 +910,18 @@ const progressBar = pipe(
       Box.text("▓▓▓▓▓▓▓░░░ 70%").pipe(Box.annotate(Ansi.cyan)),
       Box.text("ETA: 30 seconds").pipe(Box.annotate(Ansi.dim)),
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorHide: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L381)
 
 ### cursorShow
 
@@ -884,15 +931,9 @@ Creates a Box containing ANSI escape sequence to show the terminal cursor.
 Essential for restoring normal cursor visibility after hiding it for
 clean output displays or animation sequences.
 
-**Signature**
-
-```ts
-export declare const cursorShow: Box<AnsiStyle>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Cmd from "effect-boxes/Cmd";
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
@@ -907,7 +948,15 @@ const cleanOutputSequence = pipe(
       Box.text("Complete!").pipe(Box.annotate(Ansi.bold)),
       Cmd.cursorShow, // Restore cursor for user input
     ],
-    Box.left
-  )
+    Box.left,
+  ),
 );
 ```
+
+**Signature**
+
+```ts
+declare const cursorShow: Box<AnsiStyle>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Cmd.ts#L353)

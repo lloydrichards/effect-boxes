@@ -1,17 +1,22 @@
-# Renderer overview
+# Renderer
 
 Pluggable rendering pipeline for converting boxes to output strings.
 
-The `Renderer` module defines a `TextProcessor` interface and provides
+The [`Renderer`](#renderer-type-alias) module defines a [`TextProcessor`](#textprocessor-type-alias) interface and provides
 Effect layers for plain text, ANSI, and HTML rendering. Use this when
 you need configurable or effectful rendering (e.g., tracked rendering
 with position maps).
 
-### Common tasks
+## Common tasks
 
-- **Render a box**: `render`, `renderBoxToLines`
-- **Use a layer**: `PlainRendererLive`, `AnsiRendererLive`, `HtmlRendererLive`
-- **Track positions**: `tracked`
+- **Render a box**: [`render`](#render), [`renderBoxToLines`](#renderboxtolines)
+- **Use a layer**: [`PlainRendererLive`](#plainrendererlive), [`AnsiRendererLive`](#ansirendererlive), [`HtmlRendererLive`](#htmlrendererlive)
+- **Track positions**: [`tracked`](#tracked)
+
+**See**
+
+- [`render`](#render) — main rendering function
+- [`tracked`](#tracked) — rendering with position tracking
 
 ---
 
@@ -25,15 +30,9 @@ Provides standard rendering settings that work well for most use cases.
 Used as fallback when no explicit configuration is provided to rendering
 functions. Contains sensible defaults for whitespace handling and formatting.
 
-**Signature**
-
-```ts
-export declare const defaultRenderConfig: RenderConfig;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Renderer from "effect-boxes/Renderer";
 import * as Box from "effect-boxes/Box";
 import { Effect, pipe } from "effect";
@@ -44,591 +43,25 @@ const box = Box.text("Hello World");
 const render1 = pipe(
   box,
   Renderer.render(),
-  Effect.provide(Renderer.PlainRendererLive)
+  Effect.provide(Renderer.PlainRendererLive),
 );
 
 const render2 = pipe(
   box,
   Renderer.render(Renderer.defaultRenderConfig),
-  Effect.provide(Renderer.PlainRendererLive)
+  Effect.provide(Renderer.PlainRendererLive),
 );
 ```
-
-## layers
-
-### AnsiRendererLive
-
-ANSI-enabled renderer layer implementation.
-
-Provides a Renderer service that preserves all ANSI formatting and styling
-during rendering. Essential for terminal applications where colors, bold text,
-underlines, and other visual formatting enhance the user experience.
-Processes all styling annotations and converts them to appropriate ANSI codes.
 
 **Signature**
 
 ```ts
-export declare const AnsiRendererLive: Layer.Layer<
-  internal.Renderer,
-  never,
-  never
->;
+declare const defaultRenderConfig: RenderConfig;
 ```
 
-**Example**
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L226)
 
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-import { Effect, pipe } from "effect";
-
-const colorfulBox = Box.vcat(
-  [
-    Box.text("✓ Success").pipe(Box.annotate(Ansi.green)),
-    Box.text("⚠ Warning").pipe(Box.annotate(Ansi.yellow)),
-    Box.text("✗ Error").pipe(Box.annotate(Ansi.red)),
-  ],
-  Box.left
-);
-
-const terminalOutput = pipe(
-  colorfulBox,
-  Renderer.render(),
-  Effect.provide(Renderer.AnsiRendererLive)
-);
-// Result: Text with full color and formatting
-```
-
-### HtmlPrettyRendererLive
-
-HTML renderer layer configured for pretty-formatted output.
-
-Uses indentation and whitespace preservation to produce readable HTML
-strings that are easier to inspect in logs, snapshots, and tests.
-
-**Signature**
-
-```ts
-export declare const HtmlPrettyRendererLive: Layer.Layer<
-  internal.Renderer,
-  never,
-  never
->;
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-import * as Html from "effect-boxes/Html";
-import { Effect, pipe } from "effect";
-
-const box = Box.text("Hello").pipe(Box.annotate(Html.p()));
-
-const html = pipe(
-  Renderer.render(box),
-  Effect.provide(Renderer.HtmlPrettyRendererLive)
-);
-```
-
-### HtmlRendererLive
-
-HTML renderer layer implementation.
-
-Provides a Renderer service that converts box layouts into HTML format.
-Preserves structural and styling annotations by translating them into
-appropriate HTML tags and attributes. Useful for web applications,
-documentation generation, or any context where HTML output is required.
-
-**Signature**
-
-```ts
-export declare const HtmlRendererLive: Layer.Layer<
-  internal.Renderer,
-  never,
-  never
->;
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-import * as Html from "effect-boxes/Html";
-import { Effect, pipe } from "effect";
-
-const htmlBox = Box.vcat(
-  [
-    Box.text("Hello World").pipe(Box.annotate(Html.h1())),
-    Box.text("This is an example of HTML rendering.").pipe(
-      Box.annotate(Html.p())
-    ),
-    Box.text("Goodbye!").pipe(Box.annotate(Html.p())),
-  ],
-  Box.left
-);
-
-const htmlOutput = pipe(
-  htmlBox,
-  Renderer.render(),
-  Effect.provide(Renderer.HtmlRendererLive)
-);
-// Result: HTML string with appropriate tags
-```
-
-### PlainRendererLive
-
-Plain text renderer layer implementation.
-
-Provides a Renderer service that strips all formatting and produces clean
-text output. Ideal for logging, file output, or contexts where ANSI formatting
-is not supported or desired. All styling annotations are ignored during
-rendering, resulting in plain text representation of the box layout.
-
-**Signature**
-
-```ts
-export declare const PlainRendererLive: Layer.Layer<
-  internal.Renderer,
-  never,
-  never
->;
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-import { Effect, pipe } from "effect";
-
-const styledBox = Box.vcat(
-  [
-    Box.text("Title").pipe(Box.annotate(Ansi.bold)),
-    Box.text("Content").pipe(Box.annotate(Ansi.red)),
-    Box.text("Footer").pipe(Box.annotate(Ansi.blue)),
-  ],
-  Box.left
-);
-
-const plainOutput = pipe(
-  styledBox,
-  Renderer.render(),
-  Effect.provide(Renderer.PlainRendererLive)
-);
-// Result: "Title\nContent\nFooter" (no ANSI codes)
-```
-
-## models
-
-### RenderConfig (type alias)
-
-Configuration options for controlling rendering behavior.
-
-Provides fine-grained control over how boxes are converted to text output.
-Options affect whitespace handling, line endings, and other text formatting
-aspects during the rendering process.
-
-**Signature**
-
-```ts
-export type RenderConfig = {
-  readonly preserveWhitespace?: boolean;
-};
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-import { Effect, pipe } from "effect";
-
-const multiLineBox = Box.vcat(
-  [
-    Box.text("Line 1   "), // Trailing spaces
-    Box.text("Line 2"),
-    Box.text("   Line 3"), // Leading spaces
-  ],
-  Box.left
-);
-
-// Default configuration - may trim whitespace
-const defaultConfig: Renderer.RenderConfig = {};
-
-// Preserve all whitespace
-const preserveConfig: Renderer.RenderConfig = {
-  preserveWhitespace: true,
-};
-
-// Usage with render function
-const renderWithConfig = pipe(
-  multiLineBox,
-  Renderer.render(preserveConfig),
-  Effect.provide(Renderer.PlainRendererLive)
-);
-```
-
-### RenderFrame (type alias)
-
-Result of a tracked render pass containing rendered output and reactive positions.
-
-Combines the rendered string output with position metadata for all reactive
-boxes in the layout. Positions use logical terminal cell coordinates.
-
-**Signature**
-
-```ts
-export type RenderFrame = internal.RenderFrame;
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Reactive from "effect-boxes/Reactive";
-import * as Box from "effect-boxes/Box";
-import { Effect, pipe, HashMap } from "effect";
-
-const layout = Box.vcat(
-  [
-    Reactive.makeReactive(Box.text("Header"), "header"),
-    Box.text("Body"),
-    Reactive.makeReactive(Box.text("Footer"), "footer"),
-  ],
-  Box.left
-);
-
-const program = pipe(
-  Renderer.tracked(layout),
-  Effect.provide(Renderer.PlainRendererLive)
-);
-// Result: { lines: [...], output: "Header\nBody\nFooter", positions: HashMap }
-```
-
-### RenderStyle (type alias)
-
-Discriminated union defining different rendering styles.
-
-Controls how boxes are rendered to text output. Plain rendering strips
-all formatting and produces simple text, while Pretty rendering preserves
-ANSI styling and formatting with optional whitespace handling.
-
-**Signature**
-
-```ts
-export type RenderStyle =
-  | { readonly _tag: "Plain" }
-  | { readonly _tag: "Pretty"; readonly preserveWhitespace?: boolean };
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-import { Effect } from "effect";
-
-const styledBox = Box.text("Hello World").pipe(Box.annotate(Ansi.red));
-
-// Plain rendering - strips all formatting
-const plainStyle: Renderer.RenderStyle = { _tag: "Plain" };
-
-// Pretty rendering - preserves ANSI formatting
-const prettyStyle: Renderer.RenderStyle = {
-  _tag: "Pretty",
-  preserveWhitespace: true,
-};
-
-// Pretty rendering with default whitespace handling
-const prettyDefault: Renderer.RenderStyle = { _tag: "Pretty" };
-```
-
-### Renderer (type alias)
-
-Type representing the Renderer service interface.
-
-Defines the contract for renderer implementations, including text processing
-capabilities and configuration options. Used for dependency injection in
-Effect-based rendering operations.
-
-**Signature**
-
-```ts
-export type Renderer = internal.Renderer;
-```
-
-### TextProcessor (type alias)
-
-Text processing interface for customizing line rendering behavior.
-
-Defines how text lines are processed during rendering, including width
-adjustment, alignment handling, and formatting preservation. Used by
-different renderer implementations to control text output behavior.
-
-**Signature**
-
-```ts
-export type TextProcessor = {
-  readonly processLine: (text: string, targetWidth: number) => string;
-  readonly processLineAligned: (
-    text: string,
-    targetWidth: number,
-    alignment: Box.Alignment
-  ) => string;
-  readonly preservesFormatting: boolean;
-};
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-
-const customProcessor: Renderer.TextProcessor = {
-  processLine: (text, targetWidth) => {
-    // Custom line processing logic
-    return text.padEnd(targetWidth, " ");
-  },
-  processLineAligned: (text, targetWidth, alignment) => {
-    // Custom alignment logic
-    switch (alignment) {
-      case Box.center1:
-        const padding = Math.floor((targetWidth - text.length) / 2);
-        return " ".repeat(padding) + text;
-      default:
-        return text;
-    }
-  },
-  preservesFormatting: true,
-};
-```
-
-## rendering
-
-### render
-
-Convenience function to render a box directly to a string.
-
-Combines `renderBoxToLines` and `renderLinesToString` into a single operation
-for streamlined rendering. This is the most commonly used rendering function
-as it provides complete box-to-string conversion with optional configuration.
-Supports both data-first and data-last calling patterns.
-
-**Signature**
-
-```ts
-export declare const render: {
-  <A>(
-    config?: RenderConfig
-  ): (box: Box.Box<A>) => Effect.Effect<string, never, Renderer>;
-  <A>(
-    box: Box.Box<A>,
-    config?: RenderConfig
-  ): Effect.Effect<string, never, Renderer>;
-};
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-import { Effect, pipe } from "effect";
-
-const styledBox = Box.text("Hello World").pipe(Box.annotate(Ansi.green));
-
-// Data-first usage
-const program1 = pipe(
-  Renderer.render(styledBox),
-  Effect.provide(Renderer.AnsiRendererLive)
-);
-
-// Data-last usage
-const program2 = pipe(
-  styledBox,
-  Renderer.render(),
-  Effect.provide(Renderer.AnsiRendererLive)
-);
-```
-
-### renderBoxToLines
-
-Renders a box to an array of text lines using the Renderer service.
-
-Core rendering function that converts a Box layout into an array of strings,
-with each string representing a line of output. This is the foundation
-of the rendering system and handles all layout calculations, text processing,
-and annotation rendering according to the active renderer implementation.
-
-**Signature**
-
-```ts
-export declare const renderBoxToLines: <A>(
-  box: Box.Box<A>
-) => Effect.Effect<string[], never, internal.Renderer>;
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-import { Effect, pipe } from "effect";
-
-const complexBox = Box.vcat(
-  [
-    Box.text("Header").pipe(Box.annotate(Ansi.bold)),
-    Box.hcat(
-      [Box.text("Left"), Box.text("Right").pipe(Box.annotate(Ansi.red))],
-      Box.top
-    ),
-    Box.text("Footer"),
-  ],
-  Box.left
-);
-
-const renderLines = pipe(
-  complexBox,
-  Renderer.renderBoxToLines,
-  Effect.provide(Renderer.AnsiRendererLive)
-);
-
-// Result: Effect that yields ["Header", "LeftRight", "Footer"]
-// with appropriate ANSI formatting
-```
-
-### renderLinesToString
-
-Converts rendered lines to a single string with optional configuration.
-
-Takes an array of text lines and joins them into a single string output,
-applying whitespace handling and formatting rules according to the provided
-configuration. Supports both data-first and data-last calling patterns
-for flexible composition.
-
-**Signature**
-
-```ts
-export declare const renderLinesToString: {
-  (config?: RenderConfig): (lines: string[]) => string;
-  (lines: string[], config?: RenderConfig): string;
-};
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import { pipe } from "effect";
-
-const lines = ["Header", "Content Line 1", "Content Line 2", "Footer"];
-
-// Data-first usage
-const result1 = Renderer.renderLinesToString(lines);
-// "Header\nContent Line 1\nContent Line 2\nFooter"
-
-// Data-last usage with pipe
-const result2 = pipe(lines, Renderer.renderLinesToString());
-```
-
-### tracked
-
-Renders a box to a string and collects reactive position metadata in one operation.
-
-Combines rendering with reactive position tracking, returning a `RenderFrame`
-containing the rendered lines, joined output string, and a position map for
-all reactive annotations. Supports both data-first and data-last calling patterns.
-
-**Signature**
-
-```ts
-export declare const tracked: {
-  <A>(
-    config?: RenderConfig
-  ): (box: Box.Box<A>) => Effect.Effect<RenderFrame, never, Renderer>;
-  <A>(
-    box: Box.Box<A>,
-    config?: RenderConfig
-  ): Effect.Effect<RenderFrame, never, Renderer>;
-};
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Reactive from "effect-boxes/Reactive";
-import * as Box from "effect-boxes/Box";
-import { Effect, pipe, HashMap } from "effect";
-
-const layout = Box.vcat(
-  [
-    Reactive.makeReactive(Box.text("Title"), "title"),
-    Reactive.makeReactive(Box.text("Button"), "btn"),
-  ],
-  Box.left
-);
-
-const program = Effect.gen(function* () {
-  const frame = yield* Renderer.tracked(layout);
-  console.log(frame.output);
-  const btnPos = HashMap.get(frame.positions, "btn");
-  return frame;
-}).pipe(Effect.provide(Renderer.AnsiRendererLive));
-```
-
-## services
-
-### Renderer
-
-Renderer service tag for Effect.js dependency injection.
-
-Service interface for the rendering system, providing dependency injection
-capabilities for Effect computations. Use this to access renderer operations
-that require specific rendering implementations (Plain or ANSI).
-
-**Signature**
-
-```ts
-export declare const Renderer: typeof internal.Renderer;
-```
-
-**Example**
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-import { Effect, pipe } from "effect";
-
-const renderProgram = (content: string) =>
-  Effect.gen(function* () {
-    const styledBox = Box.text(content).pipe(Box.annotate(Ansi.green));
-    const result = yield* Renderer.render(styledBox);
-    yield* Effect.log(`Rendered: ${result}`);
-    return result;
-  });
-
-// Run with ANSI renderer
-const program = pipe(
-  renderProgram("Hello Effect!"),
-  Effect.provide(Renderer.AnsiRendererLive)
-);
-```
-
-## Frame composition
-
-PlainRendererLive and AnsiRendererLive provide the companion FrameEncoder service
-as well as the ordinary Renderer. HTML layers provide ordinary rendering only.
+## errors
 
 ### FrameResolutionError
 
@@ -652,6 +85,8 @@ const error = new Renderer.FrameResolutionError({
 declare const FrameResolutionError: typeof internalFrame.FrameResolutionError;
 ```
 
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L606)
+
 ### FrameResolutionError (type alias)
 
 **Signature**
@@ -659,6 +94,347 @@ declare const FrameResolutionError: typeof internalFrame.FrameResolutionError;
 ```ts
 type FrameResolutionError = internalFrame.FrameResolutionError;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L610)
+
+## layers
+
+### AnsiRendererLive
+
+ANSI-enabled renderer layer implementation.
+
+Provides a Renderer service that preserves all ANSI formatting and styling
+during rendering. Essential for terminal applications where colors, bold text,
+underlines, and other visual formatting enhance the user experience.
+Processes all styling annotations and converts them to appropriate ANSI codes.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { Effect, pipe } from "effect";
+
+const colorfulBox = Box.vcat(
+  [
+    Box.text("✓ Success").pipe(Box.annotate(Ansi.green)),
+    Box.text("⚠ Warning").pipe(Box.annotate(Ansi.yellow)),
+    Box.text("✗ Error").pipe(Box.annotate(Ansi.red)),
+  ],
+  Box.left,
+);
+
+const terminalOutput = pipe(
+  colorfulBox,
+  Renderer.render(),
+  Effect.provide(Renderer.AnsiRendererLive),
+);
+const output = Effect.runSync(terminalOutput);
+console.log(output); // Text with ANSI color and formatting
+```
+
+**Signature**
+
+```ts
+declare const AnsiRendererLive: Layer.Layer<
+  internal.Renderer | internalFrameEncoder.FrameEncoder,
+  never,
+  never
+>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L500)
+
+### HtmlPrettyRendererLive
+
+HTML renderer layer configured for pretty-formatted output.
+
+Uses indentation and whitespace preservation to produce readable HTML
+strings that are easier to inspect in logs, snapshots, and tests.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Box from "effect-boxes/Box";
+import * as Html from "effect-boxes/Html";
+import { Effect, pipe } from "effect";
+
+const box = Box.text("Hello").pipe(Box.annotate(Html.p()));
+
+const html = pipe(
+  Renderer.render(box),
+  Effect.provide(Renderer.HtmlPrettyRendererLive),
+);
+```
+
+**Signature**
+
+```ts
+declare const HtmlPrettyRendererLive: Layer.Layer<
+  internal.Renderer,
+  never,
+  never
+>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L565)
+
+### HtmlRendererLive
+
+HTML renderer layer implementation.
+
+Provides a Renderer service that converts box layouts into HTML format.
+Preserves structural and styling annotations by translating them into
+appropriate HTML tags and attributes. Useful for web applications,
+documentation generation, or any context where HTML output is required.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Box from "effect-boxes/Box";
+import * as Html from "effect-boxes/Html";
+import { Effect, pipe } from "effect";
+
+const htmlBox = Box.vcat(
+  [
+    Box.text("Hello World").pipe(Box.annotate(Html.h1())),
+    Box.text("This is an example of HTML rendering.").pipe(
+      Box.annotate(Html.p()),
+    ),
+    Box.text("Goodbye!").pipe(Box.annotate(Html.p())),
+  ],
+  Box.left,
+);
+
+const htmlOutput = pipe(
+  htmlBox,
+  Renderer.render(),
+  Effect.provide(Renderer.HtmlRendererLive),
+);
+const output = Effect.runSync(htmlOutput);
+console.log(output); // HTML string with tags separated by newlines
+```
+
+**Signature**
+
+```ts
+declare const HtmlRendererLive: Layer.Layer<internal.Renderer, never, never>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L536)
+
+### PlainRendererLive
+
+Plain text renderer layer implementation.
+
+Provides a Renderer service that strips all formatting and produces clean
+text output. Ideal for logging, file output, or contexts where ANSI formatting
+is not supported or desired. All styling annotations are ignored during
+rendering, resulting in plain text representation of the box layout.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { Effect, pipe } from "effect";
+
+const styledBox = Box.vcat(
+  [
+    Box.text("Title").pipe(Box.annotate(Ansi.bold)),
+    Box.text("Content").pipe(Box.annotate(Ansi.red)),
+    Box.text("Footer").pipe(Box.annotate(Ansi.blue)),
+  ],
+  Box.left,
+);
+
+const plainOutput = pipe(
+  styledBox,
+  Renderer.render(),
+  Effect.provide(Renderer.PlainRendererLive),
+);
+const output = Effect.runSync(plainOutput);
+console.log(output); // "Title\nContent\nFooter" (no ANSI codes)
+```
+
+**Signature**
+
+```ts
+declare const PlainRendererLive: Layer.Layer<
+  internal.Renderer | internalFrameEncoder.FrameEncoder,
+  never,
+  never
+>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L464)
+
+## models
+
+### FrameOutput (type alias)
+
+Contains full viewport lines, serialized output, and their resolved snapshot.
+Whitespace configuration changes output only, never geometry or regions.
+
+**Signature**
+
+```ts
+type FrameOutput = internalFrameRenderer.FrameOutput;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L591)
+
+### RenderConfig (type alias)
+
+Configuration options for controlling rendering behavior.
+
+Provides fine-grained control over how boxes are converted to text output.
+Options affect whitespace handling, line endings, and other text formatting
+aspects during the rendering process.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Box from "effect-boxes/Box";
+import { Effect, pipe } from "effect";
+
+const multiLineBox = Box.vcat(
+  [
+    Box.text("Line 1   "), // Trailing spaces
+    Box.text("Line 2"),
+    Box.text("   Line 3"), // Leading spaces
+  ],
+  Box.left,
+);
+
+// Default configuration - may trim whitespace
+const defaultConfig: Renderer.RenderConfig = {};
+
+// Preserve all whitespace
+const preserveConfig: Renderer.RenderConfig = {
+  preserveWhitespace: true,
+};
+
+// Usage with render function
+const renderWithConfig = pipe(
+  multiLineBox,
+  Renderer.render(preserveConfig),
+  Effect.provide(Renderer.PlainRendererLive),
+);
+```
+
+**Signature**
+
+```ts
+type RenderConfig = {
+  readonly preserveWhitespace?: boolean;
+};
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L147)
+
+### RenderFrame (type alias)
+
+Result of a tracked render pass containing rendered output and reactive positions.
+
+Combines the rendered string output with position metadata for all reactive
+boxes in the layout. Positions use logical terminal cell coordinates.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Reactive from "effect-boxes/Reactive";
+import * as Box from "effect-boxes/Box";
+import { Effect, pipe, HashMap } from "effect";
+
+const layout = Box.vcat(
+  [
+    Reactive.makeReactive(Box.text("Header"), "header"),
+    Box.text("Body"),
+    Reactive.makeReactive(Box.text("Footer"), "footer"),
+  ],
+  Box.left,
+);
+
+const program = pipe(
+  Renderer.tracked(layout),
+  Effect.provide(Renderer.PlainRendererLive),
+);
+const frame = Effect.runSync(program);
+console.log(frame.output); // "Header\nBody\nFooter"
+// frame.positions contains the reactive region positions.
+```
+
+**Signature**
+
+```ts
+type RenderFrame = internal.RenderFrame;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L387)
+
+### RenderStyle (type alias)
+
+Discriminated union defining different rendering styles.
+
+Controls how boxes are rendered to text output. Plain rendering strips
+all formatting and produces simple text, while Pretty rendering preserves
+ANSI styling and formatting with optional whitespace handling.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { Effect } from "effect";
+
+const styledBox = Box.text("Hello World").pipe(Box.annotate(Ansi.red));
+
+// Plain rendering - strips all formatting
+const plainStyle: Renderer.RenderStyle = { _tag: "Plain" };
+
+// Pretty rendering - preserves ANSI formatting
+const prettyStyle: Renderer.RenderStyle = {
+  _tag: "Pretty",
+  preserveWhitespace: true,
+};
+
+// Pretty rendering with default whitespace handling
+const prettyDefault: Renderer.RenderStyle = { _tag: "Pretty" };
+```
+
+**Signature**
+
+```ts
+type RenderStyle =
+  | { readonly _tag: "Plain" }
+  | { readonly _tag: "Pretty"; readonly preserveWhitespace?: boolean };
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L106)
+
+### Renderer (type alias)
+
+Type representing the Renderer service interface.
+
+Defines the contract for renderer implementations, including text processing
+capabilities and configuration options. Used for dependency injection in
+Effect-based rendering operations.
+
+**Signature**
+
+```ts
+type Renderer = internal.Renderer;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L193)
 
 ### ResolvedFrame (type alias)
 
@@ -672,39 +448,283 @@ Keep the original object; copied or reconstructed frames have no private data.
 type ResolvedFrame = internalFrame.ResolvedFrame;
 ```
 
-### FrameOutput (type alias)
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L583)
 
-Contains full viewport lines, serialized output, and their resolved snapshot.
-Whitespace configuration changes output only, never geometry or regions.
+### TextProcessor (type alias)
 
-**Signature**
+Text processing interface for customizing line rendering behavior.
 
-```ts
-type FrameOutput = internalFrameRenderer.FrameOutput;
-```
-
-### resolve
-
-Resolves original Boxes or opaque Stack layers into one immutable viewport.
-Requires no renderer service. Higher z wins, with later input breaking ties.
+Defines how text lines are processed during rendering, including width
+adjustment, alignment handling, and formatting preservation. Used by
+different renderer implementations to control text output behavior.
 
 **Example**
 
 ```ts
-import { Effect } from "effect";
-import * as Box from "effect-boxes/Box";
 import * as Renderer from "effect-boxes/Renderer";
-const resolved = Effect.runSync(Renderer.resolve(Box.text("Hello")));
-console.log(resolved.cols); // 5
+import * as Box from "effect-boxes/Box";
+
+const customProcessor: Renderer.TextProcessor = {
+  processLine: (text, targetWidth) => {
+    // Custom line processing logic
+    return text.padEnd(targetWidth, " ");
+  },
+  processLineAligned: (text, targetWidth, alignment) => {
+    // Custom alignment logic
+    switch (alignment) {
+      case Box.center1:
+        const padding = Math.floor((targetWidth - text.length) / 2);
+        return " ".repeat(padding) + text;
+      default:
+        return text;
+    }
+  },
+  preservesFormatting: true,
+};
 ```
 
 **Signature**
 
 ```ts
-declare const resolve: <A>(
-  self: Box.Box<A> | Stack<A>
-) => Effect.Effect<ResolvedFrame, FrameResolutionError>;
+type TextProcessor = {
+  readonly processLine: (text: string, targetWidth: number) => string;
+  readonly processLineAligned: (
+    text: string,
+    targetWidth: number,
+    alignment: Box.Alignment,
+  ) => string;
+  readonly preservesFormatting: boolean;
+};
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L65)
+
+## rendering
+
+### render
+
+Convenience function to render a box directly to a string.
+
+Combines [`renderBoxToLines`](#renderboxtolines) and [`renderLinesToString`](#renderlinestostring) into a single operation
+for streamlined rendering. This is the most commonly used rendering function
+as it provides complete box-to-string conversion with optional configuration.
+Supports both data-first and data-last calling patterns.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { Effect, pipe } from "effect";
+
+const styledBox = Box.text("Hello World").pipe(Box.annotate(Ansi.green));
+
+// Data-first usage
+const program1 = pipe(
+  Renderer.render(styledBox),
+  Effect.provide(Renderer.AnsiRendererLive),
+);
+
+// Data-last usage
+const program2 = pipe(
+  styledBox,
+  Renderer.render(),
+  Effect.provide(Renderer.AnsiRendererLive),
+);
+```
+
+**Signature**
+
+```ts
+declare const render: {
+  <A>(
+    config?: RenderConfig,
+  ): (box: Box.Box<A>) => Effect.Effect<string, never, Renderer>;
+  <A>(
+    box: Box.Box<A>,
+    config?: RenderConfig,
+  ): Effect.Effect<string, never, Renderer>;
+};
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L343)
+
+### renderBoxToLines
+
+Renders a box to an array of text lines using the Renderer service.
+
+Core rendering function that converts a Box layout into an array of strings,
+with each string representing a line of output. This is the foundation
+of the rendering system and handles all layout calculations, text processing,
+and annotation rendering according to the active renderer implementation.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { Effect, pipe } from "effect";
+
+const complexBox = Box.vcat(
+  [
+    Box.text("Header").pipe(Box.annotate(Ansi.bold)),
+    Box.hcat(
+      [Box.text("Left"), Box.text("Right").pipe(Box.annotate(Ansi.red))],
+      Box.top,
+    ),
+    Box.text("Footer"),
+  ],
+  Box.left,
+);
+
+const renderLines = pipe(
+  complexBox,
+  Renderer.renderBoxToLines,
+  Effect.provide(Renderer.AnsiRendererLive),
+);
+
+// Run the Effect to obtain ["Header", "LeftRight", "Footer"]
+// with appropriate ANSI formatting
+```
+
+**Signature**
+
+```ts
+declare const renderBoxToLines: <A>(
+  box: Box.Box<A>,
+) => Effect.Effect<string[], never, internal.Renderer>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L268)
+
+### renderLinesToString
+
+Converts rendered lines to a single string with optional configuration.
+
+Takes an array of text lines and joins them into a single string output,
+applying whitespace handling and formatting rules according to the provided
+configuration. Supports both data-first and data-last calling patterns
+for flexible composition.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import { pipe } from "effect";
+
+const lines = ["Header", "Content Line 1", "Content Line 2", "Footer"];
+
+// Data-first usage
+const result1 = Renderer.renderLinesToString(lines);
+// "Header\nContent Line 1\nContent Line 2\nFooter"
+
+// Data-last usage with pipe
+const result2 = pipe(lines, Renderer.renderLinesToString());
+```
+
+**Signature**
+
+```ts
+declare const renderLinesToString: {
+  (config?: RenderConfig): (lines: string[]) => string;
+  (lines: string[], config?: RenderConfig): string;
+};
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L301)
+
+### tracked
+
+Renders a box to a string and collects reactive position metadata in one operation.
+
+Combines rendering with reactive position tracking, returning a [`RenderFrame`](#renderframe-type-alias)
+containing the rendered lines, joined output string, and a position map for
+all reactive annotations. Supports both data-first and data-last calling patterns.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Reactive from "effect-boxes/Reactive";
+import * as Box from "effect-boxes/Box";
+import { Effect, pipe, HashMap } from "effect";
+
+const layout = Box.vcat(
+  [
+    Reactive.makeReactive(Box.text("Title"), "title"),
+    Reactive.makeReactive(Box.text("Button"), "btn"),
+  ],
+  Box.left,
+);
+
+const program = Effect.gen(function* () {
+  const frame = yield* Renderer.tracked(layout);
+  console.log(frame.output);
+  const btnPos = HashMap.get(frame.positions, "btn");
+  return frame;
+}).pipe(Effect.provide(Renderer.AnsiRendererLive));
+```
+
+**Signature**
+
+```ts
+declare const tracked: {
+  <A>(
+    config?: RenderConfig,
+  ): (box: Box.Box<A>) => Effect.Effect<RenderFrame, never, Renderer>;
+  <A>(
+    box: Box.Box<A>,
+    config?: RenderConfig,
+  ): Effect.Effect<RenderFrame, never, Renderer>;
+};
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L418)
+
+## services
+
+### Renderer
+
+Renderer service tag for Effect.js dependency injection.
+
+Service interface for the rendering system, providing dependency injection
+capabilities for Effect computations. Use this to access renderer operations
+that require specific rendering implementations (Plain or ANSI).
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { Effect, pipe } from "effect";
+
+const renderProgram = (content: string) =>
+  Effect.gen(function* () {
+    const styledBox = Box.text(content).pipe(Box.annotate(Ansi.green));
+    const result = yield* Renderer.render(styledBox);
+    yield* Effect.log(`Rendered: ${result}`);
+    return result;
+  });
+
+// Provide the ANSI renderer
+const program = pipe(
+  renderProgram("Hello Effect!"),
+  Effect.provide(Renderer.AnsiRendererLive),
+);
+```
+
+**Signature**
+
+```ts
+declare const Renderer: typeof internal.Renderer;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L182)
+
+## utilities
 
 ### encode
 
@@ -729,9 +749,9 @@ const result = Effect.gen(function* () {
 ```ts
 declare const encode: {
   (
-    config?: RenderConfig
+    config?: RenderConfig,
   ): (
-    self: ResolvedFrame
+    self: ResolvedFrame,
   ) => Effect.Effect<
     FrameOutput,
     FrameEncoder.FrameEncodingError,
@@ -739,7 +759,7 @@ declare const encode: {
   >;
   (
     self: ResolvedFrame,
-    config?: RenderConfig
+    config?: RenderConfig,
   ): Effect.Effect<
     FrameOutput,
     FrameEncoder.FrameEncodingError,
@@ -747,6 +767,8 @@ declare const encode: {
   >;
 };
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L650)
 
 ### frame
 
@@ -766,10 +788,13 @@ const stack = Stack.make(
     Layer.make(Box.text("Background")),
     Layer.make(Box.text("Popup"), { x: 2, z: 1 }),
   ],
-  { width: 20, height: 4 }
+  {
+    width: 20,
+    height: 4,
+  },
 );
 const result = Renderer.frame(stack, { preserveWhitespace: true }).pipe(
-  Effect.provide(Renderer.AnsiRendererLive)
+  Effect.provide(Renderer.AnsiRendererLive),
 );
 ```
 
@@ -778,9 +803,9 @@ const result = Renderer.frame(stack, { preserveWhitespace: true }).pipe(
 ```ts
 declare const frame: {
   (
-    config?: RenderConfig
+    config?: RenderConfig,
   ): <A>(
-    self: Box.Box<A> | Stack<A>
+    self: Box.Box<A> | Stack<A>,
   ) => Effect.Effect<
     FrameOutput,
     FrameResolutionError | FrameEncoder.FrameEncodingError,
@@ -788,7 +813,7 @@ declare const frame: {
   >;
   <A>(
     self: Box.Box<A> | Stack<A>,
-    config?: RenderConfig
+    config?: RenderConfig,
   ): Effect.Effect<
     FrameOutput,
     FrameResolutionError | FrameEncoder.FrameEncodingError,
@@ -796,3 +821,32 @@ declare const frame: {
   >;
 };
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L691)
+
+### resolve
+
+Resolves original Boxes or opaque Stack layers into one immutable viewport.
+Fails with FrameResolutionError when the viewport exceeds 1,000,000 cells
+or either dimension exceeds 1,000,000, before allocating dense storage.
+Requires no renderer service. Higher z wins, with later input breaking ties.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Renderer from "effect-boxes/Renderer";
+const resolved = Effect.runSync(Renderer.resolve(Box.text("Hello")));
+console.log(resolved.cols); // 5
+```
+
+**Signature**
+
+```ts
+declare const resolve: <A>(
+  self: Box.Box<A> | Stack<A>,
+) => Effect.Effect<ResolvedFrame, FrameResolutionError>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Renderer.ts#L628)

@@ -10,6 +10,7 @@
 - **Type check:** `bun run type-check`
 - **Lint & format:** `bun run lint` / `bun run format`
 - **Validate docs:** `bun run docs:check`
+- **Validate docs pages and examples:** `bun run --cwd apps/docs docs:check`
 - **Run scratchpad:** `bun run --cwd apps/scratchpad dev`
 - **Test a single file:** `bun run --cwd packages/effect-boxes test tests/box.test.ts`
 - **Search code:** `rg "pattern"`
@@ -546,6 +547,27 @@ Closes #123
 - **Follow Effect.js ecosystem patterns** for consistency
 - **Preserve existing Haskell references** using `@note Haskell:` format
 
+### Documentation site validation
+
+`bun run docs:check` checks public JSDoc examples and the documentation site.
+The site check parses every TypeScript code fence, checks page titles against
+the page registry, and compares selected runnable examples with live previews.
+Use `typescript check` as the fence language and metadata for a complete,
+standalone example that must also pass strict type checking. Continuation
+snippets still need valid TypeScript syntax.
+
+For a complete example beside a live preview, add metadata such as
+`typescript check preview=outProgress result=output`. The check executes the
+visible example and compares its `output` string with the page's exported
+`outProgress` preview. Both metadata values must be identifiers. Keep interactive
+runner calls out of preview examples; the complete Select prompt and Cmd programs
+have dedicated checks for input, redraws, and terminal cleanup.
+
+API pages are generated from source JSDoc. Run
+`bun run --cwd apps/docs scripts/generate-api-docs.ts` to regenerate all modules;
+do not fix generated MDX by hand. Generation fails before publishing when docgen
+fails, a module is missing, or the generated MDX cannot parse.
+
 ### Required JSDoc Elements
 
 All public functions must include:
@@ -680,3 +702,14 @@ If any of the folders are missing (they are git ignored), clone them into
 
 _This document is a living guide. Update it as the project evolves and new
 patterns emerge._
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->

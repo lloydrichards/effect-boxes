@@ -1,4 +1,4 @@
-# Reactive overview
+# Reactive
 
 Reactive annotations for interactive terminal UIs.
 
@@ -6,11 +6,16 @@ Extends the annotation system with position-aware metadata, enabling
 hit-testing and cursor-to-element mapping. Useful for building
 interactive CLI applications where boxes respond to user input.
 
-### Common tasks
+## Common tasks
 
-- **Create** reactive boxes: `make`, `reactive`
-- **Query** positions: `getPositions`, `cursorToReactive`
-- **Check** type: `isReactive`
+- **Create** reactive boxes: [`make`](#make), [`reactive`](#reactive-1)
+- **Query** positions: [`getPositions`](#getpositions), [`cursorToReactive`](#cursortoreactive)
+- **Check** type: [`isReactive`](#isreactive)
+
+**See**
+
+- [`make`](#make) — create a reactive annotation
+- [`cursorToReactive`](#cursortoreactive) — map cursor position to element
 
 ---
 
@@ -24,15 +29,9 @@ Constructs a Reactive object with the proper structure and tag.
 Use this when you need to create reactive identifiers for manual
 annotation or when building custom reactive systems.
 
-**Signature**
-
-```ts
-export declare const make: (id: string) => Reactive;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Reactive from "effect-boxes/Reactive";
 import * as Annotation from "effect-boxes/Annotation";
 
@@ -44,6 +43,14 @@ const menuReactive = Reactive.make("navigation-menu");
 const formReactive = Reactive.make("contact-form");
 ```
 
+**Signature**
+
+```ts
+declare const make: (id: string) => Reactive;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L176)
+
 ### reactive
 
 Creates a reactive annotation with the specified string identifier.
@@ -52,15 +59,9 @@ Combines reactive ID creation with annotation wrapping in a single step.
 This is the preferred method for creating reactive annotations as it
 handles both the Reactive object creation and annotation wrapping.
 
-**Signature**
-
-```ts
-export declare const reactive: (id: string) => Annotation<Reactive>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Reactive from "effect-boxes/Reactive";
 import * as Box from "effect-boxes/Box";
 
@@ -70,9 +71,17 @@ const saveButton = Box.text("Save").pipe(Box.annotate(buttonAnnotation));
 const menuAnnotation = Reactive.reactive("main-menu");
 const menu = Box.vcat(
   [Box.text("File"), Box.text("Edit"), Box.text("View")],
-  Box.left
+  Box.left,
 ).pipe(Box.annotate(menuAnnotation));
 ```
+
+**Signature**
+
+```ts
+declare const reactive: (id: string) => Annotation<Reactive>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L203)
 
 ## guards
 
@@ -84,15 +93,9 @@ Determines whether a given value conforms to the Reactive interface.
 Essential for type-safe processing of annotations and filtering
 reactive elements from other annotation types.
 
-**Signature**
-
-```ts
-export declare const isReactive: (value: unknown) => value is Reactive;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Reactive from "effect-boxes/Reactive";
 
 console.log(Reactive.isReactive({ id: "btn", kind: "reactive" }));
@@ -104,232 +107,15 @@ console.log(Reactive.isReactive(Annotation.getAnnotationData(r)));
 // true
 ```
 
+**Signature**
+
+```ts
+declare const isReactive: (value: unknown) => value is Reactive;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L151)
+
 ## models
-
-### PositionMap (type alias)
-
-Map of reactive IDs to their positions in the rendered output.
-
-Contains the calculated positions and dimensions of all reactive boxes
-after layout processing. Essential for implementing cursor navigation,
-click handling, and other interactive features in terminal applications.
-
-**Signature**
-
-```ts
-export type PositionMap = HashMap.HashMap<
-  string, // Reactive ID
-  {
-    readonly row: number; // 0-based row position
-    readonly col: number; // 0-based column position
-    readonly rows: number; // height of the box
-    readonly cols: number; // width of the box
-  }
->;
-```
-
-**Example**
-
-```typescript
-import * as Reactive from "effect-boxes/Reactive";
-import * as Box from "effect-boxes/Box";
-import { HashMap } from "effect";
-
-const layout = Box.vcat(
-  [
-    Reactive.makeReactive(Box.text("Header"), "header"),
-    Reactive.makeReactive(Box.text("Content"), "content"),
-    Reactive.makeReactive(Box.text("Footer"), "footer"),
-  ],
-  Box.left
-);
-
-const positions: Reactive.PositionMap = Reactive.getPositions(layout);
-// Contains entries like:
-// "header"  -> { row: 0, col: 0, rows: 1, cols: 6 }
-// "content" -> { row: 1, col: 0, rows: 1, cols: 7 }
-// "footer"  -> { row: 2, col: 0, rows: 1, cols: 6 }
-```
-
-### Reactive (type alias)
-
-Reactive identifier type for tracking box positions.
-
-Represents a unique identifier that can be attached to boxes to enable
-position tracking in rendered output. Essential for building interactive
-terminal applications where you need to know where specific boxes are
-positioned after layout calculation.
-
-**Signature**
-
-```ts
-export type Reactive = {
-  readonly _tag: "ReactiveId";
-  readonly id: string;
-};
-```
-
-**Example**
-
-```typescript
-import * as Reactive from "effect-boxes/Reactive";
-
-const buttonId: Reactive.Reactive = {
-  _tag: "ReactiveId",
-  id: "submit-button",
-};
-// Used to track the position of a submit button in a form
-```
-
-### ReactiveAnnotation (type alias)
-
-Convenience type for reactive annotations.
-
-Combines the Annotation wrapper with Reactive data, providing a complete
-type for reactive box annotations. Used throughout the reactive system
-for type-safe position tracking.
-
-**Signature**
-
-```ts
-export type ReactiveAnnotation = Annotation<Reactive>;
-```
-
-**Example**
-
-```typescript
-import * as Reactive from "effect-boxes/Reactive";
-import * as Box from "effect-boxes/Box";
-
-const menuAnnotation: Reactive.ReactiveAnnotation =
-  Reactive.reactive("main-menu");
-
-const reactiveMenu = Box.text("Main Menu").pipe(Box.annotate(menuAnnotation));
-```
-
-## navigation
-
-### cursorToReactive
-
-Creates a cursor movement command to navigate to a reactive box position.
-
-Generates an ANSI cursor movement command to position the cursor at a
-specific reactive element. Returns an Option that contains the movement
-command if the reactive ID exists, or None if not found. Essential for
-implementing keyboard navigation and cursor-based interactions.
-
-**Signature**
-
-```ts
-export declare const cursorToReactive: {
-  (key: string): (positionMap: PositionMap) => Option.Option<Box<AnsiStyle>>;
-  (positionMap: PositionMap, key: string): Option.Option<Box<AnsiStyle>>;
-};
-```
-
-**Example**
-
-```typescript
-import * as Reactive from "effect-boxes/Reactive";
-import * as Box from "effect-boxes/Box";
-import * as Cmd from "effect-boxes/Cmd";
-import { pipe, Option } from "effect";
-
-const layout = Box.vcat(
-  [
-    Reactive.makeReactive(Box.text("Menu Item 1"), "item-1"),
-    Reactive.makeReactive(Box.text("Menu Item 2"), "item-2"),
-    Reactive.makeReactive(Box.text("Menu Item 3"), "item-3"),
-  ],
-  Box.left
-);
-
-const positions = Reactive.getPositions(layout);
-const moveToItem2 = Reactive.cursorToReactive(positions, "item-2");
-
-pipe(
-  moveToItem2,
-  Option.match({
-    onNone: () => console.log("Item not found"),
-    onSome: (cmd) => console.log("Moving cursor to item 2"),
-  })
-);
-```
-
-## transformations
-
-### makeReactive
-
-Annotates a box with a reactive identifier for position tracking.
-
-Transforms any box into a reactive box by adding position tracking
-capabilities. Supports both data-first and data-last calling patterns
-for flexible composition. The resulting box can be tracked in the
-position map after rendering.
-
-**Signature**
-
-```ts
-export declare const makeReactive: {
-  (id: string): <A>(self: Box<A>) => Box<Reactive>;
-  <A>(self: Box<A>, id: string): Box<Reactive>;
-};
-```
-
-**Example**
-
-```typescript
-import * as Reactive from "effect-boxes/Reactive";
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-
-const titleBox = Box.text("Application Title");
-const reactiveTitle = Reactive.makeReactive(titleBox, "main-title");
-
-const styledButton = Box.text("Click Me").pipe(Box.annotate(Ansi.bold));
-const reactiveButton = Reactive.makeReactive(styledButton, "click-btn");
-```
-
-## utilities
-
-### getPositions
-
-Collects positions of reactive annotations from a box.
-
-Traverses a box layout and extracts the calculated positions of all
-reactive elements, returning a position map that can be used for
-cursor navigation and interactive features. Essential for implementing
-click handling, keyboard navigation, and dynamic updates.
-
-**Signature**
-
-```ts
-export declare const getPositions: <A>(self: Box<A>) => PositionMap;
-```
-
-**Example**
-
-```typescript
-import * as Reactive from "effect-boxes/Reactive";
-import * as Box from "effect-boxes/Box";
-import { HashMap } from "effect";
-
-const layout = Box.vcat(
-  [
-    Reactive.makeReactive(Box.text("Header"), "header"),
-    Box.text("Static content"),
-    Reactive.makeReactive(Box.text("Button"), "btn"),
-    Reactive.makeReactive(Box.text("Footer"), "footer"),
-  ],
-  Box.left
-);
-
-const positions = Reactive.getPositions(layout);
-const headerPos = HashMap.get(positions, "header");
-// Some({ row: 0, col: 0, rows: 1, cols: 6 })
-```
-
-## Frame composition
 
 ### Bounds (type alias)
 
@@ -340,6 +126,115 @@ Describes bounds in terminal rows and columns.
 ```ts
 type Bounds = internalFrame.Bounds;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L327)
+
+### PositionMap (type alias)
+
+Map of reactive IDs to their positions in the rendered output.
+
+Contains the calculated positions and dimensions of all reactive boxes
+after layout processing. Essential for implementing cursor navigation,
+click handling, and other interactive features in terminal applications.
+
+**Example**
+
+```ts
+import * as Reactive from "effect-boxes/Reactive";
+import * as Box from "effect-boxes/Box";
+import { HashMap } from "effect";
+
+const layout = Box.vcat(
+  [
+    Reactive.makeReactive(Box.text("Header"), "header"),
+    Reactive.makeReactive(Box.text("Content"), "content"),
+    Reactive.makeReactive(Box.text("Footer"), "footer"),
+  ],
+  Box.left,
+);
+
+const positions: Reactive.PositionMap = Reactive.getPositions(layout);
+// Contains entries like:
+// "header"  -> { row: 0, col: 0, rows: 1, cols: 6 }
+// "content" -> { row: 1, col: 0, rows: 1, cols: 7 }
+// "footer"  -> { row: 2, col: 0, rows: 1, cols: 6 }
+```
+
+**Signature**
+
+```ts
+type PositionMap = HashMap.HashMap<
+  string, // Reactive ID
+  {
+    readonly row: number; // 0-based row position
+    readonly col: number; // 0-based column position
+    readonly rows: number; // height of the box
+    readonly cols: number; // width of the box
+  }
+>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L113)
+
+### Reactive (type alias)
+
+Reactive identifier type for tracking box positions.
+
+Represents a unique identifier that can be attached to boxes to enable
+position tracking in rendered output. Essential for building interactive
+terminal applications where you need to know where specific boxes are
+positioned after layout calculation.
+
+**Example**
+
+```ts
+import * as Reactive from "effect-boxes/Reactive";
+
+const buttonId: Reactive.Reactive = {
+  _tag: "ReactiveId",
+  id: "submit-button",
+};
+// Used to track the position of a submit button in a form
+```
+
+**Signature**
+
+```ts
+type Reactive = {
+  readonly _tag: "ReactiveId";
+  readonly id: string;
+};
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L56)
+
+### ReactiveAnnotation (type alias)
+
+Convenience type for reactive annotations.
+
+Combines the Annotation wrapper with Reactive data, providing a complete
+type for reactive box annotations. Used throughout the reactive system
+for type-safe position tracking.
+
+**Example**
+
+```ts
+import * as Reactive from "effect-boxes/Reactive";
+import * as Box from "effect-boxes/Box";
+
+const menuAnnotation: Reactive.ReactiveAnnotation =
+  Reactive.reactive("main-menu");
+
+const reactiveMenu = Box.text("Main Menu").pipe(Box.annotate(menuAnnotation));
+```
+
+**Signature**
+
+```ts
+type ReactiveAnnotation = Annotation<Reactive>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L83)
 
 ### Region (type alias)
 
@@ -352,6 +247,20 @@ Fully hidden IDs retain occurrences with empty visible arrays.
 type Region = internalFrame.Region;
 ```
 
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L343)
+
+### RegionMap (type alias)
+
+Maps reactive IDs to regions from one resolved snapshot.
+
+**Signature**
+
+```ts
+type RegionMap = internalFrame.RegionMap;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L350)
+
 ### RegionOccurrence (type alias)
 
 Retains one source occurrence with logical, clipped, and visible bounds.
@@ -363,15 +272,135 @@ Keys identify occurrences within this frame only.
 type RegionOccurrence = internalFrame.RegionOccurrence;
 ```
 
-### RegionMap (type alias)
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L335)
 
-Maps reactive IDs to regions from one resolved snapshot.
+## navigation
+
+### cursorToReactive
+
+Creates a cursor movement command to navigate to a reactive box position.
+
+Generates an ANSI cursor movement command to position the cursor at a
+specific reactive element. Returns an Option that contains the movement
+command if the reactive ID exists, or None if not found. Essential for
+implementing keyboard navigation and cursor-based interactions.
+
+**Example**
+
+```ts
+import * as Reactive from "effect-boxes/Reactive";
+import * as Box from "effect-boxes/Box";
+import * as Cmd from "effect-boxes/Cmd";
+import { pipe, Option } from "effect";
+
+const layout = Box.vcat(
+  [
+    Reactive.makeReactive(Box.text("Menu Item 1"), "item-1"),
+    Reactive.makeReactive(Box.text("Menu Item 2"), "item-2"),
+    Reactive.makeReactive(Box.text("Menu Item 3"), "item-3"),
+  ],
+  Box.left,
+);
+
+const positions = Reactive.getPositions(layout);
+const moveToItem2 = Reactive.cursorToReactive(positions, "item-2");
+
+pipe(
+  moveToItem2,
+  Option.match({
+    onNone: () => console.log("Item not found"),
+    onSome: (cmd) => console.log("Moving cursor to item 2"),
+  }),
+);
+```
 
 **Signature**
 
 ```ts
-type RegionMap = internalFrame.RegionMap;
+declare const cursorToReactive: {
+  (key: string): (positionMap: PositionMap) => Option.Option<Box<AnsiStyle>>;
+  (positionMap: PositionMap, key: string): Option.Option<Box<AnsiStyle>>;
+};
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L317)
+
+## transformations
+
+### makeReactive
+
+Annotates a box with a reactive identifier for position tracking.
+
+Transforms any box into a reactive box by adding position tracking
+capabilities. Supports both data-first and data-last calling patterns
+for flexible composition. The resulting box can be tracked in the
+position map after rendering.
+
+**Example**
+
+```ts
+import * as Reactive from "effect-boxes/Reactive";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const titleBox = Box.text("Application Title");
+const reactiveTitle = Reactive.makeReactive(titleBox, "main-title");
+
+const styledButton = Box.text("Click Me").pipe(Box.annotate(Ansi.bold));
+const reactiveButton = Reactive.makeReactive(styledButton, "click-btn");
+```
+
+**Signature**
+
+```ts
+declare const makeReactive: {
+  (id: string): <A>(self: Box<A>) => Box<Reactive>;
+  <A>(self: Box<A>, id: string): Box<Reactive>;
+};
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L234)
+
+## utilities
+
+### getPositions
+
+Collects positions of reactive annotations from a box.
+
+Traverses a box layout and extracts the calculated positions of all
+reactive elements, returning a position map that can be used for
+cursor navigation and interactive features. Essential for implementing
+click handling, keyboard navigation, and dynamic updates.
+
+**Example**
+
+```ts
+import * as Reactive from "effect-boxes/Reactive";
+import * as Box from "effect-boxes/Box";
+import { HashMap } from "effect";
+
+const layout = Box.vcat(
+  [
+    Reactive.makeReactive(Box.text("Header"), "header"),
+    Box.text("Static content"),
+    Reactive.makeReactive(Box.text("Button"), "btn"),
+    Reactive.makeReactive(Box.text("Footer"), "footer"),
+  ],
+  Box.left,
+);
+
+const positions = Reactive.getPositions(layout);
+const headerPos = HashMap.get(positions, "header");
+// Some({ row: 0, col: 0, rows: 1, cols: 6 })
+```
+
+**Signature**
+
+```ts
+declare const getPositions: <A>(self: Box<A>) => PositionMap;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L273)
 
 ### getRegion
 
@@ -386,7 +415,7 @@ import * as Box from "effect-boxes/Box";
 import * as Reactive from "effect-boxes/Reactive";
 import * as Renderer from "effect-boxes/Renderer";
 const resolved = Effect.runSync(
-  Renderer.resolve(Reactive.makeReactive(Box.text("Button"), "button"))
+  Renderer.resolve(Reactive.makeReactive(Box.text("Button"), "button")),
 );
 const region = Reactive.getRegion(resolved.regions, "button");
 ```
@@ -399,6 +428,8 @@ declare const getRegion: {
   (self: RegionMap, id: string): Option.Option<Region>;
 };
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L369)
 
 ### hitTest
 
@@ -414,7 +445,7 @@ import * as Box from "effect-boxes/Box";
 import * as Reactive from "effect-boxes/Reactive";
 import * as Renderer from "effect-boxes/Renderer";
 const resolved = Effect.runSync(
-  Renderer.resolve(Reactive.makeReactive(Box.text("Button"), "button"))
+  Renderer.resolve(Reactive.makeReactive(Box.text("Button"), "button")),
 );
 const hits = Reactive.hitTest(resolved, { col: 1, row: 0 });
 console.log(hits); // ["button"]
@@ -430,7 +461,51 @@ declare const hitTest: {
   }): (self: ResolvedFrame) => ReadonlyArray<string>;
   (
     self: ResolvedFrame,
-    position: { readonly row: number; readonly col: number }
+    position: { readonly row: number; readonly col: number },
   ): ReadonlyArray<string>;
 };
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L393)
+
+### hitTestResult
+
+Finds visible reactive IDs, returning invalid coordinates or frame identity as a failure.
+Out-of-viewport cells return a successful empty array.
+
+**Example**
+
+```ts
+import { Effect, Result } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Reactive from "effect-boxes/Reactive";
+import * as Renderer from "effect-boxes/Renderer";
+const frame = Effect.runSync(Renderer.resolve(Box.text("A")));
+const result = Reactive.hitTestResult(frame, { row: 0.5, col: 0 });
+console.log(Result.isFailure(result)); // true
+```
+
+**Signature**
+
+```ts
+declare const hitTestResult: {
+  (position: {
+    readonly row: number;
+    readonly col: number;
+  }): (
+    self: ResolvedFrame,
+  ) => Result.Result<
+    ReadonlyArray<string>,
+    LayoutValidationError | internalFrame.FrameResolutionError
+  >;
+  (
+    self: ResolvedFrame,
+    position: { readonly row: number; readonly col: number },
+  ): Result.Result<
+    ReadonlyArray<string>,
+    LayoutValidationError | internalFrame.FrameResolutionError
+  >;
+};
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Reactive.ts#L420)

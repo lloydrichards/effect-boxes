@@ -1,4 +1,4 @@
-# Html overview
+# Html
 
 HTML element annotations for web-based box rendering.
 
@@ -6,321 +6,379 @@ Provides annotation constructors for common HTML elements (div, span, p,
 headings, etc.) that the HTML renderer interprets as markup. Use these
 to produce styled HTML output from annotated boxes.
 
+**See**
+
+- [`div`](#div) — annotate with a div element
+- [`span`](#span) — annotate with a span element
+- [`escapeHtml`](#escapehtml) — safely escape HTML entities
+
 ---
 
 ## constructors
 
 ### a
 
-Creates an `a` HTML annotation.
+Creates an [`a`](#a) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const a: (
-  attributes?: Record<string, string>
+declare const a: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L247)
 
 ### article
 
-Creates an `article` HTML annotation.
+Creates an [`article`](#article) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const article: (
-  attributes?: Record<string, string>
+declare const article: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L166)
 
 ### aside
 
-Creates an `aside` HTML annotation.
+Creates an [`aside`](#aside) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const aside: (
-  attributes?: Record<string, string>
+declare const aside: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L211)
 
 ### br
 
-Creates a `br` HTML annotation.
+Creates a [`br`](#br) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const br: (
-  attributes?: Record<string, string>
+declare const br: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L292)
 
 ### code
 
-Creates a `code` HTML annotation.
+Creates a [`code`](#code) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const code: (
-  attributes?: Record<string, string>
+declare const code: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L274)
 
 ### div
 
-Creates a `div` HTML annotation.
+Creates a [`div`](#div) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const div: (
-  attributes?: Record<string, string>
+declare const div: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L76)
 
 ### em
 
-Creates an `em` HTML annotation.
+Creates an [`em`](#em) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const em: (
-  attributes?: Record<string, string>
+declare const em: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L265)
 
 ### footer
 
-Creates a `footer` HTML annotation.
+Creates a [`footer`](#footer) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const footer: (
-  attributes?: Record<string, string>
+declare const footer: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L184)
 
 ### h1
 
-Creates an `h1` HTML annotation.
+Creates an [`h1`](#h1) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const h1: (
-  attributes?: Record<string, string>
+declare const h1: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L103)
 
 ### h2
 
-Creates an `h2` HTML annotation.
+Creates an [`h2`](#h2) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const h2: (
-  attributes?: Record<string, string>
+declare const h2: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L112)
 
 ### h3
 
-Creates an `h3` HTML annotation.
+Creates an [`h3`](#h3) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const h3: (
-  attributes?: Record<string, string>
+declare const h3: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L121)
 
 ### h4
 
-Creates an `h4` HTML annotation.
+Creates an [`h4`](#h4) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const h4: (
-  attributes?: Record<string, string>
+declare const h4: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L130)
 
 ### h5
 
-Creates an `h5` HTML annotation.
+Creates an [`h5`](#h5) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const h5: (
-  attributes?: Record<string, string>
+declare const h5: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L139)
 
 ### h6
 
-Creates an `h6` HTML annotation.
+Creates an [`h6`](#h6) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const h6: (
-  attributes?: Record<string, string>
+declare const h6: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L148)
 
 ### header
 
-Creates a `header` HTML annotation.
+Creates a [`header`](#header) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const header: (
-  attributes?: Record<string, string>
+declare const header: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L175)
 
 ### hr
 
-Creates an `hr` HTML annotation.
+Creates an [`hr`](#hr) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const hr: (
-  attributes?: Record<string, string>
+declare const hr: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L301)
 
 ### li
 
-Creates an `li` HTML annotation.
+Creates an [`li`](#li) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const li: (
-  attributes?: Record<string, string>
+declare const li: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L238)
 
 ### main
 
-Creates a `main` HTML annotation.
+Creates a [`main`](#main) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const main: (
-  attributes?: Record<string, string>
+declare const main: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L193)
 
 ### nav
 
-Creates a `nav` HTML annotation.
+Creates a [`nav`](#nav) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const nav: (
-  attributes?: Record<string, string>
+declare const nav: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L202)
 
 ### ol
 
-Creates an `ol` HTML annotation.
+Creates an [`ol`](#ol) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const ol: (
-  attributes?: Record<string, string>
+declare const ol: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L229)
 
 ### p
 
-Creates a `p` HTML annotation.
+Creates a [`p`](#p) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const p: (
-  attributes?: Record<string, string>
+declare const p: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L94)
 
 ### pre
 
-Creates a `pre` HTML annotation.
+Creates a [`pre`](#pre) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const pre: (
-  attributes?: Record<string, string>
+declare const pre: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L283)
 
 ### section
 
-Creates a `section` HTML annotation.
+Creates a [`section`](#section) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const section: (
-  attributes?: Record<string, string>
+declare const section: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L157)
 
 ### span
 
-Creates a `span` HTML annotation.
+Creates a [`span`](#span) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const span: (
-  attributes?: Record<string, string>
+declare const span: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L85)
 
 ### strong
 
-Creates a `strong` HTML annotation.
+Creates a [`strong`](#strong) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const strong: (
-  attributes?: Record<string, string>
+declare const strong: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L256)
 
 ### ul
 
-Creates a `ul` HTML annotation.
+Creates a [`ul`](#ul) HTML annotation.
 
 **Signature**
 
 ```ts
-export declare const ul: (
-  attributes?: Record<string, string>
+declare const ul: (
+  attributes?: Record<string, string>,
 ) => Annotation.Annotation<HtmlAnnotationData>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L220)
 
 ## guards
 
@@ -328,21 +386,23 @@ export declare const ul: (
 
 Type guard that checks if a value is HTML annotation data.
 
-**Signature**
-
-```ts
-export declare const isHtml: (data: unknown) => data is HtmlAnnotationData;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Html from "effect-boxes/Html";
 
 const value: unknown = { _tag: "Html", element: "div" };
 console.log(Html.isHtml(value));
 // true
 ```
+
+**Signature**
+
+```ts
+declare const isHtml: (data: unknown) => data is HtmlAnnotationData;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L53)
 
 ## models
 
@@ -360,6 +420,8 @@ export interface HtmlAnnotationData {
 }
 ```
 
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L23)
+
 ### HtmlRenderConfig (interface)
 
 Configuration options for the HTML renderer.
@@ -373,23 +435,27 @@ export interface HtmlRenderConfig extends Renderer.RenderConfig {
 }
 ```
 
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L34)
+
 ## utilities
 
 ### escapeHtml
 
 Escapes special characters for safe HTML text output.
 
-**Signature**
-
-```ts
-export declare const escapeHtml: (text: string) => string;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Html from "effect-boxes/Html";
 
 console.log(Html.escapeHtml("<hello & world>"));
 // &lt;hello &amp; world&gt;
 ```
+
+**Signature**
+
+```ts
+declare const escapeHtml: (text: string) => string;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Html.ts#L69)

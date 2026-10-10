@@ -1,4 +1,4 @@
-# Ansi overview
+# Ansi
 
 ANSI terminal styling and colored box rendering.
 
@@ -7,18 +7,23 @@ in terminal environments. Includes foreground/background colors (standard,
 bright, 256-color, and RGB), text attributes (bold, italic, underline, etc.),
 and a renderer that converts annotated boxes into ANSI-escaped strings.
 
-### Common tasks
+## Common tasks
 
-- **Style text**: `bold`, `italic`, `underlined`
-- **Foreground colors**: `red`, `green`, `blue`, `colorRGB`
-- **Background colors**: `bgRed`, `bgGreen`, `bgColorHex`
-- **Combine styles**: `combine`
-- **Render**: `renderAnnotatedBox`
+- **Style text**: [`bold`](#bold), [`italic`](#italic), [`underlined`](#underlined)
+- **Foreground colors**: [`red`](#red), [`green`](#green), [`blue`](#blue), [`colorRGB`](#colorrgb)
+- **Background colors**: [`bgRed`](#bgred), [`bgGreen`](#bggreen), [`bgColorHex`](#bgcolorhex)
+- **Combine styles**: [`combine`](#combine)
+- **Render**: [`renderAnnotatedBox`](#renderannotatedbox)
 
-### Gotchas
+## Gotchas
 
 - Styles are combined additively — later attributes override earlier ones of the same kind
-- `truncatePreservingAnsi` handles width-truncation without breaking escape sequences
+- [`truncatePreservingAnsi`](#truncatepreservingansi) handles width-truncation without breaking escape sequences
+
+**See**
+
+- [`renderAnnotatedBox`](#renderannotatedbox) — render a styled box to terminal string
+- [`combine`](#combine) — merge multiple styles
 
 ---
 
@@ -32,26 +37,26 @@ Merges multiple ANSI styling annotations using a last-wins strategy
 for conflicting attributes. This allows you to layer styles like
 combining color with formatting.
 
-**Signature**
-
-```ts
-export declare const combine: (
-  ...annotations: AnsiAnnotation[]
-) => AnsiAnnotation;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 
 const styledText = Box.text("Important Warning").pipe(
-  Box.annotate(Ansi.combine(Ansi.red, Ansi.bold, Ansi.underlined))
+  Box.annotate(Ansi.combine(Ansi.red, Ansi.bold, Ansi.underlined)),
 );
 console.log(Box.renderPrettySync(styledText));
 // Outputs red, bold, underlined text
 ```
+
+**Signature**
+
+```ts
+declare const combine: (...annotations: AnsiAnnotation[]) => AnsiAnnotation;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L544)
 
 ## constructors
 
@@ -62,8 +67,10 @@ Black background color.
 **Signature**
 
 ```ts
-export declare const bgBlack: AnsiAnnotation;
+declare const bgBlack: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L248)
 
 ### bgBlue
 
@@ -72,8 +79,10 @@ Blue background color.
 **Signature**
 
 ```ts
-export declare const bgBlue: AnsiAnnotation;
+declare const bgBlue: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L276)
 
 ### bgBrightBlack
 
@@ -82,8 +91,10 @@ Bright black (gray) background color.
 **Signature**
 
 ```ts
-export declare const bgBrightBlack: AnsiAnnotation;
+declare const bgBrightBlack: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L311)
 
 ### bgBrightBlue
 
@@ -92,8 +103,10 @@ Bright blue background color.
 **Signature**
 
 ```ts
-export declare const bgBrightBlue: AnsiAnnotation;
+declare const bgBrightBlue: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L339)
 
 ### bgBrightCyan
 
@@ -102,8 +115,10 @@ Bright cyan background color.
 **Signature**
 
 ```ts
-export declare const bgBrightCyan: AnsiAnnotation;
+declare const bgBrightCyan: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L353)
 
 ### bgBrightGreen
 
@@ -112,8 +127,10 @@ Bright green background color.
 **Signature**
 
 ```ts
-export declare const bgBrightGreen: AnsiAnnotation;
+declare const bgBrightGreen: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L325)
 
 ### bgBrightMagenta
 
@@ -122,8 +139,10 @@ Bright magenta background color.
 **Signature**
 
 ```ts
-export declare const bgBrightMagenta: AnsiAnnotation;
+declare const bgBrightMagenta: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L346)
 
 ### bgBrightRed
 
@@ -132,8 +151,10 @@ Bright red background color.
 **Signature**
 
 ```ts
-export declare const bgBrightRed: AnsiAnnotation;
+declare const bgBrightRed: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L318)
 
 ### bgBrightWhite
 
@@ -142,8 +163,10 @@ Bright white background color.
 **Signature**
 
 ```ts
-export declare const bgBrightWhite: AnsiAnnotation;
+declare const bgBrightWhite: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L360)
 
 ### bgBrightYellow
 
@@ -152,29 +175,33 @@ Bright yellow background color.
 **Signature**
 
 ```ts
-export declare const bgBrightYellow: AnsiAnnotation;
+declare const bgBrightYellow: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L332)
 
 ### bgColor256
 
 Creates a background color using 256-color palette.
 
-**Signature**
-
-```ts
-export declare const bgColor256: (n: number) => AnsiAnnotation;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 
 const highlighted = Box.text("Highlighted text").pipe(
-  Box.annotate(Ansi.bgColor256(226)) // Bright yellow background
+  Box.annotate(Ansi.bgColor256(226)), // Bright yellow background
 );
 ```
+
+**Signature**
+
+```ts
+declare const bgColor256: (n: number) => AnsiAnnotation;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L377)
 
 ### bgColorHex
 
@@ -183,15 +210,9 @@ Creates a background color from a hex color string.
 Accepts hex strings with or without a leading `#`, in 3-digit or 6-digit
 format (e.g. `"#ff00ff"`, `"ff00ff"`, `"#f0f"`, `"f0f"`).
 
-**Signature**
-
-```ts
-export declare const bgColorHex: (hex: string) => AnsiAnnotation;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -200,31 +221,37 @@ const styledText = Box.text("Warm background").pipe(Box.annotate(warmBg));
 console.log(Box.renderPrettySync(styledText));
 ```
 
+**Signature**
+
+```ts
+declare const bgColorHex: (hex: string) => AnsiAnnotation;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L418)
+
 ### bgColorRGB
 
 Creates a background color using RGB values.
 
-**Signature**
-
-```ts
-export declare const bgColorRGB: (
-  r: number,
-  g: number,
-  b: number
-) => AnsiAnnotation;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 
 const softBackground = Ansi.bgColorRGB(240, 240, 240);
 const subtleText = Box.text("Soft background").pipe(
-  Box.annotate(softBackground)
+  Box.annotate(softBackground),
 );
 ```
+
+**Signature**
+
+```ts
+declare const bgColorRGB: (r: number, g: number, b: number) => AnsiAnnotation;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L395)
 
 ### bgCyan
 
@@ -233,8 +260,10 @@ Cyan background color.
 **Signature**
 
 ```ts
-export declare const bgCyan: AnsiAnnotation;
+declare const bgCyan: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L290)
 
 ### bgDefault
 
@@ -243,8 +272,10 @@ Default background color (terminal default).
 **Signature**
 
 ```ts
-export declare const bgDefault: AnsiAnnotation;
+declare const bgDefault: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L304)
 
 ### bgGreen
 
@@ -253,8 +284,10 @@ Green background color.
 **Signature**
 
 ```ts
-export declare const bgGreen: AnsiAnnotation;
+declare const bgGreen: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L262)
 
 ### bgMagenta
 
@@ -263,8 +296,10 @@ Magenta background color.
 **Signature**
 
 ```ts
-export declare const bgMagenta: AnsiAnnotation;
+declare const bgMagenta: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L283)
 
 ### bgRed
 
@@ -273,8 +308,10 @@ Red background color.
 **Signature**
 
 ```ts
-export declare const bgRed: AnsiAnnotation;
+declare const bgRed: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L255)
 
 ### bgWhite
 
@@ -283,8 +320,10 @@ White background color.
 **Signature**
 
 ```ts
-export declare const bgWhite: AnsiAnnotation;
+declare const bgWhite: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L297)
 
 ### bgYellow
 
@@ -293,8 +332,10 @@ Yellow background color.
 **Signature**
 
 ```ts
-export declare const bgYellow: AnsiAnnotation;
+declare const bgYellow: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L269)
 
 ### black
 
@@ -303,8 +344,10 @@ Standard black foreground color.
 **Signature**
 
 ```ts
-export declare const black: AnsiAnnotation;
+declare const black: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L63)
 
 ### blink
 
@@ -315,8 +358,10 @@ Makes text blink (if supported by terminal).
 **Signature**
 
 ```ts
-export declare const blink: AnsiAnnotation;
+declare const blink: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L469)
 
 ### blue
 
@@ -325,8 +370,10 @@ Standard blue foreground color.
 **Signature**
 
 ```ts
-export declare const blue: AnsiAnnotation;
+declare const blue: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L91)
 
 ### bold
 
@@ -337,8 +384,10 @@ Makes text appear with increased weight/intensity.
 **Signature**
 
 ```ts
-export declare const bold: AnsiAnnotation;
+declare const bold: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L433)
 
 ### brightBlack
 
@@ -347,8 +396,10 @@ Bright black (gray) foreground color.
 **Signature**
 
 ```ts
-export declare const brightBlack: AnsiAnnotation;
+declare const brightBlack: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L126)
 
 ### brightBlue
 
@@ -357,8 +408,10 @@ Bright blue foreground color.
 **Signature**
 
 ```ts
-export declare const brightBlue: AnsiAnnotation;
+declare const brightBlue: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L154)
 
 ### brightCyan
 
@@ -367,8 +420,10 @@ Bright cyan foreground color.
 **Signature**
 
 ```ts
-export declare const brightCyan: AnsiAnnotation;
+declare const brightCyan: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L168)
 
 ### brightGreen
 
@@ -377,8 +432,10 @@ Bright green foreground color.
 **Signature**
 
 ```ts
-export declare const brightGreen: AnsiAnnotation;
+declare const brightGreen: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L140)
 
 ### brightMagenta
 
@@ -387,8 +444,10 @@ Bright magenta foreground color.
 **Signature**
 
 ```ts
-export declare const brightMagenta: AnsiAnnotation;
+declare const brightMagenta: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L161)
 
 ### brightRed
 
@@ -397,8 +456,10 @@ Bright red foreground color.
 **Signature**
 
 ```ts
-export declare const brightRed: AnsiAnnotation;
+declare const brightRed: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L133)
 
 ### brightWhite
 
@@ -407,8 +468,10 @@ Bright white foreground color.
 **Signature**
 
 ```ts
-export declare const brightWhite: AnsiAnnotation;
+declare const brightWhite: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L175)
 
 ### brightYellow
 
@@ -417,8 +480,10 @@ Bright yellow foreground color.
 **Signature**
 
 ```ts
-export declare const brightYellow: AnsiAnnotation;
+declare const brightYellow: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L147)
 
 ### color256
 
@@ -427,23 +492,25 @@ Creates a foreground color using 256-color palette.
 Uses the extended 256-color ANSI palette for more color options
 beyond the basic 8 colors.
 
-**Signature**
-
-```ts
-export declare const color256: (n: number) => AnsiAnnotation;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 
 const brightOrange = Ansi.color256(208);
 const coloredText = Box.text("Bright orange text").pipe(
-  Box.annotate(brightOrange)
+  Box.annotate(brightOrange),
 );
 ```
+
+**Signature**
+
+```ts
+declare const color256: (n: number) => AnsiAnnotation;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L196)
 
 ### colorHex
 
@@ -452,15 +519,9 @@ Creates a foreground color from a hex color string.
 Accepts hex strings with or without a leading `#`, in 3-digit or 6-digit
 format (e.g. `"#ff00ff"`, `"ff00ff"`, `"#f0f"`, `"f0f"`).
 
-**Signature**
-
-```ts
-export declare const colorHex: (hex: string) => AnsiAnnotation;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -469,6 +530,14 @@ const styledText = Box.text("Coral text").pipe(Box.annotate(coral));
 console.log(Box.renderPrettySync(styledText));
 ```
 
+**Signature**
+
+```ts
+declare const colorHex: (hex: string) => AnsiAnnotation;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L241)
+
 ### colorRGB
 
 Creates a foreground color using RGB values.
@@ -476,19 +545,9 @@ Creates a foreground color using RGB values.
 Provides true color support with full RGB specification.
 Each component should be between 0-255.
 
-**Signature**
-
-```ts
-export declare const colorRGB: (
-  r: number,
-  g: number,
-  b: number
-) => AnsiAnnotation;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -497,6 +556,14 @@ const styledText = Box.text("Custom purple").pipe(Box.annotate(customPurple));
 console.log(Box.renderPrettySync(styledText));
 ```
 
+**Signature**
+
+```ts
+declare const colorRGB: (r: number, g: number, b: number) => AnsiAnnotation;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L218)
+
 ### cyan
 
 Standard cyan foreground color.
@@ -504,8 +571,10 @@ Standard cyan foreground color.
 **Signature**
 
 ```ts
-export declare const cyan: AnsiAnnotation;
+declare const cyan: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L105)
 
 ### dim
 
@@ -516,8 +585,10 @@ Makes text appear with reduced intensity.
 **Signature**
 
 ```ts
-export declare const dim: AnsiAnnotation;
+declare const dim: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L442)
 
 ### fgDefault
 
@@ -526,8 +597,10 @@ Default foreground color (terminal default).
 **Signature**
 
 ```ts
-export declare const fgDefault: AnsiAnnotation;
+declare const fgDefault: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L119)
 
 ### green
 
@@ -536,8 +609,10 @@ Standard green foreground color.
 **Signature**
 
 ```ts
-export declare const green: AnsiAnnotation;
+declare const green: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L77)
 
 ### hidden
 
@@ -548,8 +623,10 @@ Makes text invisible (useful for passwords).
 **Signature**
 
 ```ts
-export declare const hidden: AnsiAnnotation;
+declare const hidden: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L487)
 
 ### inverse
 
@@ -560,8 +637,10 @@ Swaps foreground and background colors.
 **Signature**
 
 ```ts
-export declare const inverse: AnsiAnnotation;
+declare const inverse: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L478)
 
 ### italic
 
@@ -572,8 +651,10 @@ Makes text appear slanted (if supported by terminal).
 **Signature**
 
 ```ts
-export declare const italic: AnsiAnnotation;
+declare const italic: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L451)
 
 ### magenta
 
@@ -582,8 +663,10 @@ Standard magenta foreground color.
 **Signature**
 
 ```ts
-export declare const magenta: AnsiAnnotation;
+declare const magenta: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L98)
 
 ### overline
 
@@ -594,8 +677,10 @@ Adds a line above the text.
 **Signature**
 
 ```ts
-export declare const overline: AnsiAnnotation;
+declare const overline: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L505)
 
 ### red
 
@@ -604,8 +689,10 @@ Standard red foreground color.
 **Signature**
 
 ```ts
-export declare const red: AnsiAnnotation;
+declare const red: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L70)
 
 ### reset
 
@@ -616,8 +703,10 @@ Clears all ANSI formatting and returns to terminal defaults.
 **Signature**
 
 ```ts
-export declare const reset: AnsiAnnotation;
+declare const reset: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L514)
 
 ### strikethrough
 
@@ -628,8 +717,10 @@ Adds a line through the middle of the text.
 **Signature**
 
 ```ts
-export declare const strikethrough: AnsiAnnotation;
+declare const strikethrough: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L496)
 
 ### underlined
 
@@ -640,8 +731,10 @@ Adds an underline beneath the text.
 **Signature**
 
 ```ts
-export declare const underlined: AnsiAnnotation;
+declare const underlined: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L460)
 
 ### white
 
@@ -650,8 +743,10 @@ Standard white foreground color.
 **Signature**
 
 ```ts
-export declare const white: AnsiAnnotation;
+declare const white: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L112)
 
 ### yellow
 
@@ -660,8 +755,10 @@ Standard yellow foreground color.
 **Signature**
 
 ```ts
-export declare const yellow: AnsiAnnotation;
+declare const yellow: AnsiAnnotation;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L84)
 
 ## models
 
@@ -670,15 +767,17 @@ export declare const yellow: AnsiAnnotation;
 **Signature**
 
 ```ts
-export type AnsiAnnotation = Annotation<AnsiStyle>;
+type AnsiAnnotation = Annotation<AnsiStyle>;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L52)
 
 ### AnsiAttribute (type alias)
 
 **Signature**
 
 ```ts
-export type AnsiAttribute = {
+type AnsiAttribute = {
   readonly _tag:
     | "ForegroundColor"
     | "BackgroundColor"
@@ -689,13 +788,17 @@ export type AnsiAttribute = {
 };
 ```
 
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L34)
+
 ### AnsiStyle (type alias)
 
 **Signature**
 
 ```ts
-export type AnsiStyle = readonly AnsiAttribute[];
+type AnsiStyle = readonly AnsiAttribute[];
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L47)
 
 ## utilities
 
@@ -707,15 +810,9 @@ Converts ANSI style data into the raw escape sequence string used
 by terminals. Styled sequences (colors, text effects) join codes
 with ';' and end with 'm'. Returns null for non-ANSI data.
 
-**Signature**
-
-```ts
-export declare const getAnsiEscapeSequence: (data: AnsiStyle) => string | null;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Ansi from "effect-boxes/Ansi";
 import * as Annotation from "effect-boxes/Annotation";
 
@@ -725,6 +822,14 @@ console.log(escapeSeq);
 // "\u001b[31m" (ANSI red foreground code)
 ```
 
+**Signature**
+
+```ts
+declare const getAnsiEscapeSequence: (data: AnsiStyle) => string | null;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L573)
+
 ### renderAnnotatedBox
 
 Converts a box into an array of text lines with ANSI annotation support.
@@ -733,20 +838,9 @@ Renders a box to text lines while preserving ANSI styling annotations.
 This is the core function that bridges the Box layout system with
 terminal ANSI output.
 
-**Signature**
-
-```ts
-export declare const renderAnnotatedBox: <A>({
-  cols,
-  content,
-  rows,
-  annotation,
-}: Box<A>) => string[];
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -754,6 +848,19 @@ const box = Box.text("Warning").pipe(Box.annotate(Ansi.red));
 const lines = Ansi.renderAnnotatedBox(box);
 console.log(lines[0]);
 ```
+
+**Signature**
+
+```ts
+declare const renderAnnotatedBox: <A>({
+  cols,
+  content,
+  rows,
+  annotation,
+}: Box<A>) => string[];
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L596)
 
 ### truncatePreservingAnsi
 
@@ -763,18 +870,9 @@ Ensures that ANSI codes remain intact while the visible text is cut
 to fit within the specified width. Useful for displaying colored
 text in constrained spaces.
 
-**Signature**
-
-```ts
-export declare const truncatePreservingAnsi: (
-  text: string,
-  targetWidth: number
-) => string;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Ansi from "effect-boxes/Ansi";
 
 const coloredText = "\x1b[31mThis is a long red text\x1b[0m";
@@ -782,3 +880,14 @@ const truncated = Ansi.truncatePreservingAnsi(coloredText, 10);
 console.log(truncated);
 // Outputs: "\x1b[31mThis is a \x1b[0m"
 ```
+
+**Signature**
+
+```ts
+declare const truncatePreservingAnsi: (
+  text: string,
+  targetWidth: number,
+) => string;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Ansi.ts#L622)

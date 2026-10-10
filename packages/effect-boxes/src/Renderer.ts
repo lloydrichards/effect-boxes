@@ -170,7 +170,7 @@ export type RenderConfig = {
  *     return result
  *   })
  *
- * // Run with ANSI renderer
+ * // Provide the ANSI renderer
  * const program = pipe(
  *   renderProgram("Hello Effect!"),
  *   Effect.provide(Renderer.AnsiRendererLive)
@@ -259,7 +259,7 @@ export const defaultRenderConfig: RenderConfig = internal.defaultRenderConfig;
  *   Effect.provide(Renderer.AnsiRendererLive)
  * )
  *
- * // Result: Effect that yields ["Header", "LeftRight", "Footer"]
+ * // Run the Effect to obtain ["Header", "LeftRight", "Footer"]
  * // with appropriate ANSI formatting
  * ```
  *
@@ -377,7 +377,9 @@ export const render: {
  *   Renderer.tracked(layout),
  *   Effect.provide(Renderer.PlainRendererLive)
  * )
- * // Result: { lines: [...], output: "Header\nBody\nFooter", positions: HashMap }
+ * const frame = Effect.runSync(program)
+ * console.log(frame.output) // "Header\nBody\nFooter"
+ * // frame.positions contains the reactive region positions.
  * ```
  *
  * @category models
@@ -453,7 +455,8 @@ export const tracked: {
  *   Renderer.render(),
  *   Effect.provide(Renderer.PlainRendererLive)
  * )
- * // Result: "Title\nContent\nFooter" (no ANSI codes)
+ * const output = Effect.runSync(plainOutput)
+ * console.log(output) // "Title\nContent\nFooter" (no ANSI codes)
  * ```
  *
  * @category layers
@@ -488,7 +491,8 @@ export const PlainRendererLive: Layer.Layer<
  *   Renderer.render(),
  *   Effect.provide(Renderer.AnsiRendererLive)
  * )
- * // Result: Text with full color and formatting
+ * const output = Effect.runSync(terminalOutput)
+ * console.log(output) // Text with ANSI color and formatting
  * ```
  *
  * @category layers
@@ -523,7 +527,8 @@ export const AnsiRendererLive: Layer.Layer<
  *   Renderer.render(),
  *   Effect.provide(Renderer.HtmlRendererLive)
  * )
- * // Result: HTML string with appropriate tags
+ * const output = Effect.runSync(htmlOutput)
+ * console.log(output) // HTML string with tags separated by newlines
  * ```
  *
  * @category layers

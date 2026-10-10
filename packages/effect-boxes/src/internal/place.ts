@@ -47,6 +47,7 @@ const rejectCommands = <A>(
     }
   });
 
+/** @internal */
 export const makeResult = dual<
   (
     options: Place.Options
@@ -106,6 +107,7 @@ export const makeResult = dual<
         ],
         internal.top
       );
+
       return internal.vcat(
         [
           internal.emptyBox(top, width),
@@ -117,6 +119,7 @@ export const makeResult = dual<
     })
 );
 
+/** @internal */
 export const make = dual<
   (options: Place.Options) => <A>(self: Box.Box<A>) => Box.Box<A>,
   <A>(self: Box.Box<A>, options: Place.Options) => Box.Box<A>
@@ -126,6 +129,7 @@ export const make = dual<
     Validation.orThrow(makeResult(self, options))
 );
 
+/** @internal */
 export const horizontal = dual<
   (
     width: number,
@@ -141,6 +145,7 @@ export const horizontal = dual<
   ): Box.Box<A> => make(self, { width, height: self.rows, x: position })
 );
 
+/** @internal */
 export const vertical = dual<
   (
     height: number,

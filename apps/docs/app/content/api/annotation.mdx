@@ -1,4 +1,4 @@
-# Annotation overview
+# Annotation
 
 Type-safe annotation system for attaching metadata to boxes.
 
@@ -6,17 +6,22 @@ Annotations allow boxes to carry arbitrary typed data (colors, styles,
 semantic tags) that renderers can interpret. The annotation type parameter
 `A` on `Box<A>` flows through all composition operations.
 
-### Mental model
+## Mental model
 
 - **`Annotation<A>`** — a wrapper holding metadata of type `A`
 - Annotations are **structural** — they implement `Equal` and `Hash`
-- They compose via `combineAnnotations` for layered styling
+- They compose via [`combineAnnotations`](#combineannotations) for layered styling
 
-### Common tasks
+## Common tasks
 
-- **Create** an annotation: `createAnnotation`, `empty`
-- **Inspect**: `isAnnotation`, `getAnnotationData`
-- **Transform**: `mapAnnotationData`, `combineAnnotations`
+- **Create** an annotation: [`createAnnotation`](#createannotation), [`empty`](#empty)
+- **Inspect**: [`isAnnotation`](#isannotation), [`getAnnotationData`](#getannotationdata)
+- **Transform**: [`mapAnnotationData`](#mapannotationdata), [`combineAnnotations`](#combineannotations)
+
+**See**
+
+- [`createAnnotation`](#createannotation) — primary constructor
+- [`combineAnnotations`](#combineannotations) — merge multiple annotations
 
 ---
 
@@ -30,19 +35,9 @@ Merges annotation data using a custom merger function. Essential for
 combining multiple styling annotations or accumulating annotation
 properties across box compositions.
 
-**Signature**
-
-```ts
-export declare const combineAnnotations: <A>(
-  first: Annotation<A>,
-  second: Annotation<A>,
-  merger: (a: A, b: A) => A
-) => Annotation<A>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -52,12 +47,24 @@ const boldStyle = Ansi.bold;
 const combined = Annotation.combineAnnotations(
   redColor,
   boldStyle,
-  (first, second) => [...first, ...second]
+  (first, second) => [...first, ...second],
 );
 
 const allCommands = Annotation.getAnnotationData(combined);
 // Contains both color and bold commands
 ```
+
+**Signature**
+
+```ts
+declare const combineAnnotations: <A>(
+  first: Annotation<A>,
+  second: Annotation<A>,
+  merger: (a: A, b: A) => A,
+) => Annotation<A>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L211)
 
 ## constructors
 
@@ -68,15 +75,9 @@ Creates a new Annotation with the provided data.
 The fundamental constructor for creating typed annotations. Wraps arbitrary
 data in the Annotation abstraction for use with the Box system.
 
-**Signature**
-
-```ts
-export declare const createAnnotation: <A>(data: A) => Annotation<A>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Box from "effect-boxes/Box";
 
@@ -91,6 +92,14 @@ const tooltip = Annotation.createAnnotation<TooltipData>({
 const buttonWithTooltip = Box.text("Click me").pipe(Box.annotate(tooltip));
 ```
 
+**Signature**
+
+```ts
+declare const createAnnotation: <A>(data: A) => Annotation<A>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L131)
+
 ### createAnnotations
 
 Creates an array of annotations from an array of data.
@@ -99,17 +108,9 @@ Efficiently wraps multiple data items in annotations. Useful for batch
 processing of styling data or creating multiple annotations with similar
 structure.
 
-**Signature**
-
-```ts
-export declare const createAnnotations: <A>(
-  dataArray: readonly A[]
-) => Annotation<A>[];
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 
 type ColorData = { name: string; hex: string };
@@ -123,6 +124,16 @@ const colorAnnotations = Annotation.createAnnotations(colorData);
 // Array of 3 Annotation<ColorData> instances
 ```
 
+**Signature**
+
+```ts
+declare const createAnnotations: <A>(
+  dataArray: readonly A[],
+) => Annotation<A>[];
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L278)
+
 ### empty
 
 Predefined annotation containing `undefined` for use as a default or
@@ -131,15 +142,9 @@ placeholder.
 Its data type remains `undefined`, so it cannot be treated as an annotation
 containing another data type.
 
-**Signature**
-
-```ts
-export declare const empty: Annotation<undefined>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
@@ -148,10 +153,18 @@ const getStatusStyle = (isError: boolean) =>
   isError ? Ansi.red : Annotation.empty;
 
 const statusBox = Box.text("Status: OK").pipe(
-  Box.annotate(getStatusStyle(false))
+  Box.annotate(getStatusStyle(false)),
 );
 // Box with no styling applied due to empty annotation
 ```
+
+**Signature**
+
+```ts
+declare const empty: Annotation<undefined>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L339)
 
 ## guards
 
@@ -159,17 +172,9 @@ const statusBox = Box.text("Status: OK").pipe(
 
 Type guard to check if a value is an Annotation.
 
-**Signature**
-
-```ts
-export declare const isAnnotation: (
-  value: unknown
-) => value is Annotation<unknown>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -180,6 +185,14 @@ if (Annotation.isAnnotation(style)) {
 }
 ```
 
+**Signature**
+
+```ts
+declare const isAnnotation: (value: unknown) => value is Annotation<unknown>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L74)
+
 ### isAnnotationWithData
 
 Type guard to check if a value is an Annotation with specific data type.
@@ -187,18 +200,9 @@ Type guard to check if a value is an Annotation with specific data type.
 Provides type-safe checking for annotations containing specific data types,
 useful when working with different annotation systems.
 
-**Signature**
-
-```ts
-export declare const isAnnotationWithData: <A>(
-  value: unknown,
-  dataGuard: (data: unknown) => data is A
-) => value is Annotation<A>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -211,6 +215,17 @@ if (Annotation.isAnnotationWithData(annotation, isStringAnnotation)) {
   const text = Annotation.getAnnotationData(annotation); // string
 }
 ```
+
+**Signature**
+
+```ts
+declare const isAnnotationWithData: <A>(
+  value: unknown,
+  dataGuard: (data: unknown) => data is A,
+) => value is Annotation<A>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L100)
 
 ## models
 
@@ -232,31 +247,39 @@ export interface Annotation<A = never>
 }
 ```
 
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L49)
+
 ### AnnotationData (type alias)
 
-Type-level utility to extract the data type from an `Annotation` type.
+Type-level utility to extract the data type from an [`Annotation`](#annotation-interface) type.
 
 **Signature**
 
 ```ts
-export type AnnotationData<T> = T extends Annotation<infer A> ? A : never;
+type AnnotationData<T> = T extends Annotation<infer A> ? A : never;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L313)
 
 ### AnnotationTypeId
 
 **Signature**
 
 ```ts
-export declare const AnnotationTypeId: typeof AnnotationTypeId;
+declare const AnnotationTypeId: unique symbol;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L33)
 
 ### AnnotationTypeId (type alias)
 
 **Signature**
 
 ```ts
-export type AnnotationTypeId = typeof AnnotationTypeId;
+type AnnotationTypeId = typeof AnnotationTypeId;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L38)
 
 ## transformations
 
@@ -268,18 +291,9 @@ Transforms annotation data while preserving the annotation structure.
 Essential for converting between different annotation formats or
 modifying annotation data for different rendering contexts.
 
-**Signature**
-
-```ts
-export declare const mapAnnotationData: <A, B>(
-  annotation: Annotation<A>,
-  mapper: (data: A) => B
-) => Annotation<B>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -292,6 +306,17 @@ const cssData = Annotation.getAnnotationData(cssAnnotation);
 console.log(cssData); // { className: "text-red-500" }
 ```
 
+**Signature**
+
+```ts
+declare const mapAnnotationData: <A, B>(
+  annotation: Annotation<A>,
+  mapper: (data: A) => B,
+) => Annotation<B>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L180)
+
 ## utilities
 
 ### cloneAnnotation
@@ -302,17 +327,9 @@ Creates a deep copy of an annotation with identical data. Useful for
 creating independent annotation instances that can be modified separately
 or for ensuring annotation immutability in complex operations.
 
-**Signature**
-
-```ts
-export declare const cloneAnnotation: <A>(
-  annotation: Annotation<A>
-) => Annotation<A>;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Box from "effect-boxes/Box";
 
@@ -329,25 +346,25 @@ const box1 = Box.text("Text 1").pipe(Box.annotate(baseStyle));
 const box2 = Box.text("Text 2").pipe(Box.annotate(clonedStyle));
 ```
 
+**Signature**
+
+```ts
+declare const cloneAnnotation: <A>(annotation: Annotation<A>) => Annotation<A>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L368)
+
 ### extractAnnotationData
 
 Extracts data from an array of annotations.
 
 Unwraps multiple annotations to get their underlying data as an array.
-The inverse operation of `createAnnotations`, useful for batch processing
+The inverse operation of [`createAnnotations`](#createannotations), useful for batch processing
 annotation data or preparing data for external systems.
-
-**Signature**
-
-```ts
-export declare const extractAnnotationData: <A>(
-  annotations: readonly Annotation<A>[]
-) => A[];
-```
 
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -359,6 +376,16 @@ const flatCommands = allCommands.flat();
 console.log(flatCommands.length); // Total number of ANSI commands
 ```
 
+**Signature**
+
+```ts
+declare const extractAnnotationData: <A>(
+  annotations: readonly Annotation<A>[],
+) => A[];
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L304)
+
 ### filterAnnotation
 
 Filters annotation data based on a predicate function.
@@ -367,18 +394,9 @@ Returns the annotation if the predicate passes, otherwise undefined.
 Useful for conditionally applying annotations or filtering out
 annotations that don't meet certain criteria.
 
-**Signature**
-
-```ts
-export declare const filterAnnotation: <A>(
-  annotation: Annotation<A>,
-  predicate: (data: A) => boolean
-) => Annotation<A> | undefined;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Box from "effect-boxes/Box";
 
@@ -391,7 +409,7 @@ const conditionalRed = Annotation.createAnnotation<ConditionalStyle>({
 
 const validStyle = Annotation.filterAnnotation(
   conditionalRed,
-  (data) => data.condition
+  (data) => data.condition,
 );
 
 if (validStyle) {
@@ -400,6 +418,17 @@ if (validStyle) {
 }
 ```
 
+**Signature**
+
+```ts
+declare const filterAnnotation: <A>(
+  annotation: Annotation<A>,
+  predicate: (data: A) => boolean,
+) => Annotation<A> | undefined;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L249)
+
 ### getAnnotationData
 
 Extracts the data from an `Annotation<A>`.
@@ -407,15 +436,9 @@ Extracts the data from an `Annotation<A>`.
 Unwraps the annotation wrapper to access the underlying data. Essential
 for consuming annotation data in styling systems and custom renderers.
 
-**Signature**
-
-```ts
-export declare const getAnnotationData: <A>(annotation: Annotation<A>) => A;
-```
-
 **Example**
 
-```typescript
+```ts
 import * as Annotation from "effect-boxes/Annotation";
 import * as Ansi from "effect-boxes/Ansi";
 
@@ -424,3 +447,11 @@ const ansiCommands = Annotation.getAnnotationData(redStyle);
 console.log(ansiCommands);
 // [{ _tag: "ForegroundColor", name: "red", code: "31" }]
 ```
+
+**Signature**
+
+```ts
+declare const getAnnotationData: <A>(annotation: Annotation<A>) => A;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Annotation.ts#L153)

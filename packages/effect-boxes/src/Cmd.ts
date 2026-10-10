@@ -560,30 +560,29 @@ export const eraseStartLine: Box<AnsiStyle> = internalAnsi.eraseStartLine;
 export const eraseEndLine: Box<AnsiStyle> = internalAnsi.eraseEndLine;
 
 /**
- * Erases content from current cursor position upwards by specified number of rows.
+ * Deletes the current terminal row and the following rows.
  *
- * Creates a Box containing ANSI escape sequence to clear a specific number
- * of lines above the current cursor position. Useful for clearing known
- * amounts of content while preserving other screen areas.
+ * Emits the DL (Delete Line) sequence for the specified number of rows.
+ * Later rows shift upward. Move the cursor to the first row to delete before
+ * writing this command. Use {@link clearLines} to erase previous output in place.
  *
  * @example
  * ```typescript
  * import * as Cmd from "effect-boxes/Cmd"
  * import * as Box from "effect-boxes/Box"
- * import * as Ansi from "effect-boxes/Ansi"
- * import { pipe } from "effect"
  *
- * const clearPreviousOutput = pipe(
- *   Box.vcat([
- *     Box.text("Line 1: Old output"),
- *     Box.text("Line 2: Old output"),
- *     Box.text("Line 3: Old output"),
- *     Cmd.eraseLines(3),          // Clear the 3 lines above
- *     Box.text("Line 1: New output").pipe(Box.annotate(Ansi.green)),
- *     Box.text("Line 2: New output").pipe(Box.annotate(Ansi.green)),
- *     Box.text("Line 3: New output").pipe(Box.annotate(Ansi.green))
- *   ], Box.left)
+ * const previous = Box.vcat(
+ *   [Box.text("Old line 1"), Box.text("Old line 2"), Box.text("Old line 3")],
+ *   Box.left
  * )
+ * // Start at column 0 with room for three terminal rows. No trailing newline
+ * // means the cursor stays on the third row after rendering previous.
+ * const output = Box.renderPrettySync(previous).replaceAll("\n", "\r\n")
+ *   + Box.renderPrettySync(Cmd.cursorPrevLine(2))
+ *   + Box.renderPrettySync(Cmd.eraseLines(3))
+ *   + Box.renderPrettySync(Box.text("Replacement"))
+ * // Write output directly with Terminal.display. Do not append a newline
+ * // between the frame and its cursor commands.
  * ```
  *
  * @category erase
@@ -592,8 +591,10 @@ export const eraseLines: (rows: number) => Box<AnsiStyle> =
   internalAnsi.eraseLines;
 
 /**
- * Clears the content of the specified number of lines above the cursor
- * without deleting them from the scroll buffer.
+ * Clears the current terminal line and the specified remaining lines above it.
+ *
+ * The row count includes the current line, so clearLines(3) clears that line
+ * and the two lines above it. Lines remain in place in the scroll buffer.
  *
  * Unlike {@link eraseLines} which uses the DL (Delete Line) escape to remove
  * lines and scroll content upward, `clearLines` erases each line's content

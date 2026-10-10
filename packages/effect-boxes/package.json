@@ -82,7 +82,7 @@
     "test": "vitest run",
     "type-check": "tsc --noEmit",
     "docs:check": "bun run scripts/check-tsdoc.ts && bun run scripts/extract-examples.ts && tsc --noEmit -p docs/examples/tsconfig.json",
-    "docgen": "docgen",
+    "docgen": "docgen --srcLink https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/",
     "benchmark": "vitest bench --run"
   },
   "peerDependencies": {

@@ -61,6 +61,7 @@ export function makeStackResult<const T extends ReadonlyArray<Layer<unknown>>>(
   >,
   Validation.LayoutValidationError
 >;
+
 export function makeStackResult(
   layers: ReadonlyArray<Layer<unknown>>,
   options: Stack.Options

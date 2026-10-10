@@ -84,8 +84,7 @@ const extractExamplesFromStatement = (
   Option.match(getExportName(statement, sourceFile), {
     onNone: () => [],
     onSome: (name) => {
-      const jsDocs =
-        (statement as unknown as { jsDoc?: ts.JSDoc[] }).jsDoc ?? [];
+      const jsDocs = ts.getJSDocCommentsAndTags(statement).filter(ts.isJSDoc);
 
       return Arr.flatMap(jsDocs, (doc) => {
         const rawDoc = fileText.slice(doc.getFullStart(), doc.getEnd());
@@ -133,14 +132,34 @@ const program = Effect.gen(function* () {
         ts.ScriptKind.TS
       );
 
-      return Arr.flatMap(Array.from(sourceFile.statements), (statement) =>
-        extractExamplesFromStatement(
-          statement,
-          sourceFile,
-          fileText,
-          path.basename(modulePath).replace(/\.ts$/, "")
-        )
+      const moduleName = path.basename(modulePath).replace(/\.ts$/, "");
+      const moduleExamples = Arr.flatMap(
+        ts.getLeadingCommentRanges(fileText, 0) ?? [],
+        (range) => {
+          const rawDoc = fileText.slice(range.pos, range.end);
+          if (!/^\s*\*\s*@module\b/m.test(rawDoc)) return [];
+          return extractCodeBlocks(rawDoc).map((code, index) => ({
+            module: moduleName,
+            exportName: "module",
+            index,
+            code: code.replace(
+              /from\s+["']effect-boxes\/(\w+)["']/g,
+              (_match, mod) => `from '../../src/${mod}'`
+            ),
+          }));
+        }
       );
+      return [
+        ...moduleExamples,
+        ...Arr.flatMap(Array.from(sourceFile.statements), (statement) =>
+          extractExamplesFromStatement(
+            statement,
+            sourceFile,
+            fileText,
+            moduleName
+          )
+        ),
+      ];
     })
   );
 

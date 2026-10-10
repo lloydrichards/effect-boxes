@@ -10,6 +10,7 @@
  */
 
 import { BunRuntime, BunServices } from "@effect/platform-bun";
+import { createProcessor } from "@mdx-js/mdx";
 import {
   Array as Arr,
   Console,
@@ -19,6 +20,15 @@ import {
   pipe,
   String as Str,
 } from "effect";
+import { format } from "prettier";
+import remarkGfm from "remark-gfm";
+
+import {
+  escapeLineForMdx,
+  finalizeApiContent,
+  normalizeExampleFences,
+  validateModuleFiles,
+} from "./api-docs-generation";
 
 // --- Pure helpers ---
 
@@ -36,17 +46,6 @@ const stripInlineToc = (content: string): string =>
   content.replace(
     /^## (?:Table of contents|Exports Grouped by Category)\n(?:\n|[ \t]*-[^\n]*\n)*---\n*/m,
     ""
-  );
-
-const escapeLineForMdx = (line: string): string =>
-  pipe(
-    line,
-    (l) => l.replace(/\{@link\s+([^}]+)\}/g, "`$1`"),
-    (l) =>
-      l.replace(
-        /(?<!`)(\w+)<([^>]+)>(?!`)/g,
-        (_, name, params) => `\`${name}<${params}>\``
-      )
   );
 
 const escapeMdxUnsafe = (content: string): string =>
@@ -76,7 +75,9 @@ const transformContent = (content: string): string =>
     stripInlineToc,
     bumpHeadings,
     promoteFirstHeading,
-    escapeMdxUnsafe
+    (text) => text.replace(/^# (\w+)\.ts overview$/m, "# $1"),
+    escapeMdxUnsafe,
+    finalizeApiContent
   );
 
 const toOutputName = (file: string): string =>
@@ -95,10 +96,56 @@ const program = Effect.gen(function* () {
 
   const root = path.resolve(import.meta.dirname, "../../..");
   const pkg = path.join(root, "packages/effect-boxes");
-  const docgenOut = path.join(pkg, "docs/modules");
   const apiDir = path.join(root, "apps/docs/app/content/api");
+  const staging = yield* fs.makeTempDirectoryScoped({
+    directory: pkg,
+    prefix: ".docgen-",
+  });
+  const sourceDir = path.join(staging, "src");
+  const docgenOut = path.join(staging, "output/modules");
+  const stagedApi = path.join(staging, "api");
+  const config = JSON.parse(
+    yield* fs.readFileString(path.join(pkg, "docgen.json"))
+  );
+  yield* fs.copyFile(
+    path.join(pkg, "package.json"),
+    path.join(staging, "package.json")
+  );
+  yield* fs.writeFileString(
+    path.join(staging, "docgen.json"),
+    JSON.stringify({
+      ...config,
+      srcDir: "src",
+      outDir: "output",
+      parseCompilerOptions: "../tsconfig.docgen.json",
+      examplesCompilerOptions: {
+        strict: true,
+        skipLibCheck: true,
+        target: "ES2022",
+        module: "ESNext",
+        moduleResolution: "Bundler",
+        paths: { "effect-boxes/*": ["../../src/*"] },
+      },
+    })
+  );
 
-  // 1. Run docgen in the effect-boxes package
+  // Docgen wraps @example text in its own fence. Normalize only the temporary
+  // source copy so the published JSDoc keeps conventional fenced examples.
+  yield* fs.copy(path.join(pkg, "src"), sourceDir);
+  const sources = yield* fs.readDirectory(sourceDir);
+  yield* Effect.forEach(
+    sources.filter((file) => file.endsWith(".ts")),
+    (file) =>
+      Effect.gen(function* () {
+        const filePath = path.join(sourceDir, file);
+        const source = yield* fs.readFileString(filePath);
+        yield* fs.writeFileString(filePath, normalizeExampleFences(source));
+      }),
+    { discard: true }
+  );
+
+  // Run docgen in the staged package; explicit CLI source links avoid docgen's
+  // homepage-derived links (this version ignores srcLink in docgen.json).
   yield* Console.log("Running @effect/docgen...");
 
   const pathEnv = [
@@ -109,12 +156,19 @@ const program = Effect.gen(function* () {
 
   const result = yield* Effect.tryPromise({
     try: () => {
-      const proc = Bun.spawn(["docgen"], {
-        cwd: pkg,
-        env: { ...process.env, PATH: pathEnv },
-        stdout: "pipe",
-        stderr: "pipe",
-      });
+      const proc = Bun.spawn(
+        [
+          "docgen",
+          "--srcLink",
+          "https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/",
+        ],
+        {
+          cwd: staging,
+          env: { ...process.env, PATH: pathEnv },
+          stdout: "pipe",
+          stderr: "pipe",
+        }
+      );
       return proc.exited.then(async (code) => ({
         code,
         stdout: await new Response(proc.stdout).text(),
@@ -124,45 +178,52 @@ const program = Effect.gen(function* () {
     catch: (e) => ({ _tag: "DocgenSpawnError" as const, cause: e }),
   });
 
+  if (result.stdout) yield* Console.log(result.stdout);
+  if (result.stderr) yield* Console.error(result.stderr);
   if (result.code !== 0) {
-    yield* Console.log(`Warning: docgen exited with code ${result.code}`);
-    if (result.stderr) yield* Console.log(result.stderr);
-    if (result.stdout) yield* Console.log(result.stdout);
+    return yield* Effect.fail(
+      new Error(
+        `Docgen failed with exit code ${result.code}; existing API pages were preserved.`
+      )
+    );
   }
 
-  // 2. Ensure output directory exists
-  yield* fs.makeDirectory(docgenOut, { recursive: true });
-  yield* fs.makeDirectory(apiDir, { recursive: true });
-
-  // 3. Read and transform each generated .md into .mdx
   const allFiles = yield* fs.readDirectory(docgenOut);
-
-  const mdFiles = pipe(
-    allFiles,
-    Arr.filter((f) => f.endsWith(".ts.md") && f !== "index.md")
-  );
-
-  if (mdFiles.length === 0) {
-    yield* Console.log("No docgen output found, skipping API docs generation.");
-    return;
-  }
-
+  yield* Effect.try(() => validateModuleFiles(allFiles));
+  const mdFiles = allFiles.filter((file) => file.endsWith(".ts.md"));
+  yield* fs.makeDirectory(stagedApi);
+  const mdxParser = createProcessor({ remarkPlugins: [remarkGfm] });
   yield* Effect.forEach(
     mdFiles,
     (file) =>
       Effect.gen(function* () {
         const content = yield* fs.readFileString(path.join(docgenOut, file));
-        const mdxSafe = transformContent(content);
-        const outputName = toOutputName(path.basename(file));
-        const outPath = path.join(apiDir, outputName);
-
-        yield* fs.writeFileString(outPath, mdxSafe);
-        yield* Console.log(`  Written: ${outputName}`);
+        const outputName = toOutputName(file);
+        const mdx = yield* Effect.tryPromise(() =>
+          format(transformContent(content), { parser: "mdx" })
+        );
+        yield* Effect.try(() => mdxParser.parse(mdx));
+        yield* fs.writeFileString(path.join(stagedApi, outputName), mdx);
       }),
     { discard: true }
   );
 
+  // Publish the complete directory only after every module has been generated.
+  // Keep a backup until the rename succeeds so filesystem failures can roll back.
+  const previousApi = path.join(staging, "previous-api");
+  const hadApi = yield* fs.exists(apiDir);
+  if (hadApi) yield* fs.rename(apiDir, previousApi);
+  yield* fs.rename(stagedApi, apiDir).pipe(
+    Effect.catch((error) =>
+      Effect.gen(function* () {
+        if (hadApi) yield* fs.rename(previousApi, apiDir);
+        return yield* Effect.fail(error);
+      })
+    )
+  );
+  yield* Console.log(`Published ${mdFiles.length} API pages.`);
+
   yield* Console.log("API docs generation complete.");
-}).pipe(Effect.provide(BunServices.layer));
+}).pipe(Effect.scoped, Effect.provide(BunServices.layer));
 
 BunRuntime.runMain(program);

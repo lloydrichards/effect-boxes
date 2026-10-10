@@ -20,7 +20,8 @@
  * - **Align** content: {@link alignHoriz}, {@link alignVert}, {@link align}
  * - **Move** position: {@link moveRight}, {@link moveDown}, {@link moveLeft}, {@link moveUp}
  * - **Add borders**: {@link border}, {@link singleBorder}, {@link roundedBorder}
- * - **Render** to string: {@link render}, {@link renderPlain}
+ * - **Render** to string: {@link renderPlainSync}, {@link renderPrettySync}
+ * - **Render** within Effect: {@link render}, {@link renderPlain}
  *
  * ## Gotchas
  *
@@ -41,13 +42,13 @@
  *   Box.moveRight(2),
  *   Box.alignHoriz(Box.center1, 20)
  * )
- * console.log(Box.render(layout))
+ * console.log(Box.renderPlainSync(layout))
  * ```
  *
  * @see {@link text} — create a box from a string
  * @see {@link hcat} — horizontal concatenation
  * @see {@link vcat} — vertical concatenation
- * @see {@link render} — convert to string
+ * @see {@link renderPlainSync} — convert to string
  *
  * @module
  */
@@ -414,6 +415,7 @@ export const combineMany: {
  *
  * @example
  * ```typescript
+ * import { Equal } from "effect"
  * import * as Box from "effect-boxes/Box"
  *
  * const boxes = [Box.text("A"), Box.text("B"), Box.text("C")]
@@ -422,7 +424,7 @@ export const combineMany: {
  * // ABC
  *
  * const empty = Box.combineAll([])
- * console.log(empty === Box.nullBox) // structural equality via Effect
+ * console.log(Equal.equals(empty, Box.nullBox)) // true
  * ```
  *
  * @note Haskell: `instance Monoid Box where mempty = nullBox mappend = (<>) mconcat = hcat top`
@@ -1352,10 +1354,11 @@ export const renderPlain: <A>(self: Box<A>) => Effect.Effect<string> =
 export const renderPlainSync: <A>(self: Box<A>) => string =
   internalRender.renderPlainSync;
 
-/** * Renders a box to a Renderer within an Effect context.
+/**
+ * Renders a box to a string using the Renderer service.
  *
- * Asynchronous rendering that supports complex rendering strategies
- * and configurations. Returns an Effect that produces a Renderer.
+ * Returns an Effect that produces a string when run. Provide a renderer layer
+ * to select plain text, ANSI, or HTML output.
  *
  * @example
  * ```typescript
@@ -1534,6 +1537,8 @@ export const alterAnnotation: {
 
 /**
  * Characters used to draw a border around a box.
+ * Each field is a string: `topLeft`, `topRight`, `bottomLeft`, `bottomRight`,
+ * `horizontal`, and `vertical`. The preset constants supply these characters.
  *
  * @category models
  */
@@ -1554,6 +1559,11 @@ export type BorderStyle = internal.BorderStyle;
 
 /**
  * Options for the `border` combinator.
+ *
+ * - `annotation`: optional annotation applied to the border characters.
+ * - `sides`: optional object with `top`, `right`, `bottom`, and `left` boolean
+ *   fields. Each side defaults to `true`; set it to `false` to omit that side.
+ *   An omitted side adds no row or column to the box dimensions.
  *
  * @category models
  */

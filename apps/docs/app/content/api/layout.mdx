@@ -1,4 +1,4 @@
-# Layout overview
+# Layout
 
 Layout — higher-level layout combinators built on top of Box.
 
@@ -25,13 +25,15 @@ on the output, and applies padding.
 **Signature**
 
 ```ts
-export declare const Container: {
+declare const Container: {
   readonly make: <A>(
     options: Container.Options,
-    builder: (ctx: Container.Context) => Box.Box<A>
+    builder: (ctx: Container.Context) => Box.Box<A>,
   ) => Box.Box<A>;
 };
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L242)
 
 ### Flex
 
@@ -46,41 +48,9 @@ If fixed children exceed the container size, grow children receive 0
 space and the result may be wider/taller than the container. Compose
 with `Box.maxWidth` to enforce hard limits.
 
-**Signature**
-
-```ts
-export declare const Flex: {
-  readonly fixed: <A>(box: Box.Box<A>) => Flex.Child<A>;
-  readonly grow: <A>(box: Box.Box<A>, factor?: number) => Flex.Child<A>;
-  readonly fill: <A>(
-    builder: (size: number) => Box.Box<A>,
-    factor?: number
-  ) => Flex.Child<A>;
-  readonly spacer: (factor?: number) => Flex.Child<never>;
-  readonly row: ((
-    containerWidth: number,
-    options?: Flex.Options
-  ) => <A>(self: ReadonlyArray<Flex.Child<A>>) => Box.Box<A>) &
-    (<A>(
-      self: ReadonlyArray<Flex.Child<A>>,
-      containerWidth: number,
-      options?: Flex.Options
-    ) => Box.Box<A>);
-  readonly col: ((
-    containerHeight: number,
-    options?: Flex.Options
-  ) => <A>(self: ReadonlyArray<Flex.Child<A>>) => Box.Box<A>) &
-    (<A>(
-      self: ReadonlyArray<Flex.Child<A>>,
-      containerHeight: number,
-      options?: Flex.Options
-    ) => Box.Box<A>);
-};
-```
-
 **Example**
 
-```typescript
+```ts
 import { pipe } from "effect";
 import * as Box from "effect-boxes/Box";
 import { Flex } from "effect-boxes/Layout";
@@ -88,7 +58,7 @@ import { Flex } from "effect-boxes/Layout";
 // Data-first
 const row = Flex.row(
   [Flex.fixed(Box.text("Name:")), Flex.spacer(), Flex.fixed(Box.text("[ok]"))],
-  80
+  80,
 );
 
 // Data-last (pipe)
@@ -98,9 +68,43 @@ const row2 = pipe(
     Flex.grow(Box.text("value"), 2),
     Flex.fixed(Box.text("[ok]")),
   ],
-  Flex.row(80, { gap: 1 })
+  Flex.row(80, { gap: 1 }),
 );
 ```
+
+**Signature**
+
+```ts
+declare const Flex: {
+  readonly fixed: <A>(box: Box.Box<A>) => Flex.Child<A>;
+  readonly grow: <A>(box: Box.Box<A>, factor?: number) => Flex.Child<A>;
+  readonly fill: <A>(
+    builder: (size: number) => Box.Box<A>,
+    factor?: number,
+  ) => Flex.Child<A>;
+  readonly spacer: (factor?: number) => Flex.Child<never>;
+  readonly row: ((
+    containerWidth: number,
+    options?: Flex.Options,
+  ) => <A>(self: ReadonlyArray<Flex.Child<A>>) => Box.Box<A>) &
+    (<A>(
+      self: ReadonlyArray<Flex.Child<A>>,
+      containerWidth: number,
+      options?: Flex.Options,
+    ) => Box.Box<A>);
+  readonly col: ((
+    containerHeight: number,
+    options?: Flex.Options,
+  ) => <A>(self: ReadonlyArray<Flex.Child<A>>) => Box.Box<A>) &
+    (<A>(
+      self: ReadonlyArray<Flex.Child<A>>,
+      containerHeight: number,
+      options?: Flex.Options,
+    ) => Box.Box<A>);
+};
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L63)
 
 ### Grid
 
@@ -109,255 +113,81 @@ Arranges items in rows and columns with uniform column width.
 **Signature**
 
 ```ts
-export declare const Grid: {
+declare const Grid: {
   readonly make: ((
-    options: Grid.Options
+    options: Grid.Options,
   ) => <A>(self: ReadonlyArray<Box.Box<A>>) => Box.Box<A>) &
     (<A>(self: ReadonlyArray<Box.Box<A>>, options: Grid.Options) => Box.Box<A>);
   readonly auto: ((
     containerWidth: number,
-    options: Grid.AutoOptions
+    options: Grid.AutoOptions,
   ) => <A>(self: ReadonlyArray<Box.Box<A>>) => Box.Box<A>) &
     (<A>(
       self: ReadonlyArray<Box.Box<A>>,
       containerWidth: number,
-      options: Grid.AutoOptions
+      options: Grid.AutoOptions,
     ) => Box.Box<A>);
 };
 ```
 
-## models
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L305)
 
-### Container (namespace)
+### Stack
 
-#### Context (interface)
-
-Context passed to a container builder function with computed inner
-dimensions after padding.
-
-**Signature**
-
-```ts
-export interface Context {
-  readonly width: number;
-  readonly height: number;
-  readonly innerWidth: number;
-  readonly innerHeight: number;
-}
-```
-
-#### Options (interface)
-
-Options for creating a container.
-
-**Signature**
-
-```ts
-export interface Options {
-  readonly width: number;
-  readonly height?: number;
-  readonly padding?: number | readonly [number, number];
-}
-```
-
-### Flex (namespace)
-
-#### Fill (interface)
-
-A flex child that fills remaining space via a builder function.
-
-**Signature**
-
-```ts
-export interface Fill<A = never> {
-  readonly _tag: "Fill";
-  readonly builder: (size: number) => Box.Box<A>;
-  readonly factor: number;
-  readonly isSpacer?: true;
-}
-```
-
-#### Fixed (interface)
-
-A flex child that occupies its intrinsic width/height.
-
-**Signature**
-
-```ts
-export interface Fixed<A = never> {
-  readonly _tag: "Fixed";
-  readonly box: Box.Box<A>;
-}
-```
-
-#### Grow (interface)
-
-A flex child that grows to fill remaining space proportionally.
-
-**Signature**
-
-```ts
-export interface Grow<A = never> {
-  readonly _tag: "Grow";
-  readonly box: Box.Box<A>;
-  readonly factor: number;
-}
-```
-
-#### Options (interface)
-
-Options for flex row/col layout.
-
-**Signature**
-
-```ts
-export interface Options {
-  readonly align?: Box.Alignment;
-  readonly gap?: number;
-}
-```
-
-#### Child (type alias)
-
-A child element in a flex layout.
-
-**Signature**
-
-```ts
-export type Child<A = never> = Fixed<A> | Grow<A> | Fill<A>;
-```
-
-### Grid (namespace)
-
-#### AutoOptions (interface)
-
-Options for auto-column grid layout.
-
-**Signature**
-
-```ts
-export interface AutoOptions {
-  readonly minColWidth: number;
-  readonly maxColWidth?: number;
-  readonly gap?: number;
-  readonly align?: Box.Alignment;
-  readonly stretch?: boolean;
-}
-```
-
-#### Options (interface)
-
-Options for fixed-column grid layout.
-
-**Signature**
-
-```ts
-export interface Options {
-  readonly cols: number;
-  readonly colWidth: number;
-  readonly gap?: readonly [number, number];
-  readonly align?: Box.Alignment;
-  readonly stretch?: boolean;
-}
-```
-
-### Place (namespace)
-
-#### Options (interface)
-
-Bounded placement options in terminal cells.
-
-**Signature**
-
-```ts
-export interface Options {
-  readonly width: number;
-  readonly height: number;
-  readonly x?: Horizontal;
-  readonly y?: Vertical;
-}
-```
-
-#### Horizontal (type alias)
-
-Horizontal coordinate or anchor.
-
-**Signature**
-
-```ts
-type Horizontal = number | "left" | "center" | "right";
-```
-
-#### Vertical (type alias)
-
-Vertical coordinate or anchor.
-
-**Signature**
-
-```ts
-type Vertical = number | "top" | "center" | "bottom";
-```
-
-## transformations
-
-### Place
-
-Places content within an exact bounded region using terminal cell coordinates.
-
-The make helper sets both dimensions; horizontal and vertical preserve the
-other source dimension. Numeric offsets default to zero. Center rounding uses
-floor((outer - inner) / 2), including oversized content. Visible annotations
-survive clipping, and padding outside the source is unannotated.
-
-Dimensions must be non-negative safe integers and numeric offsets must be safe
-integers. Invalid values and Cmd annotations anywhere in the source throw
-RangeError, including when the source is wholly outside the viewport.
+Combines layers for resolution and encoding through Renderer.frame.
+Higher z wins; later input wins ties. Spaces and padding are opaque.
+Partial wide glyphs become blanks when clipped or covered.
 
 **Example**
 
-```typescript
+```ts
 import * as Box from "effect-boxes/Box";
-import { Place } from "effect-boxes/Layout";
-
-const placed = Place.make(Box.text("Hello"), {
-  width: 20,
-  height: 4,
-  x: "center",
-  y: "bottom",
-});
-console.log(placed.cols, placed.rows); // 20, 4
+import { Layer, Stack } from "effect-boxes/Layout";
+const stack = Stack.make(
+  [
+    Layer.make(Box.text("Background")),
+    Layer.make(Box.text("Popup"), { x: 2, z: 1 }),
+  ],
+  {
+    width: 20,
+    height: 4,
+  },
+);
 ```
 
 **Signature**
 
 ```ts
-declare const Place: {
-  readonly make: ((
-    options: Place.Options
-  ) => <A>(self: Box.Box<A>) => Box.Box<A>) &
-    (<A>(self: Box.Box<A>, options: Place.Options) => Box.Box<A>);
-  readonly horizontal: ((
-    width: number,
-    position: Place.Horizontal
-  ) => <A>(self: Box.Box<A>) => Box.Box<A>) &
-    (<A>(
-      self: Box.Box<A>,
-      width: number,
-      position: Place.Horizontal
-    ) => Box.Box<A>);
-  readonly vertical: ((
-    height: number,
-    position: Place.Vertical
-  ) => <A>(self: Box.Box<A>) => Box.Box<A>) &
-    (<A>(
-      self: Box.Box<A>,
-      height: number,
-      position: Place.Vertical
-    ) => Box.Box<A>);
+declare const Stack: {
+  readonly make: <const T extends ReadonlyArray<Layer<unknown>>>(
+    layers: T,
+    options: Stack.Options,
+  ) => Stack<
+    [T[number]] extends [never]
+      ? never
+      : T[number] extends Layer<infer A>
+        ? A
+        : never
+  >;
+  readonly makeResult: <const T extends ReadonlyArray<Layer<unknown>>>(
+    layers: T,
+    options: Stack.Options,
+  ) => Result.Result<
+    Stack<
+      [T[number]] extends [never]
+        ? never
+        : T[number] extends Layer<infer A>
+          ? A
+          : never
+    >,
+    LayoutValidationError
+  >;
 };
 ```
 
-## Frame composition
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L654)
+
+## constructors
 
 ### Layer
 
@@ -380,39 +210,212 @@ declare const Layer: {
     (options?: Layer.Options): <A>(self: Box.Box<A>) => Layer<A>;
     <A>(self: Box.Box<A>, options?: Layer.Options): Layer<A>;
   };
+  readonly makeResult: {
+    (
+      options?: Layer.Options,
+    ): <A>(self: Box.Box<A>) => Result.Result<Layer<A>, LayoutValidationError>;
+    <A>(
+      self: Box.Box<A>,
+      options?: Layer.Options,
+    ): Result.Result<Layer<A>, LayoutValidationError>;
+  };
 };
 ```
 
-### Stack
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L567)
 
-Combines layers for resolution and encoding through Renderer.frame.
-Higher z wins; later input wins ties. Spaces and padding are opaque.
-Partial wide glyphs become blanks when clipped or covered.
+## errors
+
+### LayoutValidationError
+
+Reports invalid layout input or unsupported command annotations.
 
 **Example**
 
 ```ts
+import { Result } from "effect";
 import * as Box from "effect-boxes/Box";
-import { Layer, Stack } from "effect-boxes/Layout";
-const stack = Stack.make(
-  [
-    Layer.make(Box.text("Background")),
-    Layer.make(Box.text("Popup"), { x: 2, z: 1 }),
-  ],
-  { width: 20, height: 4 }
-);
+import { Place } from "effect-boxes/Layout";
+const result = Place.makeResult(Box.text("A"), { width: -1, height: 1 });
+if (Result.isFailure(result)) console.log(result.failure.reason); // "InvalidInput"
 ```
 
 **Signature**
 
 ```ts
-declare const Stack: {
-  readonly make: <const T extends ReadonlyArray<Layer<unknown>>>(
-    layers: T,
-    options: Stack.Options
-  ) => Stack<T[number] extends Layer<infer A> ? A : never>;
-};
+declare const LayoutValidationError: typeof internalValidation.LayoutValidationError;
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L511)
+
+### LayoutValidationError (type alias)
+
+**Signature**
+
+```ts
+type LayoutValidationError = internalValidation.LayoutValidationError;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L514)
+
+## models
+
+### Container (namespace)
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L268)
+
+#### Context (interface)
+
+Context passed to a container builder function with computed inner
+dimensions after padding.
+
+**Signature**
+
+```ts
+export interface Context {
+  readonly width: number;
+  readonly height: number;
+  readonly innerWidth: number;
+  readonly innerHeight: number;
+}
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L275)
+
+#### Options (interface)
+
+Options for creating a container.
+
+**Signature**
+
+```ts
+export interface Options {
+  readonly width: number;
+  readonly height?: number;
+  readonly padding?: number | readonly [number, number];
+}
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L287)
+
+### Flex (namespace)
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L177)
+
+#### Fixed (interface)
+
+A flex child that occupies its intrinsic width/height.
+
+**Signature**
+
+```ts
+export interface Fixed<A = never> {
+  readonly _tag: "Fixed";
+  readonly box: Box.Box<A>;
+}
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L183)
+
+#### Grow (interface)
+
+A flex child that grows to fill remaining space proportionally.
+
+**Signature**
+
+```ts
+export interface Grow<A = never> {
+  readonly _tag: "Grow";
+  readonly box: Box.Box<A>;
+  readonly factor: number;
+}
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L193)
+
+#### Fill (interface)
+
+A flex child that fills remaining space via a builder function.
+
+**Signature**
+
+```ts
+export interface Fill<A = never> {
+  readonly _tag: "Fill";
+  readonly builder: (size: number) => Box.Box<A>;
+  readonly factor: number;
+  readonly isSpacer?: true;
+}
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L204)
+
+#### Options (interface)
+
+Options for flex row/col layout.
+
+**Signature**
+
+```ts
+export interface Options {
+  readonly align?: Box.Alignment;
+  readonly gap?: number;
+}
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L223)
+
+#### Child (type alias)
+
+A child element in a flex layout.
+
+**Signature**
+
+```ts
+type Child<A = never> = Fixed<A> | Grow<A> | Fill<A>;
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L216)
+
+### Grid (namespace)
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L364)
+
+#### Options (interface)
+
+Options for fixed-column grid layout.
+
+**Signature**
+
+```ts
+export interface Options {
+  readonly cols: number;
+  readonly colWidth: number;
+  readonly gap?: readonly [number, number];
+  readonly align?: Box.Alignment;
+  readonly stretch?: boolean;
+}
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L370)
+
+#### AutoOptions (interface)
+
+Options for auto-column grid layout.
+
+**Signature**
+
+```ts
+export interface AutoOptions {
+  readonly minColWidth: number;
+  readonly maxColWidth?: number;
+  readonly gap?: number;
+  readonly align?: Box.Alignment;
+  readonly stretch?: boolean;
+}
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L383)
 
 ### Layer (interface)
 
@@ -429,7 +432,11 @@ export interface Layer<out A = never> {
 }
 ```
 
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L547)
+
 ### Layer (namespace)
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L613)
 
 #### Options (interface)
 
@@ -444,6 +451,53 @@ export interface Options {
   readonly z?: number;
 }
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L618)
+
+### Place (namespace)
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L519)
+
+#### Options (interface)
+
+Bounded placement options in terminal cells.
+
+**Signature**
+
+```ts
+export interface Options {
+  readonly width: number;
+  readonly height: number;
+  readonly x?: Horizontal;
+  readonly y?: Vertical;
+}
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L534)
+
+#### Horizontal (type alias)
+
+Horizontal coordinate or anchor.
+
+**Signature**
+
+```ts
+type Horizontal = number | "left" | "center" | "right";
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L524)
+
+#### Vertical (type alias)
+
+Vertical coordinate or anchor.
+
+**Signature**
+
+```ts
+type Vertical = number | "top" | "center" | "bottom";
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L529)
 
 ### Stack (interface)
 
@@ -460,7 +514,11 @@ export interface Stack<out A = never> {
 }
 ```
 
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L630)
+
 ### Stack (namespace)
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L708)
 
 #### Options (interface)
 
@@ -474,3 +532,75 @@ export interface Options {
   readonly height: number;
 }
 ```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L713)
+
+## transformations
+
+### Place
+
+Places content within an exact bounded region using terminal cell coordinates.
+
+The make helper sets both dimensions; horizontal and vertical preserve the
+other source dimension. Numeric offsets default to zero. Center rounding uses
+floor((outer - inner) / 2), including oversized content. Visible annotations
+survive clipping, and padding outside the source is unannotated.
+
+Dimensions must be non-negative safe integers and numeric offsets must be safe
+integers. Invalid values and Cmd annotations anywhere in the source throw
+RangeError, including when the source is wholly outside the viewport.
+
+**Example**
+
+```ts
+import * as Box from "effect-boxes/Box";
+import { Place } from "effect-boxes/Layout";
+
+const placed = Place.make(Box.text("Hello"), {
+  width: 20,
+  height: 4,
+  x: "center",
+  y: "bottom",
+});
+console.log(placed.cols, placed.rows); // 20, 4
+```
+
+**Signature**
+
+```ts
+declare const Place: {
+  readonly make: ((
+    options: Place.Options,
+  ) => <A>(self: Box.Box<A>) => Box.Box<A>) &
+    (<A>(self: Box.Box<A>, options: Place.Options) => Box.Box<A>);
+  readonly makeResult: ((
+    options: Place.Options,
+  ) => <A>(
+    self: Box.Box<A>,
+  ) => Result.Result<Box.Box<A>, internalValidation.LayoutValidationError>) &
+    (<A>(
+      self: Box.Box<A>,
+      options: Place.Options,
+    ) => Result.Result<Box.Box<A>, internalValidation.LayoutValidationError>);
+  readonly horizontal: ((
+    width: number,
+    position: Place.Horizontal,
+  ) => <A>(self: Box.Box<A>) => Box.Box<A>) &
+    (<A>(
+      self: Box.Box<A>,
+      width: number,
+      position: Place.Horizontal,
+    ) => Box.Box<A>);
+  readonly vertical: ((
+    height: number,
+    position: Place.Vertical,
+  ) => <A>(self: Box.Box<A>) => Box.Box<A>) &
+    (<A>(
+      self: Box.Box<A>,
+      height: number,
+      position: Place.Vertical,
+    ) => Box.Box<A>);
+};
+```
+
+[Source](https://github.com/lloydrichards/effect-boxes/blob/main/packages/effect-boxes/src/Layout.ts#L417)
