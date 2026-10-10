@@ -55,6 +55,7 @@ const PUBLIC_MODULES = [
   "src/Layout.ts",
   "src/Reactive.ts",
   "src/Renderer.ts",
+  "src/FrameEncoder.ts",
 ] as const;
 
 const EXAMPLE_REQUIRED_CATEGORIES_WHITELIST = [

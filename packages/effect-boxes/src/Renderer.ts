@@ -19,7 +19,12 @@
  */
 import { type Effect, Layer } from "effect";
 import type * as Box from "./Box.js";
+import type * as FrameEncoder from "./FrameEncoder.js";
+import * as internalFrame from "./internal/frame.js";
+import * as internalFrameEncoder from "./internal/frame-encoder.js";
+import * as internalFrameRenderer from "./internal/frame-renderer.js";
 import * as internal from "./internal/renderer.js";
+import type { Stack } from "./Layout.js";
 import { makeAnsiRenderer } from "./renderer/AnsiRenderer.js";
 import { HtmlRenderConfig, makeHtmlRenderer } from "./renderer/HtmlRenderer.js";
 import { makePlainRenderer } from "./renderer/PlainRenderer.js";
@@ -453,7 +458,9 @@ export const tracked: {
  *
  * @category layers
  */
-export const PlainRendererLive: Layer.Layer<Renderer> = makePlainRenderer;
+export const PlainRendererLive: Layer.Layer<
+  Renderer | FrameEncoder.FrameEncoder
+> = Layer.merge(makePlainRenderer, internalFrameEncoder.PlainFrameEncoderLive);
 
 /**
  * ANSI-enabled renderer layer implementation.
@@ -486,7 +493,9 @@ export const PlainRendererLive: Layer.Layer<Renderer> = makePlainRenderer;
  *
  * @category layers
  */
-export const AnsiRendererLive: Layer.Layer<Renderer> = makeAnsiRenderer;
+export const AnsiRendererLive: Layer.Layer<
+  Renderer | FrameEncoder.FrameEncoder
+> = Layer.merge(makeAnsiRenderer, internalFrameEncoder.AnsiFrameEncoderLive);
 
 /**
  * HTML renderer layer implementation.
@@ -558,3 +567,137 @@ export const HtmlPrettyRendererLive: Layer.Layer<Renderer> =
       })
     )
   );
+
+/**
+ * Describes an immutable resolved viewport and its reactive regions.
+ * Internal ownership is private. Encode and query this same snapshot.
+ * Keep the original object; copied or reconstructed frames have no private data.
+ *
+ * @category models
+ */
+export type ResolvedFrame = internalFrame.ResolvedFrame;
+
+/**
+ * Contains full viewport lines, serialized output, and their resolved snapshot.
+ * Whitespace configuration changes output only, never geometry or regions.
+ *
+ * @category models
+ */
+export type FrameOutput = internalFrameRenderer.FrameOutput;
+
+/**
+ * Reports unsupported frame input or unrepresentable geometry.
+ * Commands, embedded controls, and annotations other than ANSI/Reactive fail,
+ * including in hidden layers. Diagnostic causes are retained when available.
+ *
+ * @example
+ * ```typescript
+ * import * as Renderer from "effect-boxes/Renderer"
+ * const error = new Renderer.FrameResolutionError({ message: "Unsupported annotation" })
+ * ```
+ * @category errors
+ */
+export const FrameResolutionError: typeof internalFrame.FrameResolutionError =
+  internalFrame.FrameResolutionError;
+
+/** @category errors */
+export type FrameResolutionError = internalFrame.FrameResolutionError;
+
+/**
+ * Resolves original Boxes or opaque Stack layers into one immutable viewport.
+ * Fails with FrameResolutionError when the viewport exceeds 1,000,000 cells
+ * or either dimension exceeds 1,000,000, before allocating dense storage.
+ * Requires no renderer service. Higher z wins, with later input breaking ties.
+ *
+ * @example
+ * ```typescript
+ * import { Effect } from "effect"
+ * import * as Box from "effect-boxes/Box"
+ * import * as Renderer from "effect-boxes/Renderer"
+ * const resolved = Effect.runSync(Renderer.resolve(Box.text("Hello")))
+ * console.log(resolved.cols) // 5
+ * ```
+ * @category utilities
+ */
+export const resolve: <A>(
+  self: Box.Box<A> | Stack<A>
+) => Effect.Effect<ResolvedFrame, FrameResolutionError> =
+  internalFrameRenderer.resolve;
+
+/**
+ * Encodes a resolved snapshot through the explicitly registered FrameEncoder.
+ * Returns the same snapshot with full-width lines and configured output.
+ * Custom adapters must preserve geometry; no backend fallback is inferred.
+ *
+ * @example
+ * ```typescript
+ * import { Effect } from "effect"
+ * import * as Box from "effect-boxes/Box"
+ * import * as Renderer from "effect-boxes/Renderer"
+ * const result = Effect.gen(function* () {
+ *   const resolved = yield* Renderer.resolve(Box.text("Hello"))
+ *   return yield* Renderer.encode(resolved, { preserveWhitespace: true })
+ * }).pipe(Effect.provide(Renderer.PlainRendererLive))
+ * ```
+ * @category utilities
+ */
+export const encode: {
+  (
+    config?: RenderConfig
+  ): (
+    self: ResolvedFrame
+  ) => Effect.Effect<
+    FrameOutput,
+    FrameEncoder.FrameEncodingError,
+    FrameEncoder.FrameEncoder
+  >;
+  (
+    self: ResolvedFrame,
+    config?: RenderConfig
+  ): Effect.Effect<
+    FrameOutput,
+    FrameEncoder.FrameEncodingError,
+    FrameEncoder.FrameEncoder
+  >;
+} = internalFrameRenderer.encode;
+
+/**
+ * Resolves and encodes a Box or Stack inside the current application update.
+ * Uses FrameEncoder, independently of the ordinary tree rendering service.
+ * Plain and ANSI Renderer live layers provide both capabilities.
+ *
+ * @example
+ * ```typescript
+ * import { Effect } from "effect"
+ * import * as Box from "effect-boxes/Box"
+ * import { Layer, Stack } from "effect-boxes/Layout"
+ * import * as Renderer from "effect-boxes/Renderer"
+ * const stack = Stack.make([
+ *   Layer.make(Box.text("Background")),
+ *   Layer.make(Box.text("Popup"), { x: 2, z: 1 }),
+ * ], { width: 20, height: 4 })
+ * const result = Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+ *   Effect.provide(Renderer.AnsiRendererLive)
+ * )
+ * ```
+ * @category utilities
+ */
+export const frame: {
+  (
+    config?: RenderConfig
+  ): <A>(
+    self: Box.Box<A> | Stack<A>
+  ) => Effect.Effect<
+    FrameOutput,
+    FrameResolutionError | FrameEncoder.FrameEncodingError,
+    FrameEncoder.FrameEncoder
+  >;
+  <A>(
+    self: Box.Box<A> | Stack<A>,
+    config?: RenderConfig
+  ): Effect.Effect<
+    FrameOutput,
+    FrameResolutionError | FrameEncoder.FrameEncodingError,
+    FrameEncoder.FrameEncoder
+  >;
+} = internalFrameRenderer.frame;

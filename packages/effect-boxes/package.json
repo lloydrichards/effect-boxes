@@ -42,6 +42,10 @@
     "./Layout": {
       "types": "./dist/Layout.d.ts",
       "import": "./dist/Layout.js"
+    },
+    "./FrameEncoder": {
+      "types": "./dist/FrameEncoder.d.ts",
+      "import": "./dist/FrameEncoder.js"
     }
   },
   "publishConfig": {

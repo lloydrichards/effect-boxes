@@ -7,8 +7,8 @@
  * - `Grid.make` / `Grid.auto` arrange items in fixed-column grids
  * - `Place.make` places and clips content within an exact bounded region
  *
- * All helpers are pure functions that return standard Box values,
- * composable with existing Box primitives (border, annotate, pad, etc).
+ * Flex, Container, Grid, and Place return standard Box values. Layer and
+ * Stack describe overlapping Boxes for Renderer.frame at the frame boundary.
  *
  * @module
  */
@@ -18,6 +18,7 @@ import * as internalFlex from "./internal/flex.js";
 import * as internalGrid from "./internal/grid.js";
 import * as internalValidation from "./internal/layout-validation.js";
 import * as internalPlace from "./internal/place.js";
+import * as internalStack from "./internal/stack.js";
 
 /*
  *  --------------------------------------------------------------------------------
@@ -534,5 +535,123 @@ export declare namespace Place {
     readonly height: number;
     readonly x?: Horizontal;
     readonly y?: Vertical;
+  }
+}
+
+/**
+ * Describes one opaque Box positioned within a Stack viewport.
+ *
+ * @category models
+ */
+export interface Layer<out A = never> {
+  readonly box: Box.Box<A>;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
+/**
+ * Creates positioned layers for frame-boundary composition.
+ *
+ * @example
+ * ```typescript
+ * import * as Box from "effect-boxes/Box"
+ * import { Layer } from "effect-boxes/Layout"
+ * const popup = Layer.make(Box.text("Popup"), { x: 2, y: 1, z: 1 })
+ * const piped = Box.text("Popup").pipe(Layer.make({ x: 2, y: 1 }))
+ * ```
+ *
+ * @category constructors
+ */
+export const Layer: {
+  /**
+   * Positions a Box with signed safe integer offsets and z-order.
+   * Defaults x, y, and z to zero. Invalid numbers throw RangeError.
+   *
+   * @example
+   * ```typescript
+   * import * as Box from "effect-boxes/Box"
+   * import { Layer } from "effect-boxes/Layout"
+   * const layer = Layer.make(Box.text("Hello"))
+   * const piped = Box.text("Hello").pipe(Layer.make())
+   * ```
+   * @category constructors
+   */
+  readonly make: {
+    (options?: Layer.Options): <A>(self: Box.Box<A>) => Layer<A>;
+    <A>(self: Box.Box<A>, options?: Layer.Options): Layer<A>;
+  };
+} = { make: internalStack.makeLayer };
+
+/** @category models */
+export namespace Layer {
+  /**
+   * Describes signed safe integer coordinates and ordering.
+   * @category models
+   */
+  export interface Options {
+    readonly x?: number;
+    readonly y?: number;
+    readonly z?: number;
+  }
+}
+
+/**
+ * Describes flat opaque layers within an exact viewport. A Stack is not a Box.
+ *
+ * @category models
+ */
+export interface Stack<out A = never> {
+  readonly _tag: "Stack";
+  readonly width: number;
+  readonly height: number;
+  readonly layers: ReadonlyArray<Layer<A>>;
+}
+
+/**
+ * Combines layers for resolution and encoding through Renderer.frame.
+ * Higher z wins; later input wins ties. Spaces and padding are opaque.
+ * Partial wide glyphs become blanks when clipped or covered.
+ *
+ * @example
+ * ```typescript
+ * import * as Box from "effect-boxes/Box"
+ * import { Layer, Stack } from "effect-boxes/Layout"
+ * const stack = Stack.make([
+ *   Layer.make(Box.text("Background")),
+ *   Layer.make(Box.text("Popup"), { x: 2, z: 1 }),
+ * ], { width: 20, height: 4 })
+ * ```
+ *
+ * @category combinators
+ */
+export const Stack: {
+  /**
+   * Copies layers into a bounded immutable description.
+   * Requires nonnegative safe integer dimensions; invalid values throw RangeError.
+   *
+   * @example
+   * ```typescript
+   * import * as Box from "effect-boxes/Box"
+   * import { Layer, Stack } from "effect-boxes/Layout"
+   * const stack = Stack.make([Layer.make(Box.text("A"))], { width: 8, height: 2 })
+   * ```
+   * @category constructors
+   */
+  readonly make: <const T extends ReadonlyArray<Layer<unknown>>>(
+    layers: T,
+    options: Stack.Options
+  ) => Stack<T[number] extends Layer<infer A> ? A : never>;
+} = { make: internalStack.makeStack };
+
+/** @category models */
+export namespace Stack {
+  /**
+   * Describes exact viewport dimensions in terminal cells.
+   * @category models
+   */
+  export interface Options {
+    readonly width: number;
+    readonly height: number;
   }
 }
