@@ -22,3 +22,5 @@ const stack = Stack.make(
 );
 const frame = Renderer.frame(stack, { preserveWhitespace: true });
 ```
+
+`Layer.makeResult`, `Stack.makeResult`, and `Reactive.hitTestResult` return typed validation failures. Existing synchronous methods keep their `RangeError` behavior. Expected frame failures remain in the Effect error channel; unexpected implementation exceptions remain defects.

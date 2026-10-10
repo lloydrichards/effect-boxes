@@ -16,13 +16,14 @@
  *
  * @module
  */
-import { HashMap, type Option } from "effect";
+import { HashMap, type Option, type Result } from "effect";
 import { dual } from "effect/Function";
 import type { Annotation } from "./Annotation.js";
 import type { AnsiStyle } from "./Ansi.js";
 import type { Box } from "./Box.js";
 import * as internalFrame from "./internal/frame.js";
 import * as internal from "./internal/reactive.js";
+import type { LayoutValidationError } from "./Layout.js";
 import type { ResolvedFrame } from "./Renderer.js";
 
 /*
@@ -399,3 +400,38 @@ export const hitTest: {
     position: { readonly row: number; readonly col: number }
   ): ReadonlyArray<string>;
 } = dual(2, internalFrame.hitTest);
+
+/**
+ * Finds visible reactive IDs, returning invalid coordinates or frame identity as a failure.
+ * Out-of-viewport cells return a successful empty array.
+ *
+ * @example
+ * ```typescript
+ * import { Effect, Result } from "effect"
+ * import * as Box from "effect-boxes/Box"
+ * import * as Reactive from "effect-boxes/Reactive"
+ * import * as Renderer from "effect-boxes/Renderer"
+ * const frame = Effect.runSync(Renderer.resolve(Box.text("A")))
+ * const result = Reactive.hitTestResult(frame, { row: 0.5, col: 0 })
+ * console.log(Result.isFailure(result)) // true
+ * ```
+ * @category utilities
+ */
+export const hitTestResult: {
+  (position: {
+    readonly row: number;
+    readonly col: number;
+  }): (
+    self: ResolvedFrame
+  ) => Result.Result<
+    ReadonlyArray<string>,
+    LayoutValidationError | internalFrame.FrameResolutionError
+  >;
+  (
+    self: ResolvedFrame,
+    position: { readonly row: number; readonly col: number }
+  ): Result.Result<
+    ReadonlyArray<string>,
+    LayoutValidationError | internalFrame.FrameResolutionError
+  >;
+} = dual(2, internalFrame.hitTestResult);
