@@ -328,3 +328,109 @@ const positions = Reactive.getPositions(layout);
 const headerPos = HashMap.get(positions, "header");
 // Some({ row: 0, col: 0, rows: 1, cols: 6 })
 ```
+
+## Frame composition
+
+### Bounds (type alias)
+
+Describes bounds in terminal rows and columns.
+
+**Signature**
+
+```ts
+type Bounds = internalFrame.Bounds;
+```
+
+### Region (type alias)
+
+Aggregates occurrences of a reactive ID and their visible rectangles.
+Fully hidden IDs retain occurrences with empty visible arrays.
+
+**Signature**
+
+```ts
+type Region = internalFrame.Region;
+```
+
+### RegionOccurrence (type alias)
+
+Retains one source occurrence with logical, clipped, and visible bounds.
+Keys identify occurrences within this frame only.
+
+**Signature**
+
+```ts
+type RegionOccurrence = internalFrame.RegionOccurrence;
+```
+
+### RegionMap (type alias)
+
+Maps reactive IDs to regions from one resolved snapshot.
+
+**Signature**
+
+```ts
+type RegionMap = internalFrame.RegionMap;
+```
+
+### getRegion
+
+Finds all occurrences and visible fragments of a reactive ID in a frame.
+Returns None for an unknown ID. Hidden IDs remain present.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Reactive from "effect-boxes/Reactive";
+import * as Renderer from "effect-boxes/Renderer";
+const resolved = Effect.runSync(
+  Renderer.resolve(Reactive.makeReactive(Box.text("Button"), "button"))
+);
+const region = Reactive.getRegion(resolved.regions, "button");
+```
+
+**Signature**
+
+```ts
+declare const getRegion: {
+  (id: string): (self: RegionMap) => Option.Option<Region>;
+  (self: RegionMap, id: string): Option.Option<Region>;
+};
+```
+
+### hitTest
+
+Finds visible reactive IDs at one cell, innermost first without duplicate IDs.
+Opaque untracked content blocks lower hits. Out-of-viewport cells return an
+empty array; non-safe-integer coordinates throw RangeError.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Reactive from "effect-boxes/Reactive";
+import * as Renderer from "effect-boxes/Renderer";
+const resolved = Effect.runSync(
+  Renderer.resolve(Reactive.makeReactive(Box.text("Button"), "button"))
+);
+const hits = Reactive.hitTest(resolved, { col: 1, row: 0 });
+console.log(hits); // ["button"]
+```
+
+**Signature**
+
+```ts
+declare const hitTest: {
+  (position: {
+    readonly row: number;
+    readonly col: number;
+  }): (self: ResolvedFrame) => ReadonlyArray<string>;
+  (
+    self: ResolvedFrame,
+    position: { readonly row: number; readonly col: number }
+  ): ReadonlyArray<string>;
+};
+```

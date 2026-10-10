@@ -6,6 +6,8 @@
 
 Resolve once with `Renderer.resolve`, then encode the same snapshot with `Renderer.encode`. Custom backends can register a companion `FrameEncoder` without changing their existing Renderer implementation.
 
+`Reactive.getRegion` exposes every occurrence and visible fragment, and `Reactive.hitTest` queries final opaque ownership on that snapshot.
+
 ```ts
 import { Layer, Stack } from "effect-boxes/Layout";
 import * as Box from "effect-boxes/Box";

@@ -9,8 +9,8 @@ Provides container-aware composition primitives inspired by CSS Flexbox:
 - `Grid.make` / `Grid.auto` arrange items in fixed-column grids
 - `Place.make` places and clips content within an exact bounded region
 
-All helpers are pure functions that return standard Box values,
-composable with existing Box primitives (border, annotate, pad, etc).
+Flex, Container, Grid, and Place return standard Box values. Layer and
+Stack describe overlapping Boxes for Renderer.frame at the frame boundary.
 
 ---
 
@@ -355,4 +355,122 @@ declare const Place: {
       position: Place.Vertical
     ) => Box.Box<A>);
 };
+```
+
+## Frame composition
+
+### Layer
+
+Creates positioned layers for frame-boundary composition.
+
+**Example**
+
+```ts
+import * as Box from "effect-boxes/Box";
+import { Layer } from "effect-boxes/Layout";
+const popup = Layer.make(Box.text("Popup"), { x: 2, y: 1, z: 1 });
+const piped = Box.text("Popup").pipe(Layer.make({ x: 2, y: 1 }));
+```
+
+**Signature**
+
+```ts
+declare const Layer: {
+  readonly make: {
+    (options?: Layer.Options): <A>(self: Box.Box<A>) => Layer<A>;
+    <A>(self: Box.Box<A>, options?: Layer.Options): Layer<A>;
+  };
+};
+```
+
+### Stack
+
+Combines layers for resolution and encoding through Renderer.frame.
+Higher z wins; later input wins ties. Spaces and padding are opaque.
+Partial wide glyphs become blanks when clipped or covered.
+
+**Example**
+
+```ts
+import * as Box from "effect-boxes/Box";
+import { Layer, Stack } from "effect-boxes/Layout";
+const stack = Stack.make(
+  [
+    Layer.make(Box.text("Background")),
+    Layer.make(Box.text("Popup"), { x: 2, z: 1 }),
+  ],
+  { width: 20, height: 4 }
+);
+```
+
+**Signature**
+
+```ts
+declare const Stack: {
+  readonly make: <const T extends ReadonlyArray<Layer<unknown>>>(
+    layers: T,
+    options: Stack.Options
+  ) => Stack<T[number] extends Layer<infer A> ? A : never>;
+};
+```
+
+### Layer (interface)
+
+Describes one opaque Box positioned within a Stack viewport.
+
+**Signature**
+
+```ts
+export interface Layer<out A = never> {
+  readonly box: Box.Box<A>;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+```
+
+### Layer (namespace)
+
+#### Options (interface)
+
+Describes signed safe integer coordinates and ordering.
+
+**Signature**
+
+```ts
+export interface Options {
+  readonly x?: number;
+  readonly y?: number;
+  readonly z?: number;
+}
+```
+
+### Stack (interface)
+
+Describes flat opaque layers within an exact viewport. A Stack is not a Box.
+
+**Signature**
+
+```ts
+export interface Stack<out A = never> {
+  readonly _tag: "Stack";
+  readonly width: number;
+  readonly height: number;
+  readonly layers: ReadonlyArray<Layer<A>>;
+}
+```
+
+### Stack (namespace)
+
+#### Options (interface)
+
+Describes exact viewport dimensions in terminal cells.
+
+**Signature**
+
+```ts
+export interface Options {
+  readonly width: number;
+  readonly height: number;
+}
 ```

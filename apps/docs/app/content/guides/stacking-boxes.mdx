@@ -1,0 +1,154 @@
+# Render overlapping Boxes
+
+Use `Stack` to render a popup over a background. Compose each layer with normal
+Box helpers, then give the layers to `Renderer.frame`.
+
+```typescript
+import { Effect } from "effect";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Box from "effect-boxes/Box";
+import { Layer, Place, Stack } from "effect-boxes/Layout";
+import * as Renderer from "effect-boxes/Renderer";
+
+const background = Box.text("Dashboard").pipe(
+  Place.make({ width: 40, height: 8 }),
+  Box.annotate(Ansi.blue)
+);
+const popup = Box.vcat(
+  [Box.text("Save changes?"), Box.text("Enter to confirm")],
+  Box.left
+).pipe(Box.pad(1, 2), Box.border("rounded"), Box.annotate(Ansi.yellow));
+
+const stack = Stack.make(
+  [Layer.make(background), Layer.make(popup, { x: 8, y: 2, z: 1 })],
+  { width: 40, height: 8 }
+);
+const rendered = Effect.runSync(
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  )
+);
+console.log(rendered.output);
+```
+
+`Layer.make` defaults `x`, `y`, and `z` to zero. Negative offsets clip content at
+the viewport edge. Higher `z` values cover lower values. When two layers have
+the same `z`, the later layer covers the earlier layer.
+
+Each layer covers its entire rectangle, including spaces and padding. For
+example, padding around the popup hides the background beneath that padding.
+A partially clipped or covered wide glyph becomes spaces in its surviving cells.
+
+`Stack.make` returns a layer description. Add borders and compose Boxes before
+creating each layer. Place returns a Box and can be used inside a layer.
+
+## Query the frame you rendered
+
+To preserve a styled Box when adding a reactive ID, wrap the styled Box in a
+Row first. `Box.annotate` replaces the annotation on its target Box.
+
+```typescript
+import { Effect, Option } from "effect";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Box from "effect-boxes/Box";
+import { Layer, Stack } from "effect-boxes/Layout";
+import * as Reactive from "effect-boxes/Reactive";
+import * as Renderer from "effect-boxes/Renderer";
+
+const styled = Box.text("Confirm").pipe(Box.annotate(Ansi.green));
+const button = Box.hcat([styled], Box.top).pipe(
+  Reactive.makeReactive("confirm")
+);
+const stack = Stack.make([Layer.make(button, { x: 2, y: 1 })], {
+  width: 20,
+  height: 4,
+});
+const rendered = Effect.runSync(
+  Renderer.frame(stack).pipe(Effect.provide(Renderer.AnsiRendererLive))
+);
+const region = Reactive.getRegion(rendered.resolved.regions, "confirm");
+if (Option.isSome(region)) {
+  console.log(region.value.visible);
+}
+console.log(Reactive.hitTest(rendered.resolved, { row: 1, col: 3 }));
+// ["confirm"]
+```
+
+A region retains each occurrence of an ID, its original bounds, its bounds
+inside the viewport, and its visible fragments. An opaque layer can split one
+region into several fragments. Fully hidden regions remain discoverable, with
+no visible fragments.
+
+Use `Reactive.hitTest` for visible interaction. Hits contain unique IDs, with
+inner IDs before their ancestors. An opaque layer without a reactive ID still
+blocks IDs beneath it. Occurrence keys identify occurrences within one frame.
+Do not keep those keys across updates.
+
+## Resolve once for several outputs
+
+Use `Renderer.resolve` when several outputs or queries need the same snapshot.
+Resolution requires no renderer service. Encoding requires a `FrameEncoder`.
+Keep the original resolved object for encoding and hit testing. Do not copy it
+with object spread or reconstruct it from its public fields; the private frame
+data belongs to the original snapshot.
+
+```typescript
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as FrameEncoder from "effect-boxes/FrameEncoder";
+import * as Renderer from "effect-boxes/Renderer";
+
+const program = Effect.gen(function* () {
+  const resolved = yield* Renderer.resolve(Box.text("Ready"));
+  const rendered = yield* Renderer.encode(resolved);
+  return rendered.output;
+});
+const output = Effect.runSync(
+  program.pipe(Effect.provide(FrameEncoder.PlainFrameEncoderLive))
+);
+```
+
+Both `PlainRendererLive` and `AnsiRendererLive` provide their legacy renderer
+and their frame encoder. Existing custom renderers keep their current contract.
+For frame support, provide a companion `FrameEncoder` layer whose
+`encodeResolved` function accepts full-width rows of paint runs. Each run
+contains its column, width, text, and effective ANSI style. The encoder does not
+need to resolve geometry or determine which layer owns a cell.
+
+Use `FrameEncoder.layer` to register a custom encoder explicitly. This example
+writes plain text from the resolved paint runs:
+
+```typescript
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as FrameEncoder from "effect-boxes/FrameEncoder";
+import * as Renderer from "effect-boxes/Renderer";
+
+const customFrames = FrameEncoder.layer({
+  encodeResolved: Effect.fn("customFrames.encodeResolved")(function* (view) {
+    return view.lines.map((line) => line.map((run) => run.text).join(""));
+  }),
+});
+const rendered = Effect.runSync(
+  Renderer.frame(Box.text("Custom output")).pipe(Effect.provide(customFrames))
+);
+```
+
+`rendered.lines` contains all viewport rows, including padding. The
+`preserveWhitespace` option controls how those rows become `rendered.output`.
+It does not change the resolved geometry or reactive regions.
+
+## Handle unsupported content
+
+Layer offsets and `z` values must be safe integers. Stack dimensions must be
+nonnegative safe integers. The constructors throw `RangeError` for invalid
+numbers.
+
+Resolution supports nested ANSI style annotations and reactive IDs. Commands,
+embedded terminal controls, arbitrary annotations, and invalid Box dimensions
+fail with `FrameResolutionError`. The resolver checks hidden layers too.
+Encoder failures use `FrameEncodingError`.
+
+Keep terminal commands separate from frame content. HTML frames, transparent
+layers, Stack inside Box composition, and incremental redraw are deferred.
+Rebuild and resolve the Stack in your existing application update loop.

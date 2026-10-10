@@ -16,11 +16,14 @@
  *
  * @module
  */
-import type { HashMap, Option } from "effect";
+import { HashMap, type Option } from "effect";
+import { dual } from "effect/Function";
 import type { Annotation } from "./Annotation.js";
 import type { AnsiStyle } from "./Ansi.js";
 import type { Box } from "./Box.js";
+import * as internalFrame from "./internal/frame.js";
 import * as internal from "./internal/reactive.js";
+import type { ResolvedFrame } from "./Renderer.js";
 
 /*
  *  --------------------------------------------------------------------------------
@@ -314,3 +317,85 @@ export const cursorToReactive: {
   (key: string): (positionMap: PositionMap) => Option.Option<Box<AnsiStyle>>;
   (positionMap: PositionMap, key: string): Option.Option<Box<AnsiStyle>>;
 } = internal.cursorToReactive;
+
+/**
+ * Describes bounds in terminal rows and columns.
+ *
+ * @category models
+ */
+export type Bounds = internalFrame.Bounds;
+
+/**
+ * Retains one source occurrence with logical, clipped, and visible bounds.
+ * Keys identify occurrences within this frame only.
+ *
+ * @category models
+ */
+export type RegionOccurrence = internalFrame.RegionOccurrence;
+
+/**
+ * Aggregates occurrences of a reactive ID and their visible rectangles.
+ * Fully hidden IDs retain occurrences with empty visible arrays.
+ *
+ * @category models
+ */
+export type Region = internalFrame.Region;
+
+/**
+ * Maps reactive IDs to regions from one resolved snapshot.
+ *
+ * @category models
+ */
+export type RegionMap = internalFrame.RegionMap;
+
+/**
+ * Finds all occurrences and visible fragments of a reactive ID in a frame.
+ * Returns None for an unknown ID. Hidden IDs remain present.
+ *
+ * @example
+ * ```typescript
+ * import { Effect } from "effect"
+ * import * as Box from "effect-boxes/Box"
+ * import * as Reactive from "effect-boxes/Reactive"
+ * import * as Renderer from "effect-boxes/Renderer"
+ * const resolved = Effect.runSync(Renderer.resolve(
+ *   Reactive.makeReactive(Box.text("Button"), "button")
+ * ))
+ * const region = Reactive.getRegion(resolved.regions, "button")
+ * ```
+ * @category utilities
+ */
+export const getRegion: {
+  (id: string): (self: RegionMap) => Option.Option<Region>;
+  (self: RegionMap, id: string): Option.Option<Region>;
+} = dual(2, (self: RegionMap, id: string) => HashMap.get(self, id));
+
+/**
+ * Finds visible reactive IDs at one cell, innermost first without duplicate IDs.
+ * Opaque untracked content blocks lower hits. Out-of-viewport cells return an
+ * empty array; non-safe-integer coordinates throw RangeError.
+ *
+ * @example
+ * ```typescript
+ * import { Effect } from "effect"
+ * import * as Box from "effect-boxes/Box"
+ * import * as Reactive from "effect-boxes/Reactive"
+ * import * as Renderer from "effect-boxes/Renderer"
+ * const resolved = Effect.runSync(Renderer.resolve(
+ *   Reactive.makeReactive(Box.text("Button"), "button")
+ * ))
+ * const hits = Reactive.hitTest(resolved, { col: 1, row: 0 })
+ * console.log(hits) // ["button"]
+ * ```
+ * @category utilities
+ */
+export const hitTest: {
+  (position: {
+    readonly row: number;
+    readonly col: number;
+  }): (self: ResolvedFrame) => ReadonlyArray<string>;
+  (
+    self: ResolvedFrame,
+    position: { readonly row: number; readonly col: number }
+  ): ReadonlyArray<string>;
+} = dual(2, internalFrame.hitTest);

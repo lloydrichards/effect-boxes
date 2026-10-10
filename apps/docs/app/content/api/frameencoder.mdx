@@ -1,0 +1,184 @@
+# FrameEncoder.ts overview
+
+Encodes resolved frames independently of the tree-oriented Renderer service.
+
+Custom backends receive immutable paint runs with effective ANSI styles.
+Register frame support explicitly with layer. Existing Renderer implementations
+remain valid for ordinary Box rendering.
+
+---
+
+## constructors
+
+### layer
+
+Registers explicit frame support for a backend.
+Combine with the backend's ordinary Renderer layer using Effect Layer.merge.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as FrameEncoder from "effect-boxes/FrameEncoder";
+const custom = FrameEncoder.layer({
+  encodeResolved: (self) =>
+    Effect.succeed(
+      self.lines.map((line) => line.map((run) => run.text).join(""))
+    ),
+});
+```
+
+**Signature**
+
+```ts
+declare const layer: (implementation: Shape) => Layer.Layer<FrameEncoder>;
+```
+
+## errors
+
+### FrameEncodingError
+
+Reports a backend encoding failure with optional diagnostic cause.
+
+**Example**
+
+```ts
+import * as FrameEncoder from "effect-boxes/FrameEncoder";
+const failure = new FrameEncoder.FrameEncodingError({
+  message: "Unsupported glyph",
+});
+```
+
+**Signature**
+
+```ts
+declare const FrameEncodingError: typeof internal.FrameEncodingError;
+```
+
+### FrameEncodingError (type alias)
+
+**Signature**
+
+```ts
+type FrameEncodingError = internal.FrameEncodingError;
+```
+
+## layers
+
+### AnsiFrameEncoderLive
+
+Encodes effective styles into isolated ANSI SGR runs.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Renderer from "effect-boxes/Renderer";
+import * as FrameEncoder from "effect-boxes/FrameEncoder";
+const result = Renderer.frame(Box.text("Hello")).pipe(
+  Effect.provide(FrameEncoder.AnsiFrameEncoderLive)
+);
+```
+
+**Signature**
+
+```ts
+declare const AnsiFrameEncoderLive: Layer.Layer<
+  internal.FrameEncoder,
+  never,
+  never
+>;
+```
+
+### PlainFrameEncoderLive
+
+Encodes frames as plain text, deliberately discarding supported styles.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Renderer from "effect-boxes/Renderer";
+import * as FrameEncoder from "effect-boxes/FrameEncoder";
+const result = Renderer.frame(Box.text("Hello")).pipe(
+  Effect.provide(FrameEncoder.PlainFrameEncoderLive)
+);
+```
+
+**Signature**
+
+```ts
+declare const PlainFrameEncoderLive: Layer.Layer<
+  internal.FrameEncoder,
+  never,
+  never
+>;
+```
+
+## models
+
+### FrameEncoder (type alias)
+
+**Signature**
+
+```ts
+type FrameEncoder = internal.FrameEncoder;
+```
+
+### FrameEncodingView (type alias)
+
+Describes all viewport rows, each covered by contiguous paint runs.
+Empty-width rows contain no runs. Ownership and reactive metadata stay private.
+
+**Signature**
+
+```ts
+type FrameEncodingView = internalFrame.FrameEncodingView;
+```
+
+### PaintRun (type alias)
+
+Describes a whole-grapheme paint run at a terminal column offset.
+Styles are effective supported ANSI attributes with commands removed.
+
+**Signature**
+
+```ts
+type PaintRun = internalFrame.PaintRun;
+```
+
+### Shape (type alias)
+
+Defines an effectful frame encoder. Acquire dependencies when building its layer.
+Return one string per viewport row, preserving display widths and row boundaries.
+Unsupported backend content fails with FrameEncodingError.
+
+**Signature**
+
+```ts
+type Shape = internal.FrameEncoderShape;
+```
+
+## services
+
+### FrameEncoder
+
+Identifies the required frame encoding capability.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as FrameEncoder from "effect-boxes/FrameEncoder";
+const encoder = Effect.gen(function* () {
+  return yield* FrameEncoder.FrameEncoder;
+});
+```
+
+**Signature**
+
+```ts
+declare const FrameEncoder: typeof internal.FrameEncoder;
+```

@@ -624,3 +624,174 @@ const program = pipe(
   Effect.provide(Renderer.AnsiRendererLive)
 );
 ```
+
+## Frame composition
+
+PlainRendererLive and AnsiRendererLive provide the companion FrameEncoder service
+as well as the ordinary Renderer. HTML layers provide ordinary rendering only.
+
+### FrameResolutionError
+
+Reports unsupported frame input or unrepresentable geometry.
+Commands, embedded controls, and annotations other than ANSI/Reactive fail,
+including in hidden layers. Diagnostic causes are retained when available.
+
+**Example**
+
+```ts
+import * as Renderer from "effect-boxes/Renderer";
+const error = new Renderer.FrameResolutionError({
+  message: "Unsupported annotation",
+});
+```
+
+**Signature**
+
+```ts
+declare const FrameResolutionError: typeof internalFrame.FrameResolutionError;
+```
+
+### FrameResolutionError (type alias)
+
+**Signature**
+
+```ts
+type FrameResolutionError = internalFrame.FrameResolutionError;
+```
+
+### ResolvedFrame (type alias)
+
+Describes an immutable resolved viewport and its reactive regions.
+Internal ownership is private. Encode and query this same snapshot.
+Keep the original object; copied or reconstructed frames have no private data.
+
+**Signature**
+
+```ts
+type ResolvedFrame = internalFrame.ResolvedFrame;
+```
+
+### FrameOutput (type alias)
+
+Contains full viewport lines, serialized output, and their resolved snapshot.
+Whitespace configuration changes output only, never geometry or regions.
+
+**Signature**
+
+```ts
+type FrameOutput = internalFrameRenderer.FrameOutput;
+```
+
+### resolve
+
+Resolves original Boxes or opaque Stack layers into one immutable viewport.
+Requires no renderer service. Higher z wins, with later input breaking ties.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Renderer from "effect-boxes/Renderer";
+const resolved = Effect.runSync(Renderer.resolve(Box.text("Hello")));
+console.log(resolved.cols); // 5
+```
+
+**Signature**
+
+```ts
+declare const resolve: <A>(
+  self: Box.Box<A> | Stack<A>
+) => Effect.Effect<ResolvedFrame, FrameResolutionError>;
+```
+
+### encode
+
+Encodes a resolved snapshot through the explicitly registered FrameEncoder.
+Returns the same snapshot with full-width lines and configured output.
+Custom adapters must preserve geometry; no backend fallback is inferred.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Renderer from "effect-boxes/Renderer";
+const result = Effect.gen(function* () {
+  const resolved = yield* Renderer.resolve(Box.text("Hello"));
+  return yield* Renderer.encode(resolved, { preserveWhitespace: true });
+}).pipe(Effect.provide(Renderer.PlainRendererLive));
+```
+
+**Signature**
+
+```ts
+declare const encode: {
+  (
+    config?: RenderConfig
+  ): (
+    self: ResolvedFrame
+  ) => Effect.Effect<
+    FrameOutput,
+    FrameEncoder.FrameEncodingError,
+    FrameEncoder.FrameEncoder
+  >;
+  (
+    self: ResolvedFrame,
+    config?: RenderConfig
+  ): Effect.Effect<
+    FrameOutput,
+    FrameEncoder.FrameEncodingError,
+    FrameEncoder.FrameEncoder
+  >;
+};
+```
+
+### frame
+
+Resolves and encodes a Box or Stack inside the current application update.
+Uses FrameEncoder, independently of the ordinary tree rendering service.
+Plain and ANSI Renderer live layers provide both capabilities.
+
+**Example**
+
+```ts
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import { Layer, Stack } from "effect-boxes/Layout";
+import * as Renderer from "effect-boxes/Renderer";
+const stack = Stack.make(
+  [
+    Layer.make(Box.text("Background")),
+    Layer.make(Box.text("Popup"), { x: 2, z: 1 }),
+  ],
+  { width: 20, height: 4 }
+);
+const result = Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+  Effect.provide(Renderer.AnsiRendererLive)
+);
+```
+
+**Signature**
+
+```ts
+declare const frame: {
+  (
+    config?: RenderConfig
+  ): <A>(
+    self: Box.Box<A> | Stack<A>
+  ) => Effect.Effect<
+    FrameOutput,
+    FrameResolutionError | FrameEncoder.FrameEncodingError,
+    FrameEncoder.FrameEncoder
+  >;
+  <A>(
+    self: Box.Box<A> | Stack<A>,
+    config?: RenderConfig
+  ): Effect.Effect<
+    FrameOutput,
+    FrameResolutionError | FrameEncoder.FrameEncodingError,
+    FrameEncoder.FrameEncoder
+  >;
+};
+```

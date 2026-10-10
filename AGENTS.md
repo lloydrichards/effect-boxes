@@ -623,7 +623,7 @@ documentation for all coding agents and future maintainers.
 - **How do I run a specific test?**  
   Use `bun run --cwd packages/effect-boxes test tests/<file>.test.ts`
 - **Where do I add new test files?**  
-  Place them in the `packages/effect-boxes/tests/` directory, named `<module>.test.ts`
+  Place library tests in `packages/effect-boxes/tests/`, named `<module>.test.ts`.
 - **How do I check formatting?**  
   Run `bun run lint` and `bun run format`
 - **How do I validate JSDoc/TSDoc comments?**  

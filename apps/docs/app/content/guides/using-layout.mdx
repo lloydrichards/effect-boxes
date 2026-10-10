@@ -5,9 +5,10 @@ import { pipe } from "effect";
 # Using Layout
 
 The `Layout` module provides higher-level layout combinators built on top of
-Box, inspired by CSS Flexbox and Grid. All helpers are pure functions that
-return standard Box values, composable with borders, annotations, padding,
-and all other Box primitives.
+Box, inspired by CSS Flexbox and Grid. Flex, Container, Grid, and Place return
+standard Box values, composable with borders, annotations, padding,
+and all other Box primitives. Layer and Stack describe overlapping content for
+[frame rendering](./stacking-boxes).
 
 ## Flex
 

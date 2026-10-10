@@ -19,6 +19,7 @@ export default [
     route("using-annotation", "content/guides/using-annotation.mdx"),
     route("using-ansi", "content/guides/using-ansi.mdx"),
     route("using-layout", "content/guides/using-layout.mdx"),
+    route("stacking-boxes", "content/guides/stacking-boxes.mdx"),
     route("using-cmd", "content/guides/using-cmd.mdx"),
     route("using-reactive", "content/guides/using-reactive.mdx"),
     route("using-html", "content/guides/using-html.mdx"),
@@ -34,5 +35,6 @@ export default [
     route("layout", "content/api/layout.mdx"),
     route("reactive", "content/api/reactive.mdx"),
     route("renderer", "content/api/renderer.mdx"),
+    route("frameencoder", "content/api/frameencoder.mdx"),
   ]),
 ] satisfies RouteConfig;

@@ -14,6 +14,7 @@ import { main as perlinDemo } from "./08-perlin-flow-field";
 import { main as logViewerDemo } from "./09-log-viewer";
 import { main as layoutDemo } from "./10-layout-demo";
 import { main as boidsDemo } from "./11-boids-flocking";
+import { main as froggerDemo } from "./12-frogger";
 
 const demos = [
   {
@@ -75,6 +76,11 @@ const demos = [
     description:
       "Autonomous agents with separation, alignment, and cohesion (Nature of Code)",
   },
+  {
+    title: "12. Frogger and Layer Diagram",
+    value: "frogger",
+    description: "Dodge cars on a 2D board and inspect a live layer diagram",
+  },
 ] as const;
 
 type DemoId = (typeof demos)[number]["value"];
@@ -101,6 +107,8 @@ const runDemo = (id: DemoId) => {
       return logViewerDemo;
     case "layout":
       return layoutDemo;
+    case "frogger":
+      return froggerDemo;
     case "boids":
       return boidsDemo;
   }
@@ -111,7 +119,7 @@ const root = Command.make(
   {
     run: Flag.Int("run").pipe(
       Flag.optional,
-      Flag.withDescription("Run a demo by number (1-11)")
+      Flag.withDescription("Run a demo by number (1-12)")
     ),
   },
   ({ run }) =>

@@ -31,6 +31,7 @@ export const navigation: NavSection[] = [
       { label: "Using Annotation", href: "/guides/using-annotation" },
       { label: "Using Ansi", href: "/guides/using-ansi" },
       { label: "Using Layout", href: "/guides/using-layout" },
+      { label: "Stacking Boxes", href: "/guides/stacking-boxes" },
       { label: "Using Cmd", href: "/guides/using-cmd" },
       { label: "Using Reactive", href: "/guides/using-reactive" },
       { label: "Using Html", href: "/guides/using-html" },
@@ -49,6 +50,7 @@ export const navigation: NavSection[] = [
       { label: "Layout", href: "/api/layout" },
       { label: "Reactive", href: "/api/reactive" },
       { label: "Renderer", href: "/api/renderer" },
+      { label: "FrameEncoder", href: "/api/frameencoder" },
     ],
   },
 ];
