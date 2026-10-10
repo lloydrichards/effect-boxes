@@ -5,6 +5,7 @@ import * as Ansi from "../src/Ansi.js";
 import * as Box from "../src/Box.js";
 import * as Cmd from "../src/Cmd.js";
 import * as FrameEncoder from "../src/FrameEncoder.js";
+import * as Width from "../src/internal/width.js";
 import { Layer, Stack } from "../src/Layout.js";
 import * as Reactive from "../src/Reactive.js";
 import * as Renderer from "../src/Renderer.js";
@@ -15,6 +16,69 @@ const plain = <E>(
   Effect.runSync(self.pipe(Effect.provide(FrameEncoder.PlainFrameEncoderLive)));
 
 describe("Stack public API", () => {
+  it.each([
+    ["plain", Renderer.PlainRendererLive],
+    ["ANSI", Renderer.AnsiRendererLive],
+  ])(
+    "rejects cross-layer grapheme joining before %s encoding",
+    (_, renderer) => {
+      for (const styled of [false, true]) {
+        const leading = Box.text("\u1100");
+        const stack = Stack.make(
+          [
+            Layer.make(styled ? leading.pipe(Box.annotate(Ansi.red)) : leading),
+            Layer.make(Box.text("\u1161"), { x: 2 }),
+            Layer.make(Box.text("X"), { x: 3 }),
+          ],
+          { width: 4, height: 1 }
+        );
+        const result = Effect.runSync(
+          Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+            Effect.provide(renderer),
+            Effect.result
+          )
+        );
+        expect(Result.isFailure(result)).toBe(true);
+        if (Result.isFailure(result)) {
+          expect(result.failure).toBeInstanceOf(Renderer.FrameResolutionError);
+          expect(result.failure.message).toContain("grapheme boundaries");
+        }
+      }
+    }
+  );
+
+  it.each([
+    ["plain", Renderer.PlainRendererLive],
+    ["ANSI", Renderer.AnsiRendererLive],
+  ])(
+    "preserves whole and separated Jamo geometry with %s encoding",
+    (_, renderer) => {
+      for (const [layers, width, expected] of [
+        [[Layer.make(Box.text("\u1100\u1161X"))], 3, "\u1100\u1161X"],
+        [
+          [
+            Layer.make(Box.text("\u1100")),
+            Layer.make(Box.text("\u1161"), { x: 3 }),
+            Layer.make(Box.text("X"), { x: 4 }),
+          ],
+          5,
+          "\u1100 \u1161X",
+        ],
+      ] as const) {
+        const rendered = Effect.runSync(
+          Renderer.frame(Stack.make(layers, { width, height: 1 }), {
+            preserveWhitespace: true,
+          }).pipe(Effect.provide(renderer))
+        );
+        expect(rendered.lines).toEqual([expected]);
+        expect(Width.ofString(rendered.lines[0] ?? "")).toBe(
+          rendered.resolved.cols
+        );
+        expect(Width.ofString(expected.slice(0, -1))).toBe(width - 1);
+      }
+    }
+  );
+
   it("supports default and positioned layers in either calling form", () => {
     const source = Box.text("A");
     expect(Layer.make(source)).toEqual({ box: source, x: 0, y: 0, z: 0 });

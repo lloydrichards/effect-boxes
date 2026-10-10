@@ -388,6 +388,7 @@ export const resolveLayers = (
       const line = cells[row];
       if (!line) continue;
       const runs: PaintRun[] = [];
+      const glyphTexts: string[] = [];
       const rowHits: (readonly string[])[] = [];
       const fragments = new Map<Occurrence, { start: number; end: number }>();
       const idFragments = new Map<string, { start: number; end: number }>();
@@ -434,6 +435,7 @@ export const resolveLayers = (
         if (whole && col !== glyph.col) continue;
         const text = whole ? glyph.text : " ";
         const cols = whole ? glyph.cols : 1;
+        glyphTexts.push(text);
         const previous = runs.at(-1);
         if (previous && sameStyle(previous.style, cell.style)) {
           runs[runs.length - 1] = {
@@ -442,6 +444,15 @@ export const resolveLayers = (
             text: previous.text + text,
           };
         } else runs.push({ col, cols, text, style: cell.style });
+      }
+      // Adjacent source glyphs can join after composition, changing their
+      // columns even across style runs. Reject before exposing stale ownership.
+      const composedSegments = Width.segments(glyphTexts.join(""));
+      if (
+        composedSegments.length !== glyphTexts.length ||
+        composedSegments.some((text, index) => text !== glyphTexts[index])
+      ) {
+        fail("Composed frame text changes resolved grapheme boundaries");
       }
       for (const [owner, fragment] of fragments) {
         owner.visible.push(

@@ -589,6 +589,7 @@ export type FrameOutput = internalFrameRenderer.FrameOutput;
  * Reports unsupported frame input or unrepresentable geometry.
  * Commands, embedded controls, and annotations other than ANSI/Reactive fail,
  * including in hidden layers. Diagnostic causes are retained when available.
+ * Composed text that joins independently resolved graphemes also fails.
  *
  * @example
  * ```typescript
