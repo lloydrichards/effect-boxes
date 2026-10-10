@@ -121,6 +121,7 @@ export default function App() {
     <MDXProvider components={proseComponents}>
       {hasToc && (
         <TableOfContents
+          key={`mobile-${lastMatch?.pathname}`}
           toc={toc}
           searchable={lastMatch?.pathname.startsWith("/api/")}
         />
@@ -131,6 +132,7 @@ export default function App() {
       </div>
       {hasToc && (
         <TableOfContents
+          key={`desktop-${lastMatch?.pathname}`}
           toc={toc}
           desktopOnly
           searchable={lastMatch?.pathname.startsWith("/api/")}

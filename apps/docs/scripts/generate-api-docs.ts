@@ -22,13 +22,13 @@ import {
 } from "effect";
 import { format } from "prettier";
 import remarkGfm from "remark-gfm";
-
 import {
   escapeLineForMdx,
   finalizeApiContent,
   normalizeExampleFences,
   validateModuleFiles,
 } from "./api-docs-generation";
+import { publishApi } from "./api-docs-publication";
 
 // --- Pure helpers ---
 
@@ -209,18 +209,7 @@ const program = Effect.gen(function* () {
   );
 
   // Publish the complete directory only after every module has been generated.
-  // Keep a backup until the rename succeeds so filesystem failures can roll back.
-  const previousApi = path.join(staging, "previous-api");
-  const hadApi = yield* fs.exists(apiDir);
-  if (hadApi) yield* fs.rename(apiDir, previousApi);
-  yield* fs.rename(stagedApi, apiDir).pipe(
-    Effect.catch((error) =>
-      Effect.gen(function* () {
-        if (hadApi) yield* fs.rename(previousApi, apiDir);
-        return yield* Effect.fail(error);
-      })
-    )
-  );
+  yield* publishApi(fs, stagedApi, apiDir, path.join(staging, "previous-api"));
   yield* Console.log(`Published ${mdFiles.length} API pages.`);
 
   yield* Console.log("API docs generation complete.");

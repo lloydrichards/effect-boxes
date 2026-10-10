@@ -351,8 +351,12 @@ console.log(output);
 ## Align content inside a rectangle
 
 Use `Box.left`, `Box.right`, `Box.top`, or `Box.bottom` to align an edge.
-`Box.center1` and `Box.center2` both center content. If spare space is odd,
-`center1` places the extra space after the content, while `center2` places it before.
+`Box.center1` and `Box.center2` both center content. They round the content and
+container midpoint separately: `center1` rounds up, and `center2` rounds down.
+When spare space is odd, the extra space depends on both widths. For odd-width
+content in an even-width container, `center1` puts it after the content and
+`center2` puts it before. For even-width content in an odd-width container,
+the direction reverses.
 
 This comparison centers one character in a six-column rectangle. The borders
 are part of the example code and make the padding visible:
