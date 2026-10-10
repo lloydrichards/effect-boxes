@@ -1,5 +1,50 @@
 # effect-boxes
 
+## 0.18.0
+
+### Minor Changes
+
+- [`557fcf0`](https://github.com/lloydrichards/effect-boxes/commit/557fcf08e6a7a425a950178184bc292b6fa015e8) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Add `Place.make`, `Place.horizontal`, and `Place.vertical` to `effect-boxes/Layout` for bounded positioning with numeric offsets or edge/center anchors. The helpers return ordinary Boxes, clip to exact dimensions, preserve visible annotations, and support pipe composition.
+
+  ```ts
+  const placed = Box.text("Hello").pipe(
+    Place.make({ width: 20, height: 4, x: "center", y: "bottom" })
+  );
+  ```
+
+  Dimensions must be non-negative safe integers and numeric offsets must be safe integers. Invalid values and command annotations throw `RangeError`.
+
+  Use `Place.makeResult` to receive a typed `LayoutValidationError` instead of throwing on invalid input or command annotations.
+
+- [`cee53a2`](https://github.com/lloydrichards/effect-boxes/commit/cee53a25970db73c8b82b02f48595c616200816c) Thanks [@lloydrichards](https://github.com/lloydrichards)! - `Layer.make` and `Stack.make` now support opaque overlapping Boxes at the frame boundary, with plain and ANSI output through `Renderer.frame`.
+
+  Resolve once with `Renderer.resolve`, then encode the same snapshot with `Renderer.encode`. Custom backends can register a companion `FrameEncoder` without changing their existing Renderer implementation.
+
+  `Reactive.getRegion` exposes every occurrence and visible fragment, and `Reactive.hitTest` queries final opaque ownership on that snapshot.
+
+  ```ts
+  import { Layer, Stack } from "effect-boxes/Layout";
+  import * as Box from "effect-boxes/Box";
+  import * as Renderer from "effect-boxes/Renderer";
+
+  const stack = Stack.make(
+    [
+      Layer.make(Box.text("Background")),
+      Layer.make(Box.text("Popup"), { x: 2, z: 1 }),
+    ],
+    { width: 20, height: 4 }
+  );
+  const frame = Renderer.frame(stack, { preserveWhitespace: true });
+  ```
+
+  `Layer.makeResult`, `Stack.makeResult`, and `Reactive.hitTestResult` return typed validation failures. Existing synchronous methods keep their `RangeError` behavior. Expected frame failures remain in the Effect error channel; unexpected implementation exceptions remain defects.
+
+### Patch Changes
+
+- [`8cb27c7`](https://github.com/lloydrichards/effect-boxes/commit/8cb27c7b2e21e11238461011b5d0c9b6c445d87c) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Correct rendering examples and document terminal commands and public model fields.
+
+- [`b8259b3`](https://github.com/lloydrichards/effect-boxes/commit/b8259b3da292e3d7d42d82f38152d789384ca4eb) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Preserve nested composite annotations when cropping Boxes horizontally, retaining ANSI styles and reactive regions on visible content. Crop centered content at the same coordinates used by rendering.
+
 ## 0.17.3
 
 ### Patch Changes
