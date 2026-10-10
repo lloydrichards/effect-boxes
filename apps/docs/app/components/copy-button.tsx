@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "~/lib/utils";
 
 interface CopyButtonProps {
@@ -9,27 +9,56 @@ interface CopyButtonProps {
 }
 
 export function CopyButton({ getValue, className }: CopyButtonProps) {
-  const [copied, setCopied] = useState(false);
+  const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const [pending, setPending] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(getValue());
-    setCopied(true);
+  useEffect(
+    () => () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    },
+    []
+  );
+
+  const handleCopy = useCallback(async () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    setPending(true);
+    try {
+      await navigator.clipboard.writeText(getValue());
+      setStatus("copied");
+    } catch {
+      setStatus("failed");
+    } finally {
+      setPending(false);
+    }
+    timeoutRef.current = setTimeout(() => setStatus("idle"), 2000);
   }, [getValue]);
 
   return (
     <button
       type="button"
       onClick={handleCopy}
+      disabled={pending}
       className={cn(
-        "absolute top-3 right-3 p-1.5 text-code-block-foreground/50 hover:text-code-block-foreground transition-opacity duration-150",
+        "absolute top-2 right-2 flex size-11 items-center justify-center text-code-block-foreground/70 hover:text-code-block-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring transition-opacity duration-150 disabled:cursor-wait",
         className
       )}
-      aria-label={copied ? "Copied" : "Copy code"}
+      aria-label={
+        status === "copied"
+          ? "Copied"
+          : status === "failed"
+            ? "Copy failed. Try again"
+            : "Copy code"
+      }
     >
-      {copied ? (
+      <span className="sr-only" role="status">
+        {status === "copied"
+          ? "Code copied"
+          : status === "failed"
+            ? "Could not copy code. Select and copy the text manually."
+            : ""}
+      </span>
+      {status === "copied" ? (
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="14"

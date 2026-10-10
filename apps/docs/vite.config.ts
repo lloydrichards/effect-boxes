@@ -12,7 +12,7 @@ import rehypePrettyCode from "rehype-pretty-code";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import { defineConfig } from "vite";
-import remarkTocExport from "./app/lib/remark-toc-export";
+import remarkTocExport from "./app/lib/remark-toc-export.ts";
 
 export default defineConfig({
   plugins: [

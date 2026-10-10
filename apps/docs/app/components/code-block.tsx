@@ -21,17 +21,14 @@ export function CodeBlock({ className, children, ...props }: CodeBlockProps) {
       <pre
         ref={preRef}
         className={cn(
-          "bg-code-block text-code-block-foreground border border-code-block-border overflow-x-auto p-4 font-mono text-sm",
+          "syntax-code-block bg-code-block text-code-block-foreground border border-code-block-border overflow-x-auto py-4 font-mono text-[13px] sm:text-sm leading-[1.5] tabular-nums",
           className
         )}
         {...props}
       >
         {children}
       </pre>
-      <CopyButton
-        getValue={getValue}
-        className="opacity-0 group-hover:opacity-100"
-      />
+      <CopyButton getValue={getValue} className="code-copy bg-code-block/95" />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import GithubSlugger from "github-slugger";
 import { toString } from "mdast-util-to-string";
 import { visit } from "unist-util-visit";
 
@@ -16,19 +17,18 @@ const remarkTocExport: () => (tree: any) => void = () => {
   // biome-ignore lint/suspicious/noExplicitAny: remark plugins operate on untyped AST nodes
   return (tree: any) => {
     const headings: TOCItem[] = [];
+    const slugger = new GithubSlugger();
 
     // biome-ignore lint/suspicious/noExplicitAny: unist visitor callback uses untyped nodes
     visit(tree, "heading", (node: any) => {
+      const value = toString(node);
+      const id = slugger.slug(value);
+      // Use the same ID for the rendered heading and its table-of-contents link.
+      // Include h1 and deeper headings when counting duplicate slugs.
+      node.data ??= {};
+      node.data.hProperties ??= {};
+      node.data.hProperties.id = id;
       if (node.depth >= 2 && node.depth <= 4) {
-        const value = toString(node);
-        // Generate slug matching rehype-slug (github-slugger style)
-        const id = value
-          .toLowerCase()
-          .replace(/[^\w\s-]/g, "")
-          .replace(/\s+/g, "-")
-          .replace(/-+/g, "-")
-          .trim();
-
         headings.push({ id, depth: node.depth, value });
       }
     });

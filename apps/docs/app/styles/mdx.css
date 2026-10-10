@@ -52,11 +52,18 @@ html.dark code[data-theme] span {
 
 /* Shiki transformer: highlight notation */
 .highlighted {
-  @apply bg-accent/20 border-l-primary border-l-2 px-2 py-0.5;
+  @apply bg-accent/20 border-l-primary;
 }
 
-pre > code {
-  counter-reset: line;
+.syntax-code-block > code {
+  min-width: 100%;
+  width: max-content;
+  font: inherit;
+}
+
+.syntax-code-block [data-line] {
+  @apply block border-l-2 border-l-transparent pl-3.5 pr-14;
+  min-height: 1.5em;
 }
 
 code[data-line-numbers] {
@@ -66,15 +73,13 @@ code[data-line-numbers] {
 code[data-line-numbers] > [data-line]::before {
   counter-increment: line;
   content: counter(line);
-  @apply text-code-foreground/40 mr-4 inline-block w-4 text-right;
+  @apply inline-block w-[3ch] mr-3 pr-2 border-r border-code-block-border text-muted-foreground text-right select-none;
+  font-variant-numeric: tabular-nums;
 }
 
-pre [data-line]:not([data-highlighted-line]):not(.highlighted) {
-  @apply border-l-2 border-l-transparent px-2 py-0.5;
-}
-
-[data-highlighted-line] {
-  @apply bg-accent/20 border-l-primary border-l-2 px-2 py-0.5;
+.syntax-code-block [data-highlighted-line],
+.syntax-code-block .highlighted {
+  @apply bg-accent/20 border-l-primary;
 }
 
 [data-highlighted-chars] {
@@ -142,4 +147,16 @@ h6:hover > .subheading-anchor,
 
 .subheading-anchor:focus-visible {
   @apply outline-2 outline-offset-2 outline-ring;
+}
+
+/* Touch users can copy without a hover state; keyboard focus reveals the control. */
+@media (hover: hover) and (pointer: fine) {
+  .code-copy {
+    opacity: 0;
+  }
+
+  .group:hover > .code-copy,
+  .group:focus-within > .code-copy {
+    opacity: 1;
+  }
 }

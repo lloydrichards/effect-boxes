@@ -22,7 +22,24 @@ import {
 } from "~/components/ui/sidebar";
 import type { TOCItem } from "~/lib/remark-toc-export";
 import type { Route } from "./+types/root";
+import { getPage } from "./nav.config";
 import "./app.css";
+
+export const meta: Route.MetaFunction = ({ location }) => {
+  const page = getPage(location.pathname);
+  return [
+    {
+      title:
+        page?.href === "/"
+          ? "effect-boxes documentation"
+          : `${page?.label ?? "Page not found"} | effect-boxes`,
+    },
+    {
+      name: "description",
+      content: page?.description ?? "effect-boxes documentation.",
+    },
+  ];
+};
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
@@ -67,11 +84,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-background focus:p-3 focus:rounded-md"
+        >
+          Skip to content
+        </a>
         <SidebarProvider>
           <AppSidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <SiteHeader />
-            <main className="flex-1 w-full px-6 xl:px-12 xl:pr-[14rem] py-10">
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className="flex-1 w-full px-6 xl:px-12 xl:pr-[14rem] py-10"
+            >
               {children}
             </main>
           </div>
@@ -92,12 +119,23 @@ export default function App() {
 
   return (
     <MDXProvider components={proseComponents}>
-      {hasToc && <TableOfContents toc={toc} />}
+      {hasToc && (
+        <TableOfContents
+          toc={toc}
+          searchable={lastMatch?.pathname.startsWith("/api/")}
+        />
+      )}
       <div className="mx-auto w-full max-w-[72ch]">
         <Outlet />
         <DocFooter />
       </div>
-      {hasToc && <TableOfContents toc={toc} desktopOnly />}
+      {hasToc && (
+        <TableOfContents
+          toc={toc}
+          desktopOnly
+          searchable={lastMatch?.pathname.startsWith("/api/")}
+        />
+      )}
     </MDXProvider>
   );
 }
@@ -137,7 +175,7 @@ function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/50 bg-background/80 backdrop-blur-sm px-6 py-3">
-      <SidebarTrigger />
+      <SidebarTrigger className="size-11" />
       {!sidebarVisible && (
         <Link
           to="/"
