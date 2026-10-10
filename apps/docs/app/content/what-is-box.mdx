@@ -42,9 +42,9 @@ Boxes hold text. Annotations attach metadata (styling, semantics, identifiers)
 without affecting layout. A Box doesn't know about colors; it knows it has an
 annotation of some type `A`.
 
-This separation means the same layout can render to:
+Reuse the same composition operations for each output target:
 
-- Plain text, with annotations stripped
+- Plain text, with annotations ignored
 - ANSI terminal output, with annotations interpreted as colors and effects
 - HTML, with annotations interpreted as elements and attributes
 
@@ -62,8 +62,13 @@ library ships with three:
 | Ansi     | `AnsiStyle`          | Terminal escape codes |
 | Html     | `HtmlAnnotationData` | HTML markup           |
 
-Because renderers are injected via Effect layers, you can swap targets
-without changing layout code.
+The layout operations work with any annotation type. ANSI and HTML renderers
+interpret different annotation types, so change the annotations when changing
+targets. The plain renderer ignores annotations from either target.
+
+For your first layout, use `Box.renderPlainSync` to get a string directly.
+Effect layers supply renderer services inside Effect programs. See
+[Rendering](/guides/rendering) when you need that approach.
 
 ## Where it fits
 
@@ -84,12 +89,15 @@ It handles:
 
 It does not handle:
 
-- Terminal I/O (use Effect's Console or Prompt for that)
-- Input handling (pair with `Prompt.custom` for interactive TUI)
+- Writing to the terminal. Use `console.log` or Effect's `Console` for ordinary
+  text lines. Use `Terminal.display` for exact writes that include cursor-control
+  commands, as shown in [Using Cmd](/guides/using-cmd).
+- Reading keyboard input. The [Select prompt tutorial](/tutorials/select-prompt)
+  uses Effect's `Prompt.Custom` from `effect/cli` to build an interactive menu.
 - Animation or state management
 
 ## Next steps
 
-- [Getting Started](/getting-started) for install and first layout
+- [Getting started](/getting-started) for install and first layout
 - [Using Box](/guides/using-box) for the full guide to Box operations
 - [Architecture](/architecture) for how the internals work

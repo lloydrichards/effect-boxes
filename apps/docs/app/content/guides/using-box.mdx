@@ -4,403 +4,680 @@ import { pipe } from "effect";
 
 # Using Box
 
-The `Box` module is the core of effect-boxes. A Box represents a rectangular
-block of text with explicit dimensions that can be composed, aligned, and
-transformed through functional composition.
+A `Box` is a rectangle of text with a height (`rows`) and width (`cols`).
+Build layouts by combining boxes, then render the result to a string.
+Each operation returns a new box.
 
-## Creating Boxes
+Every example below is complete. Copy an example into `example.ts` after
+[installing effect-boxes](/getting-started), then run `bun example.ts` or `npx tsx example.ts` with Node.
+The terminal preview for each example shows the string printed by that example.
 
-The most common way to create a box is from a string. Multi-line strings
-are handled automatically.
+## Create and render a box
 
-export const outText = Box.renderPrettySync(Box.text("Hello\nWorld"));
+`Box.text` creates one row per line. The longest line determines the width.
+Use `Box.renderPlainSync` to get text without styling annotations.
+
+export const outText = (() => {
+  const layout = Box.text("Hello\nWorld");
+  // layout.rows is 2; layout.cols is 5.
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-import * as Box from "effect-boxes/Box";
-
-const hello = Box.text("Hello\nWorld");
-// 2 rows, 5 columns
-```
 
 <AnsiTerminal input={outText} />
-</CodeExample>
 
-Other constructors include `Box.emptyBox(rows, cols)` for blank space,
-`Box.char(c)` for a single character, and `Box.line(s)` for a single-line box:
+```typescript check preview=outText result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
 
-```typescript
-// An empty box with specific dimensions
-const empty = Box.emptyBox(2, 10);
-
-// A single character
-const star = Box.char("*");
-
-// A single-line box (strips newlines)
-const oneLine = Box.line("Hello World");
+const layout = Box.text("Hello\nWorld");
+// layout.rows is 2; layout.cols is 5.
+const output = Box.renderPlainSync(layout);
+console.log(output);
 ```
 
-## Text Flow
-
-For longer text, `para` wraps content to a specified width, and `columns`
-creates newspaper-style columnar layouts.
-
-export const outPara = Box.renderPrettySync(
-  Box.para(
-    "The Box module is the core of the effect-boxes library, providing the fundamental data structures and operations for creating and composing rectangular text layouts. Boxes can be combined horizontally and vertically, aligned within larger spaces, and annotated with styling information for rich terminal output.",
-    Box.left,
-    50
-  )
-);
-
-<CodeExample>
-
-```typescript
-const paragraph = Box.para(
-  "The Box module is the core of the effect-boxes library, providing the fundamental data structures and operations for creating and composing rectangular text layouts. Boxes can be combined horizontally and vertically, aligned within larger spaces, and annotated with styling information for rich terminal output.",
-  Box.left,
-  50
-);
-```
-
-<AnsiTerminal input={outPara} />
 </CodeExample>
 
-export const outColumns = Box.renderPrettySync(
-  Box.hsep(
-    Box.columns(
-      "The Box module is the core of the effect-boxes library, providing the fundamental data structures and operations for creating and composing rectangular text layouts. Boxes can be combined horizontally and vertically, aligned within larger spaces, and annotated with styling information for rich terminal output.",
-      Box.left,
-      25,
-      6
-    ),
-    2,
+`Box.char` creates a box from one character. `Box.line` removes newlines
+rather than creating more rows. `Box.emptyBox(rows, cols)` reserves blank space.
+This row includes a two-column gap between the star and the text:
+
+export const outConstructors = (() => {
+  const layout = Box.hcat(
+    [Box.char("*"), Box.emptyBox(1, 2), Box.line("Hello\nWorld")],
     Box.top
-  )
-);
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
-const cols = Box.columns(
-  "The Box module is the core of the effect-boxes library...",
-  Box.left, // alignment
-  25, // column width
-  6 // column height
-);
-const layout = Box.hsep(cols, 2, Box.top);
-```
+<AnsiTerminal input={outConstructors} />
 
-<AnsiTerminal input={outColumns} />
-</CodeExample>
+```typescript check preview=outConstructors result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
 
-## Composing Boxes
-
-Boxes can be combined horizontally and vertically to build complex layouts.
-
-### Horizontal Composition
-
-export const outHcat = Box.renderPrettySync(
-  Box.hcat([Box.text("Left"), Box.text(" | "), Box.text("Right")], Box.top)
-);
-
-<CodeExample>
-
-```typescript
-const row = Box.hcat(
-  [Box.text("Left"), Box.text(" | "), Box.text("Right")],
+const layout = Box.hcat(
+  [Box.char("*"), Box.emptyBox(1, 2), Box.line("Hello\nWorld")],
   Box.top
 );
+const output = Box.renderPlainSync(layout);
+console.log(output);
 ```
 
-<AnsiTerminal input={outHcat} />
 </CodeExample>
 
-Use `punctuateH` to insert a separator between boxes, or `hsep` for spacing:
+## Wrap text
 
-export const outPunctuateH = Box.renderPrettySync(
-  Box.punctuateH(
+`Box.para(text, alignment, width)` wraps words to a column width.
+`Box.left` aligns each wrapped line to the left edge.
+
+export const outPara = (() => {
+  const layout = Box.para(
+    "Boxes combine text into rectangular layouts. Join boxes horizontally or vertically, align the result, and render it to a terminal.",
+    Box.left,
+    40
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outPara} />
+
+```typescript check preview=outPara result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.para(
+  "Boxes combine text into rectangular layouts. Join boxes horizontally or vertically, align the result, and render it to a terminal.",
+  Box.left,
+  40
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
+</CodeExample>
+
+`Box.columns` divides wrapped text into columns with a fixed width and height.
+It returns an array of boxes. Join that array with `Box.hsep` to add space
+between the columns. Here each column is 20 columns wide and 4 rows high:
+
+export const outColumns = (() => {
+  const columns = Box.columns(
+    "Boxes combine text into rectangular layouts. Join boxes horizontally or vertically, align the result, and render it to a terminal.",
+    Box.left,
+    20,
+    4
+  );
+  const layout = Box.hsep(columns, 2, Box.top);
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outColumns} />
+
+```typescript check preview=outColumns result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const columns = Box.columns(
+  "Boxes combine text into rectangular layouts. Join boxes horizontally or vertically, align the result, and render it to a terminal.",
+  Box.left,
+  20,
+  4
+);
+const layout = Box.hsep(columns, 2, Box.top);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
+</CodeExample>
+
+## Compose boxes
+
+### Join boxes horizontally
+
+`Box.hcat` places boxes beside each other. Its alignment controls where shorter
+boxes sit **vertically**. `Box.top` lines up their first rows.
+
+export const outHcat = (() => {
+  const layout = Box.hcat(
+    [Box.text("Left\nsecond row"), Box.text(" | "), Box.text("Right")],
+    Box.top
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outHcat} />
+
+```typescript check preview=outHcat result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.hcat(
+  [Box.text("Left\nsecond row"), Box.text(" | "), Box.text("Right")],
+  Box.top
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
+</CodeExample>
+
+Use `Box.punctuateH` to put a separator between items:
+
+export const outPunctuateH = (() => {
+  const layout = Box.punctuateH(
     [Box.text("Name"), Box.text("Age"), Box.text("City")],
     Box.top,
     Box.text(" | ")
-  )
-);
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
-const table = Box.punctuateH(
+<AnsiTerminal input={outPunctuateH} />
+
+```typescript check preview=outPunctuateH result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.punctuateH(
   [Box.text("Name"), Box.text("Age"), Box.text("City")],
   Box.top,
   Box.text(" | ")
 );
+const output = Box.renderPlainSync(layout);
+console.log(output);
 ```
 
-<AnsiTerminal input={outPunctuateH} />
 </CodeExample>
 
-export const outHsep = Box.renderPrettySync(
-  Box.hsep([Box.text("A"), Box.text("B"), Box.text("C")], 3, Box.top)
-);
+Use `Box.hsep` for a fixed number of blank columns between items:
+
+export const outHsep = (() => {
+  const layout = Box.hsep(
+    [Box.text("A"), Box.text("B"), Box.text("C")],
+    3,
+    Box.top
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-const spaced = Box.hsep(
-  [Box.text("A"), Box.text("B"), Box.text("C")],
-  3, // spaces between boxes
-  Box.top
-);
-```
 
 <AnsiTerminal input={outHsep} />
+
+```typescript check preview=outHsep result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.hsep(
+  [Box.text("A"), Box.text("B"), Box.text("C")],
+  3,
+  Box.top
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
 </CodeExample>
 
-### Vertical Composition
+### Join boxes vertically
 
-export const outVcat = Box.renderPrettySync(
-  Box.vcat([Box.text("Top"), Box.text("Middle"), Box.text("Bottom")], Box.left)
-);
+`Box.vcat` stacks boxes. Its alignment controls where narrower boxes sit
+**horizontally**. `Box.left` lines up their left edges.
+
+export const outVcat = (() => {
+  const layout = Box.vcat(
+    [Box.text("Top"), Box.text("Middle"), Box.text("Bottom")],
+    Box.left
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
-const column = Box.vcat(
+<AnsiTerminal input={outVcat} />
+
+```typescript check preview=outVcat result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.vcat(
   [Box.text("Top"), Box.text("Middle"), Box.text("Bottom")],
   Box.left
 );
+const output = Box.renderPlainSync(layout);
+console.log(output);
 ```
 
-<AnsiTerminal input={outVcat} />
 </CodeExample>
 
-export const outPunctuateV = Box.renderPrettySync(
-  Box.punctuateV(
+`Box.punctuateV` adds a separator box between items:
+
+export const outPunctuateV = (() => {
+  const layout = Box.punctuateV(
     [Box.text("Header"), Box.text("Content"), Box.text("Footer")],
     Box.left,
-    Box.text("---")
-  )
-);
+    Box.text("------")
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-const sections = Box.punctuateV(
-  [Box.text("Header"), Box.text("Content"), Box.text("Footer")],
-  Box.left,
-  Box.text("---")
-);
-```
 
 <AnsiTerminal input={outPunctuateV} />
+
+```typescript check preview=outPunctuateV result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.punctuateV(
+  [Box.text("Header"), Box.text("Content"), Box.text("Footer")],
+  Box.left,
+  Box.text("------")
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
 </CodeExample>
 
-### Appending Individual Boxes
+`Box.vsep` adds blank rows between items:
 
-For combining two boxes, use `hAppend` and `vAppend`:
-
-export const outAppend = Box.renderPrettySync(
-  pipe(Box.text("Hello "), Box.hAppend(Box.text("World")))
-);
+export const outVsep = (() => {
+  const layout = Box.vsep([Box.text("Top"), Box.text("Bottom")], 1, Box.left);
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
-const combined = pipe(Box.text("Hello "), Box.hAppend(Box.text("World")));
+<AnsiTerminal input={outVsep} />
+
+```typescript check preview=outVsep result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.vsep([Box.text("Top"), Box.text("Bottom")], 1, Box.left);
+const output = Box.renderPlainSync(layout);
+console.log(output);
 ```
+
+</CodeExample>
+
+### Append two boxes
+
+`Box.hAppend` joins two boxes at the top edge. `Box.vAppend` joins them at
+the left edge. Both support `pipe`, so you can build a layout one step at a time.
+
+export const outAppend = (() => {
+  const layout = pipe(
+    Box.text("Hello "),
+    Box.hAppend(Box.text("World")),
+    Box.vAppend(Box.text("Second row"))
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
+
+<CodeExample>
 
 <AnsiTerminal input={outAppend} />
+
+```typescript check preview=outAppend result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { pipe } from "effect";
+
+const layout = pipe(
+  Box.text("Hello "),
+  Box.hAppend(Box.text("World")),
+  Box.vAppend(Box.text("Second row"))
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
 </CodeExample>
 
-## Alignment and Positioning
+## Align content inside a rectangle
 
-### Alignment
+Use `Box.left`, `Box.right`, `Box.top`, or `Box.bottom` to align an edge.
+`Box.center1` and `Box.center2` both center content. If spare space is odd,
+`center1` places the extra space after the content, while `center2` places it before.
 
-Control how a box is positioned within a larger space:
+This comparison centers one character in a six-column rectangle. The borders
+are part of the example code and make the padding visible:
 
-export const outAlignH = Box.renderPrettySync(
-  pipe(
-    Box.text("Hello"),
-    Box.alignHoriz(Box.center1, 20),
-    Box.border("single", { annotation: Ansi.brightBlack })
-  )
-);
+export const outCenters = (() => {
+  const first = Box.border(
+    Box.alignHoriz(Box.text("X"), Box.center1, 6),
+    "single"
+  );
+  const second = Box.border(
+    Box.alignHoriz(Box.text("X"), Box.center2, 6),
+    "single"
+  );
+  const layout = Box.hsep([first, second], 2, Box.top);
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
-const centered = Box.alignHoriz(Box.text("Hello"), Box.center1, 20);
+<AnsiTerminal input={outCenters} title="center1 (left) and center2 (right)" />
+
+```typescript check preview=outCenters result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const first = Box.border(
+  Box.alignHoriz(Box.text("X"), Box.center1, 6),
+  "single"
+);
+const second = Box.border(
+  Box.alignHoriz(Box.text("X"), Box.center2, 6),
+  "single"
+);
+const layout = Box.hsep([first, second], 2, Box.top);
+const output = Box.renderPlainSync(layout);
+console.log(output);
 ```
 
-<AnsiTerminal input={outAlignH} />
 </CodeExample>
 
-export const outAlign = Box.renderPrettySync(
-  pipe(
-    Box.align(Box.text("X"), Box.center1, Box.center1, 3, 7),
-    Box.border("single", { annotation: Ansi.brightBlack })
-  )
-);
+`Box.align` sets both dimensions. Its arguments are horizontal alignment,
+vertical alignment, height, then width. Borders add two rows and two columns
+outside the requested dimensions. This interior is 3 rows by 7 columns:
+
+export const outAlign = (() => {
+  const layout = pipe(
+    Box.text("X"),
+    Box.align(Box.center1, Box.center1, 3, 7),
+    Box.border("single")
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-// Align both horizontally and vertically
-const centered2d = Box.align(
-  Box.text("X"),
-  Box.center1, // horizontal
-  Box.center1, // vertical
-  3, // height
-  7 // width
-);
-```
 
 <AnsiTerminal input={outAlign} />
+
+```typescript check preview=outAlign result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { pipe } from "effect";
+
+const layout = pipe(
+  Box.text("X"),
+  Box.align(Box.center1, Box.center1, 3, 7),
+  Box.border("single")
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
 </CodeExample>
 
-### Moving Boxes
+`Box.alignVert` sets only the height. Here `Box.bottom` places the text on
+the last row of a three-row interior:
 
-Shift a box by adding empty space around it:
+export const outAlignV = (() => {
+  const layout = pipe(
+    Box.text("Bottom"),
+    Box.alignVert(Box.bottom, 3),
+    Box.border("single")
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
-export const outMove = Box.renderPrettySync(
-  pipe(
+<CodeExample>
+
+<AnsiTerminal input={outAlignV} />
+
+```typescript check preview=outAlignV result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { pipe } from "effect";
+
+const layout = pipe(
+  Box.text("Bottom"),
+  Box.alignVert(Box.bottom, 3),
+  Box.border("single")
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
+</CodeExample>
+
+## Add space around a box
+
+Movement functions grow the box rather than removing text or changing an
+absolute terminal position. `moveRight` adds columns on the left, and `moveDown`
+adds rows above. The border below shows the resulting rectangle:
+
+export const outMove = (() => {
+  const layout = pipe(
     Box.text("Hello"),
     Box.moveRight(5),
     Box.moveDown(2),
-    Box.border("single", { annotation: Ansi.brightBlack })
-  )
-);
+    Box.border("single")
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-const positioned = pipe(Box.text("Hello"), Box.moveRight(5), Box.moveDown(2));
-```
 
 <AnsiTerminal input={outMove} />
-</CodeExample>
 
-Available movement functions: `moveRight`, `moveLeft`, `moveDown`, `moveUp`.
+```typescript check preview=outMove result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { pipe } from "effect";
 
-## Truncation
-
-Truncate each line to a maximum width, inserting an ellipsis where content
-was removed. The position parameter controls which part of the text is kept.
-
-export const longBox = Box.text("This is a very long piece of text");
-export const outTruncLeft = Box.renderPrettySync(
-  pipe(longBox, Box.truncate(15, Box.left))
+const layout = pipe(
+  Box.text("Hello"),
+  Box.moveRight(5),
+  Box.moveDown(2),
+  Box.border("single")
 );
-export const outTruncRight = Box.renderPrettySync(
-  pipe(longBox, Box.truncate(15, Box.right))
-);
-export const outTruncCenter = Box.renderPrettySync(
-  pipe(longBox, Box.truncate(15, Box.center1))
-);
-
-<CodeExample>
-
-```typescript
-const long = Box.text("This is a very long piece of text");
-
-// Keep the beginning
-pipe(long, Box.truncate(15, Box.left));
-
-// Keep the end
-pipe(long, Box.truncate(15, Box.right));
-
-// Keep both ends
-pipe(long, Box.truncate(15, Box.center1));
+const output = Box.renderPlainSync(layout);
+console.log(output);
 ```
 
-<AnsiTerminal input={outTruncLeft} title="left" />
 </CodeExample>
+
+`moveLeft` adds columns on the right, and `moveUp` adds rows below:
+
+export const outMoveOpposite = (() => {
+  const layout = pipe(
+    Box.text("Hello"),
+    Box.moveLeft(5),
+    Box.moveUp(2),
+    Box.border("single")
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
-pipe(long, Box.truncate(15, Box.right));
-```
+<AnsiTerminal input={outMoveOpposite} />
 
-<AnsiTerminal input={outTruncRight} title="right" />
-</CodeExample>
+```typescript check preview=outMoveOpposite result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { pipe } from "effect";
 
-<CodeExample>
-
-```typescript
-pipe(long, Box.truncate(15, Box.center1));
-```
-
-<AnsiTerminal input={outTruncCenter} title="center" />
-</CodeExample>
-
-If the box is already within the target width, it is returned unchanged.
-
-## Annotations
-
-Boxes are parameterized by an annotation type: `Box<A>`. Annotations are
-metadata attached to a box's content that renderers interpret differently.
-
-Use `Box.annotate` to attach an annotation:
-
-export const outAnnotate = Box.renderPrettySync(
-  pipe(Box.text("Error!"), Box.annotate(Ansi.red))
+const layout = pipe(
+  Box.text("Hello"),
+  Box.moveLeft(5),
+  Box.moveUp(2),
+  Box.border("single")
 );
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
+</CodeExample>
+
+## Truncate text
+
+`Box.truncate(width, position)` limits each line to a width and inserts an
+ellipsis where text was removed. The position selects the part to preserve.
+A box that already fits is returned unchanged.
+
+`Box.left` keeps the beginning:
+
+export const outTruncLeft = (() => {
+  const layout = Box.truncate(
+    Box.text("This is a very long piece of text"),
+    15,
+    Box.left
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outTruncLeft} />
+
+```typescript check preview=outTruncLeft result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.truncate(
+  Box.text("This is a very long piece of text"),
+  15,
+  Box.left
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
+</CodeExample>
+
+`Box.right` keeps the end:
+
+export const outTruncRight = (() => {
+  const layout = Box.truncate(
+    Box.text("This is a very long piece of text"),
+    15,
+    Box.right
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outTruncRight} />
+
+```typescript check preview=outTruncRight result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.truncate(
+  Box.text("This is a very long piece of text"),
+  15,
+  Box.right
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
+</CodeExample>
+
+`Box.center1` keeps both ends:
+
+export const outTruncCenter = (() => {
+  const layout = Box.truncate(
+    Box.text("This is a very long piece of text"),
+    15,
+    Box.center1
+  );
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outTruncCenter} />
+
+```typescript check preview=outTruncCenter result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const layout = Box.truncate(
+  Box.text("This is a very long piece of text"),
+  15,
+  Box.center1
+);
+const output = Box.renderPlainSync(layout);
+console.log(output);
+```
+
+</CodeExample>
+
+## Attach styling annotations
+
+A `Box<A>` carries annotations of type `A`. An annotation is metadata attached
+to content. The renderer decides how to interpret that metadata.
+
+`Box.annotate` attaches a value to the content. Use `Box.renderPrettySync` to
+interpret ANSI colors and terminal commands. This example prints red text:
+
+export const outPretty = (() => {
+  const layout = Box.annotate(Box.text("Error!"), Ansi.red);
+  const output = Box.renderPrettySync(layout);
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outPretty} />
+
+```typescript check preview=outPretty result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 
-const error = pipe(Box.text("Error!"), Box.annotate(Ansi.red));
+const layout = Box.annotate(Box.text("Error!"), Ansi.red);
+const output = Box.renderPrettySync(layout);
+console.log(output);
 ```
 
-<AnsiTerminal input={outAnnotate} />
 </CodeExample>
 
-The annotation type determines what styling is applied at render time:
+`Box.renderPlainSync` ignores annotations and returns the same text without
+color or terminal control sequences:
 
-- **Ansi** — Terminal colors and text effects (bold, underline, etc.)
-- **Cmd** — Terminal control sequences (cursor movement, screen clearing)
-- **Html** — HTML elements and attributes for web rendering
+export const outPlain = (() => {
+  const layout = Box.annotate(Box.text("Error!"), Ansi.red);
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
-Each annotation type has a corresponding renderer that interprets it. See
-[Using Ansi](/guides/using-ansi) for terminal styling and the
-[Rendering guide](/guides/rendering) for how renderers process annotations.
+<CodeExample>
 
-## Rendering
+<AnsiTerminal input={outPlain} />
 
-To get a string from a box, use the sync convenience functions:
+```typescript check preview=outPlain result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
 
-export const outPlain = Box.renderPlainSync(
-  pipe(Box.text("Hello"), Box.annotate(Ansi.red))
-);
-export const outPretty = Box.renderPrettySync(
-  pipe(Box.text("Hello"), Box.annotate(Ansi.red))
-);
-
-<CodeExample layout="side-by-side">
-
-```typescript
-const box = pipe(Box.text("Hello"), Box.annotate(Ansi.red));
-
-// Strips all annotations
-Box.renderPlainSync(box);
+const layout = Box.annotate(Box.text("Error!"), Ansi.red);
+const output = Box.renderPlainSync(layout);
+console.log(output);
 ```
 
-<AnsiTerminal input={outPlain} title="renderPlainSync" />
 </CodeExample>
 
-<CodeExample layout="side-by-side">
-
-```typescript
-// Preserves ANSI styling
-Box.renderPrettySync(box);
-```
-
-<AnsiTerminal input={outPretty} title="renderPrettySync" />
-</CodeExample>
-
-For Effect-based rendering and the full renderer layer system, see the
-[Rendering guide](/guides/rendering).
+Use [Using Annotation](/guides/using-annotation) for annotation structure and
+nesting, [Using Ansi](/guides/using-ansi) for terminal styles, and
+[Using Html](/guides/using-html) for HTML output.
+The [Rendering guide](/guides/rendering) explains renderer layers and frame rendering.

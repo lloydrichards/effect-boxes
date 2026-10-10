@@ -1,251 +1,236 @@
 import * as Box from "effect-boxes/Box";
-import * as Cmd from "effect-boxes/Cmd";
-import * as Ansi from "effect-boxes/Ansi";
-import { pipe } from "effect";
+
+export const outProgressInitial = Box.renderPrettySync(
+  Box.vcat(
+    [
+      Box.text("Downloading..."),
+      Box.text("Progress: 0%"),
+      Box.text("Please wait"),
+    ],
+    Box.left
+  )
+);
+export const outProgressFinal = Box.renderPrettySync(
+  Box.vcat(
+    [Box.text("Downloading..."), Box.text("Progress: 100%"), Box.text("Done!")],
+    Box.left
+  )
+);
+export const outScreen = Box.renderPrettySync(Box.text("Status: running"));
 
 # Using Cmd
 
-The `Cmd` module provides terminal control commands — cursor positioning,
-screen clearing, and visibility toggling. Commands are zero-size boxes that
-emit ANSI escape sequences when rendered with `renderPrettySync`.
+Use `Cmd` to move the terminal cursor, clear output, or switch screen buffers.
+Commands are zero-size `Box<AnsiStyle>` values. Constructing a command or
+rendering it does not change the terminal. A terminal changes only when you
+write the rendered ANSI string to it.
 
-## How Commands Work
+The reference snippets below are continuations that require these imports:
 
-Each command is a `Box<AnsiStyle>` with no visible dimensions. When composed
-with other boxes using `Box.combine` or `Box.combineAll`, commands inject
-escape sequences into the output stream without affecting layout.
-
-```typescript
+```typescript check showLineNumbers
 import * as Box from "effect-boxes/Box";
 import * as Cmd from "effect-boxes/Cmd";
-
-// A command is just a box — compose it like any other
-const output = Box.combineAll([Cmd.clearScreen, Box.text("Hello, terminal!")]);
-
-console.log(Box.renderPrettySync(output));
 ```
 
-## Cursor Movement
+Use `Box.renderPrettySync` to preserve command sequences. Plain rendering
+strips them. Use `Terminal.display` or another exact string writer to emit
+commands. `console.log` adds a newline, which changes the cursor position.
 
-### Absolute Positioning
+## Position the cursor
 
-Move the cursor to a specific column and row (0-indexed):
+Absolute coordinates are zero-indexed columns and rows, relative to the
+terminal's top-left corner. They are not relative to a box or the current cursor.
 
 ```typescript
-import * as Cmd from "effect-boxes/Cmd";
-
-// Move to column 10, row 5
-Cmd.cursorTo(10, 5);
-
-// Move to home position (top-left)
-Cmd.home;
+Cmd.cursorTo(10, 5); // Column 10, row 5
+Cmd.home; // Column 0, row 0
 ```
 
-### Relative Movement
-
-Move the cursor relative to its current position:
+Relative movement starts at the current cursor position:
 
 ```typescript
-// Move 5 columns right and 2 rows up
-Cmd.cursorMove(5, -2);
-
-// Single-direction helpers
+Cmd.cursorMove(5, -2); // Five columns right, two rows up
 Cmd.cursorUp(3);
 Cmd.cursorDown(2);
 Cmd.cursorForward(10);
 Cmd.cursorBackward(4);
-
-// Move to start of next/previous line
-Cmd.cursorNextLine(1);
-Cmd.cursorPrevLine(1);
+Cmd.cursorNextLine(1); // Start of next line
+Cmd.cursorPrevLine(1); // Start of previous line
 ```
 
-### Save and Restore
-
-Save the cursor position and restore it later:
+Save and restore the cursor when a temporary write must leave the current
+position unchanged. This continuation constructs the output but does not write it:
 
 ```typescript
-import { pipe } from "effect";
-import * as Box from "effect-boxes/Box";
-import * as Cmd from "effect-boxes/Cmd";
-
-const withSavedPosition = Box.combineAll([
+const status = Box.combineAll([
   Cmd.cursorSavePosition,
   Cmd.cursorTo(0, 0),
   Box.text("Status: OK"),
   Cmd.cursorRestorePosition,
 ]);
+const statusOutput = Box.renderPrettySync(status);
 ```
 
-## Screen Clearing
-
-### Full Screen
+## Clear the screen or lines
 
 ```typescript
-// Clear everything and move cursor to home
-Cmd.clearScreen;
-
-// Clear from cursor to end of screen
-Cmd.eraseDown;
-
-// Clear from cursor to start of screen
-Cmd.eraseUp;
-
-// Clear entire screen (without moving cursor)
-Cmd.eraseScreen;
+Cmd.clearScreen; // Clear the screen and move home
+Cmd.eraseDown; // Clear from cursor to end of screen
+Cmd.eraseUp; // Clear from cursor to start of screen
+Cmd.eraseScreen; // Clear screen without moving cursor
+Cmd.eraseLine; // Clear current line
+Cmd.eraseEndLine; // Clear from cursor to end of line
+Cmd.eraseStartLine; // Clear from cursor to start of line
 ```
 
-### Line Clearing
+`eraseLines(n)` deletes lines within the scroll region and shifts following
+content upward. `clearLines(n)` erases the current line and the preceding
+`n - 1` lines in place. It leaves the cursor at column zero on the topmost
+cleared line.
 
 ```typescript
-// Clear the entire current line
-Cmd.eraseLine;
-
-// Clear from cursor to end of line
-Cmd.eraseEndLine;
-
-// Clear from cursor to start of line
-Cmd.eraseStartLine;
-```
-
-### Multi-line Clearing
-
-Two approaches for clearing multiple lines:
-
-```typescript
-// eraseLines: deletes N lines from the scroll region (shifts content up)
 Cmd.eraseLines(5);
-
-// clearLines: blanks N lines in place (no scrolling), cursor moves up
 Cmd.clearLines(3);
 ```
 
-`clearLines` is the better choice for rewriting output in place (spinners,
-progress bars) since it doesn't affect surrounding content.
+Before using `clearLines(3)`, the cursor must be on the third line of the previous
+frame. An extra newline would put it on the fourth line and clear the wrong area.
 
-## Cursor Visibility
+## Hide the cursor and use an alternate screen
 
-Hide the cursor during animations or full-screen rendering to avoid flicker:
-
-```typescript
-import * as Box from "effect-boxes/Box";
-import * as Cmd from "effect-boxes/Cmd";
-
-// Hide during render, show after
-const frame = Box.combineAll([
-  Cmd.cursorHide,
-  Box.text("Rendering..."),
-  Cmd.cursorShow,
-]);
-```
-
-## Alternate Screen
-
-Switch to the alternate screen buffer (used by full-screen TUI apps like
-vim, htop). Content on the main screen is preserved and restored on exit:
+This continuation constructs setup and teardown strings. Neither string takes
+effect until written:
 
 ```typescript
-import * as Box from "effect-boxes/Box";
-import * as Cmd from "effect-boxes/Cmd";
-
-// Enter alternate screen at start
-const enter = Box.combineAll([
-  Cmd.altScreenEnter,
-  Cmd.cursorHide,
-  Cmd.clearScreen,
-]);
-
-// Leave alternate screen on exit (restores previous content)
-const leave = Box.combineAll([Cmd.altScreenLeave, Cmd.cursorShow]);
-```
-
-## Combining with Boxes
-
-Use `Box.combine` (binary) or `Box.combineAll` (array) to interleave
-commands with visible content:
-
-```typescript
-import { pipe } from "effect";
-import * as Box from "effect-boxes/Box";
-import * as Cmd from "effect-boxes/Cmd";
-import * as Ansi from "effect-boxes/Ansi";
-
-// Position text at specific coordinates
-const positioned = Box.combineAll([
-  Cmd.cursorTo(10, 5),
-  pipe(Box.text("Hello!"), Box.annotate(Ansi.bold)),
-  Cmd.cursorTo(10, 7),
-  pipe(Box.text("World!"), Box.annotate(Ansi.green)),
-]);
-
-console.log(Box.renderPrettySync(positioned));
-```
-
-Commands compose with `pipe` too:
-
-```typescript
-const output = pipe(
-  Cmd.clearScreen,
-  Box.combine(Cmd.cursorTo(0, 2)),
-  Box.combine(Box.text("Centered title").pipe(Box.alignHoriz(Box.center1, 65)))
+const setup = Box.renderPrettySync(
+  Box.combineAll([Cmd.altScreenEnter, Cmd.cursorHide, Cmd.clearScreen])
+);
+const teardown = Box.renderPrettySync(
+  Box.combineAll([Cmd.altScreenLeave, Cmd.cursorShow])
 );
 ```
 
-## Practical Example: Rewriting Output
+The alternate screen keeps the main screen's content available when you leave.
+Always register cleanup before writing setup. The complete example below runs
+cleanup on success, failure, or Effect interruption.
 
-The `clearLines` pattern is common for progress displays and spinners —
-clear the previous frame and write the new one in its place:
+## Rewrite a progress display
 
-```typescript
-import * as Box from "effect-boxes/Box";
-import * as Cmd from "effect-boxes/Cmd";
+Install the terminal implementation:
 
-const renderFrame = (progress: number) =>
-  Box.combineAll([
-    Cmd.clearLines(3),
-    Box.vcat(
-      [
-        Box.text("Downloading..."),
-        Box.text(`Progress: ${progress}%`),
-        Box.text(progress === 100 ? "Done!" : `ETA: ${100 - progress}s`),
-      ],
-      Box.left
-    ),
-  ]);
-
-// Each call to renderFrame clears the previous 3 lines
-// and writes the updated content in place
+```bash
+npm install effect-boxes "effect@^4" "@effect/platform-node@^4"
 ```
 
-## Practical Example: Full-Screen App
+Save this complete example as `progress.ts`. In an interactive ANSI terminal,
+run `bun run progress.ts` with Bun or `npx tsx progress.ts` with Node.
+It writes three lines, then replaces those same lines. Run it in a terminal at least 30 columns wide so the lines do not wrap.
 
-A typical full-screen TUI lifecycle:
+These snapshots show the initial and final frames. They render the same text as
+`progressFrame(0)` and `progressFrame(100)`; the browser preview does not emulate
+cursor movement or line clearing.
 
-```typescript
-import { Effect, Console } from "effect";
+<CodeExample>
+
+<AnsiTerminal input={outProgressInitial} title="Initial frame" />
+
+<AnsiTerminal input={outProgressFinal} title="Final frame" />
+
+```typescript check showLineNumbers
+import { Effect, Terminal } from "effect";
+import { NodeRuntime, NodeTerminal } from "@effect/platform-node";
 import * as Box from "effect-boxes/Box";
 import * as Cmd from "effect-boxes/Cmd";
-import * as Ansi from "effect-boxes/Ansi";
 
-const setup = Box.combineAll([
-  Cmd.altScreenEnter,
-  Cmd.cursorHide,
-  Cmd.clearScreen,
-]);
+const progressFrame = (progress: number): Box.Box<never> =>
+  Box.vcat(
+    [
+      Box.text("Downloading..."),
+      Box.text(`Progress: ${progress}%`),
+      Box.text(progress === 100 ? "Done!" : "Please wait"),
+    ],
+    Box.left
+  );
 
-const render = (state: AppState) =>
-  Box.combineAll([
-    Cmd.home,
-    buildUI(state), // your layout function
-  ]);
+const program = Effect.gen(function* () {
+  const terminal = yield* Terminal.Terminal;
+  yield* terminal.display(Box.renderPrettySync(progressFrame(0)));
+  // The first write adds no trailing newline. The cursor is on frame line three.
+  yield* Effect.sleep("500 millis");
+  yield* terminal.display(
+    Box.renderPrettySync(
+      Box.combineAll([Cmd.clearLines(3), progressFrame(100)])
+    )
+  );
+  // Only after the final frame, move below it for the next shell prompt.
+  yield* terminal.display("\n");
+});
 
-const teardown = Box.combineAll([Cmd.altScreenLeave, Cmd.cursorShow]);
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeTerminal.layer)));
+```
+
+</CodeExample>
+
+The first frame skips `clearLines` because this program has not written a
+previous frame. Every replacement frame has the same three-line height.
+If a line wraps or another writer moves the cursor, this relative clearing
+scheme no longer describes the terminal's position.
+
+## Restore the terminal after a full-screen session
+
+Save this complete example as `screen.ts`. In an interactive ANSI terminal,
+run `bun run screen.ts` with Bun or `npx tsx screen.ts` with Node.
+It shows a status line briefly, then restores the main screen and cursor visibility.
+
+During the session, the alternate screen contains this line. Leaving the alternate
+screen restores the main screen's previous contents.
+
+<CodeExample>
+
+<AnsiTerminal input={outScreen} title="Alternate screen during the session" />
+
+```typescript check showLineNumbers
+import { Effect, Terminal } from "effect";
+import { NodeRuntime, NodeTerminal } from "@effect/platform-node";
+import * as Box from "effect-boxes/Box";
+import * as Cmd from "effect-boxes/Cmd";
+
+const setup = Box.renderPrettySync(
+  Box.combineAll([Cmd.altScreenEnter, Cmd.cursorHide, Cmd.clearScreen])
+);
+const teardown = Box.renderPrettySync(
+  Box.combineAll([Cmd.altScreenLeave, Cmd.cursorShow])
+);
 
 const app = Effect.gen(function* () {
-  yield* Console.log(Box.renderPrettySync(setup));
-  // ... event loop ...
-  yield* Console.log(Box.renderPrettySync(teardown));
+  const terminal = yield* Terminal.Terminal;
+  yield* Effect.acquireUseRelease(
+    Effect.void,
+    () =>
+      Effect.gen(function* () {
+        // Cleanup is registered before the first terminal mutation.
+        yield* terminal.display(setup);
+        yield* terminal.display(
+          Box.renderPrettySync(
+            Box.combineAll([Cmd.home, Box.text("Status: running")])
+          )
+        );
+        yield* Effect.sleep("500 millis");
+      }),
+    () => terminal.display(teardown)
+  );
 });
+
+NodeRuntime.runMain(app.pipe(Effect.provide(NodeTerminal.layer)));
 ```
 
-For the full list of available commands, see the [Cmd API reference](/api/cmd).
+</CodeExample>
+
+`acquireUseRelease` runs teardown when the body succeeds, fails, or is interrupted.
+A teardown write failure remains an error. `NodeRuntime.runMain` also connects
+process signals to Effect interruption. Forceful process termination cannot run
+cleanup. The example does not enable raw input mode or implement an event loop.
+
+For overlapping frame rendering, write these setup commands separately from
+`Renderer.frame` output. Frame resolution rejects terminal commands. See
+[Rendering](/guides/rendering) and the [Cmd API reference](/api/cmd).

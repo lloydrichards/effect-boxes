@@ -1,95 +1,116 @@
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
+import { Ansi, Box } from "effect-boxes";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "~/components/ui/collapsible";
-import { ChevronRight } from "lucide-react";
-import { pipe } from "effect";
 
-# Tutorial: Select prompt
+# Select prompt
 
-In this tutorial you'll build an interactive select prompt using effect-boxes
-for layout and `Prompt.Custom` from Effect for input handling. The final
-result renders a styled menu that responds to keyboard input:
+Build a menu that lets you choose a framework with the arrow keys and Enter.
+`effect-boxes` creates the layout and styling. Effect's `Prompt.Custom` reads
+input and redraws the menu.
 
-export const preview = Box.renderPrettySync(
-  (() => {
-    const choices = [{ title: "React" }, { title: "Vue" }, { title: "Svelte" }];
-    const cursor = 0;
-    const label = Box.text("Select a framework").pipe(Box.annotate(Ansi.bold));
-    const items = choices.map((choice, i) => {
-      const isSelected = i === cursor;
-      const indicator = Box.char(isSelected ? "⏵" : " ").pipe(
-        Box.annotate(Ansi.cyan)
-      );
-      const title = Box.text(choice.title).pipe(
-        Box.annotate(isSelected ? Ansi.bold : Ansi.dim)
-      );
-      return Box.hsep([indicator, title], 1, Box.left);
-    });
-    const content = Box.vcat([label, Box.vcat(items, Box.left)], Box.left);
-    const chrome = content.pipe(
-      Box.pad(0, 1),
-      Box.border("thick", {
-        sides: { top: false, bottom: false, right: false },
-      })
-    );
-    const hint = Box.hsep(
-      [
-        Box.text("↓ down").pipe(Box.annotate(Ansi.dim)),
-        Box.text("•").pipe(Box.annotate(Ansi.dim)),
-        Box.text("↑ up").pipe(Box.annotate(Ansi.dim)),
-        Box.text("•").pipe(Box.annotate(Ansi.dim)),
-        Box.text("enter select").pipe(Box.annotate(Ansi.dim)),
-      ],
-      1,
-      Box.left
-    );
-    return Box.vcat(
-      [chrome, Box.nullBox, hint.pipe(Box.moveRight(2))],
-      Box.left
-    );
-  })()
-);
-
-<AnsiTerminal input={preview} />
-
-This tutorial assumes familiarity with Effect's `Effect.gen` and basic
-understanding of the `Prompt` module from `effect/cli`.
-
-## Step 1: Define choices and state
-
-A select prompt needs a list of choices and a cursor position:
-
-```typescript
-import { Data, Effect, Match } from "effect";
-import { Prompt } from "effect/cli";
-import { Ansi, Box, Cmd } from "effect-boxes";
-
-type Choice<A> = {
-  title: string;
-  value: A;
-};
-
-const choices: Choice<string>[] = [
+export const choices = [
   { title: "React", value: "react" },
   { title: "Vue", value: "vue" },
   { title: "Svelte", value: "svelte" },
 ];
 
-// State is just the cursor index
-type State = number;
+export const renderLayout = (cursor, submitted) => {
+  const label = Box.text("Select a framework").pipe(Box.annotate(Ansi.bold));
+
+if (submitted) {
+const selected = choices[cursor];
+return Box.hsep(
+[
+Box.text("✔").pipe(Box.annotate(Ansi.green)),
+label,
+Box.text(selected?.title ?? "").pipe(Box.annotate(Ansi.cyan)),
+],
+1,
+Box.top
+);
+}
+
+const items = choices.map((choice, index) => {
+const selected = index === cursor;
+const indicator = Box.char(selected ? "⏵" : " ").pipe(Box.annotate(Ansi.cyan));
+const title = Box.text(choice.title).pipe(
+Box.annotate(selected ? Ansi.bold : Ansi.dim)
+);
+return Box.hsep([indicator, title], 1, Box.top);
+});
+const chrome = Box.vcat([label, ...items], Box.left).pipe(
+Box.pad(0, 1),
+Box.border("thick", { sides: { top: false, bottom: false, right: false } })
+);
+const hint = Box.text("↓ down • ↑ up • enter select").pipe(
+Box.annotate(Ansi.dim),
+Box.moveRight(2)
+);
+return Box.vcat([chrome, Box.emptyBox(1, 0), hint], Box.left);
+};
+
+export const preview = Box.renderPrettySync(renderLayout(0, false));
+
+<AnsiTerminal input={preview} />
+
+## Before you start
+
+Complete [Getting started](/getting-started), then read [Using Ansi](/guides/using-ansi),
+[Rendering](/guides/rendering), and [Using Cmd](/guides/using-cmd).
+This tutorial uses Effect 4 and `Effect.gen`.
+
+Install the packages and the TypeScript runner:
+
+```bash
+npm install effect-boxes "effect@^4" "@effect/platform-node@^4"
+npm install --save-dev tsx
 ```
 
-## Step 2: Build the render function
+Use an interactive terminal at least 40 columns wide and 8 rows high.
+The clearing logic counts layout rows and assumes that lines do not wrap.
 
-The render function takes state and returns a `Box`. Keep it pure:
-state in, box out.
+Save the [complete example](#complete-example) as `SelectPrompt.ts` and run
+`npx tsx SelectPrompt.ts`. The step snippets below are continuations of that file.
+Use the complete example if you want to copy and run the program directly.
+
+## Step 1: Define choices and state
+
+Import the modules and define a nonempty list of choices. The cursor is a
+zero-based index into that list.
 
 ```typescript
-const renderLayout = (cursor: number, submitted: boolean) => {
+import { Data, Effect, Match, Terminal } from "effect";
+import { Prompt } from "effect/cli";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
+import { Ansi, Box, Cmd } from "effect-boxes";
+
+type Choice<A> = {
+  readonly title: string;
+  readonly value: A;
+};
+
+const choices: ReadonlyArray<Choice<string>> = [
+  { title: "React", value: "react" },
+  { title: "Vue", value: "vue" },
+  { title: "Svelte", value: "svelte" },
+];
+
+const Action = Data.taggedEnum<Prompt.ActionDefinition>();
+```
+
+## Step 2: Build the layout
+
+Add `renderLayout`. The active menu includes a border and keyboard hints.
+After submission, the same function returns a one-line confirmation.
+
+```typescript
+const renderLayout = (
+  cursor: number,
+  submitted: boolean
+): Box.Box<Ansi.AnsiStyle> => {
   const label = Box.text("Select a framework").pipe(Box.annotate(Ansi.bold));
 
   if (submitted) {
@@ -105,165 +126,145 @@ const renderLayout = (cursor: number, submitted: boolean) => {
     );
   }
 
-  const items = choices.map((choice, i) => {
-    const isSelected = i === cursor;
-    const indicator = Box.char(isSelected ? "⏵" : " ").pipe(
-      // [!code highlight]
-      Box.annotate(Ansi.cyan) // [!code highlight]
-    ); // [!code highlight]
-    const title = Box.text(choice.title).pipe(
-      Box.annotate(isSelected ? Ansi.bold : Ansi.dim) // [!code highlight]
+  const items = choices.map((choice, index) => {
+    const selected = index === cursor;
+    const indicator = Box.char(selected ? "⏵" : " ").pipe(
+      Box.annotate(Ansi.cyan)
     );
-    return Box.hsep([indicator, title], 1, Box.left); // [!code highlight]
+    const title = Box.text(choice.title).pipe(
+      Box.annotate(selected ? Ansi.bold : Ansi.dim)
+    );
+    return Box.hsep([indicator, title], 1, Box.top);
   });
-
-  const content = Box.vcat([label, Box.vcat(items, Box.left)], Box.left);
-  return content;
+  const chrome = Box.vcat([label, ...items], Box.left).pipe(
+    Box.pad(0, 1),
+    Box.border("thick", { sides: { top: false, bottom: false, right: false } })
+  );
+  const hint = Box.text("↓ down • ↑ up • enter select").pipe(
+    Box.annotate(Ansi.dim),
+    Box.moveRight(2)
+  );
+  return Box.vcat([chrome, Box.emptyBox(1, 0), hint], Box.left);
 };
 ```
 
-The function has two modes: the active selection view, and a compact
-submitted view that shows the final choice.
+The preview above uses `renderLayout(0, false)`. Moving the cursor changes
+which choice has the arrow and bold text.
 
-## Step 3: Understand the Prompt.Custom contract
+## Step 3: Render, process input, and clear the previous frame
 
-`Prompt.Custom` takes an initial state and three callbacks:
-
-```typescript
-const Action = Data.taggedEnum<Prompt.ActionDefinition>();
-
-Prompt.Custom<State, Value>(initialState, {
-  render: (state, action) => Effect<string>,
-  process: (input, state) => Effect<Action>,
-  clear: (state) => Effect<string>,
-});
-```
-
-- `render` produces the string to write to stdout
-- `process` handles user input and returns the next action
-- `clear` produces cleanup output when the prompt exits
-
-## Step 4: Wire up rendering with Cmd
-
-The `render` callback wraps `renderLayout` with cursor management.
-On the first frame, hide the cursor. On subsequent frames, clear the
-previous output before re-rendering:
+Add the handlers and the prompt. `Prompt.Custom` calls `render` once at
+startup. For `NextFrame` and `Submit`, it calls `clear` with the previous state
+before rendering the next state. `clear` does not run as exit cleanup.
 
 ```typescript
-let hasRendered = false;
-
-const select = Prompt.Custom<number, string>(0, {
-  render: Effect.fnUntraced(function* (cursor, action) {
-    const layout = Action.$match(action, {
-      Submit: () => renderLayout(cursor, true),
-      default: () => renderLayout(cursor, false),
-    });
-
-    const clear = hasRendered // [!code highlight]
-      ? Cmd.clearLines(renderLayout(cursor, false).rows) // [!code highlight]
-      : Cmd.cursorHide; // [!code highlight]
-    hasRendered = true;
-
-    const cmds =
-      action._tag === "Submit"
-        ? Box.combine(Cmd.cursorShow, Cmd.cursorNextLine(1))
-        : Cmd.cursorHide;
-
-    return yield* Box.renderPretty(
-      // [!code highlight]
-      Box.combine(clear, layout.pipe(Box.combine(cmds))) // [!code highlight]
-    ); // [!code highlight]
-  }),
-  // ...
-});
-```
-
-`Cmd.clearLines` moves the cursor up and clears each line, which avoids
-the flicker you get from fully clearing the terminal.
-
-## Step 5: Handle input
-
-The `process` callback maps key presses to actions. Arrow keys move the
-cursor, enter submits:
-
-```typescript
-const select = Prompt.Custom<number, string>(0, {
-  // render: ...,
-  process: Effect.fnUntraced(function* (input, cursor) {
-    return Match.value(input).pipe(
-      Match.when(
-        { key: "down" },
-        () => Action.NextFrame({ state: (cursor + 1) % choices.length }) // [!code highlight]
-      ),
-      Match.when(
-        { key: "up" },
-        () =>
+const handlers: Prompt.Handlers<number, string> = {
+  render: (cursor, action) =>
+    Effect.succeed(
+      Action.$match(action, {
+        NextFrame: () =>
+          Box.renderPrettySync(Cmd.cursorHide) +
+          Box.renderPrettySync(renderLayout(cursor, false)).replaceAll(
+            "\n",
+            "\r\n"
+          ) +
+          Box.renderPrettySync(Cmd.cursorNextLine(1)),
+        Submit: () =>
+          Box.renderPrettySync(renderLayout(cursor, true)) +
+          Box.renderPrettySync(Cmd.cursorNextLine(1)),
+        Beep: () => "\u0007",
+      })
+    ),
+  process: (input, cursor) =>
+    Effect.succeed(
+      Match.value(input).pipe(
+        Match.when({ key: { name: "down" } }, () =>
+          Action.NextFrame({ state: (cursor + 1) % choices.length })
+        ),
+        Match.when({ key: { name: "up" } }, () =>
           Action.NextFrame({
             state: (cursor - 1 + choices.length) % choices.length,
-          }) // [!code highlight]
-      ),
-      Match.when({ key: "return" }, () => {
-        const selected = choices[cursor];
-        if (selected) return Action.Submit({ value: selected.value }); // [!code highlight]
-        return Action.Beep(); // [!code highlight]
-      }),
-      Match.orElse(() => Action.NextFrame({ state: cursor }))
-    );
-  }),
-  clear: () => Effect.succeed(""),
-});
+          })
+        ),
+        Match.when({ key: { name: "return" } }, () => {
+          const selected = choices[cursor];
+          return selected
+            ? Action.Submit({ value: selected.value })
+            : Action.Beep();
+        }),
+        Match.orElse(() => Action.NextFrame({ state: cursor }))
+      )
+    ),
+  clear: (cursor) =>
+    Box.renderPretty(Cmd.clearLines(renderLayout(cursor, false).rows + 1)),
+};
+
+const select = Prompt.Custom(0, handlers);
 ```
 
-`NextFrame` re-renders with new state. `Submit` returns the value and
-exits the prompt. `Beep` signals invalid input without changing state.
+Each active frame hides the cursor and ends at the start of the next line.
+`clearLines` erases that empty line and every menu row, then returns to the
+first column of the first row. The next render replaces the menu in place.
+The newline replacement makes each menu row start at column zero in raw mode.
 
-## Step 6: Run it
+Input keys have a `key.name` property. Up and Down wrap around the choices.
+Enter submits the selected value. Other keys keep the current selection.
+All three action cases have render handlers. `Beep` writes only a bell,
+so it does not append another copy of the menu.
+
+Effect's prompt implementation restores cursor visibility on success, failure,
+and interruption. The Node terminal layer handles Ctrl+C before `process`
+runs, so a Ctrl+C key handler is unnecessary here.
+
+## Step 4: Run the prompt
+
+Add the program and one runtime call at the end of the file:
 
 ```typescript
-import { NodeRuntime, NodeServices } from "@effect/platform-node";
-
 const program = Effect.gen(function* () {
   const result = yield* select;
-  yield* Effect.log(`You chose: ${result}`);
-});
+  const terminal = yield* Terminal.Terminal;
+  yield* terminal.display(`You chose: ${result}\r\n`);
+}).pipe(
+  Effect.catchTag("QuitError", () =>
+    Effect.gen(function* () {
+      const terminal = yield* Terminal.Terminal;
+      yield* terminal.display("Cancelled.\r\n");
+    })
+  )
+);
 
 NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)));
 ```
 
-## What you've learned
+Press Down once, then Enter. The confirmation shows Vue, followed by
+`You chose: vue`. Press Ctrl+C during selection to end the prompt and print
+`Cancelled.`. The same `select` value can run again without retaining a render flag.
 
-- `Prompt.Custom` gives you a state machine with render, process, and clear slots
-- effect-boxes handles the layout and styling (Box composition + Ansi annotations)
-- `Cmd` module handles terminal control (clearing lines, cursor visibility)
-- Keeping `renderLayout` pure makes it testable without terminal interaction
-- The same layout function renders both the active and submitted states
+## Complete example
 
-The pattern scales to more complex prompts (multi-select, text input, nested
-menus) by changing the state type and adding more input handlers. See
-the [Using Reactive](/guides/using-reactive) guide for how position tracking
-enables cursor-based navigation in larger layouts.
-
-## TL;DR Full Example
+Copy this file without adding the step snippets again. It contains one
+`NodeRuntime.runMain` call.
 
 <Collapsible>
 <CollapsibleTrigger className="inline-flex w-full items-center gap-2 text-sm font-semibold cursor-pointer py-2 hover:text-primary transition-colors [&>svg]:shrink-0 [&>svg]:transition-transform [&[data-panel-open]>svg]:rotate-90">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-<span>Just show me all the code.</span>
+<span>Show the complete example</span>
 </CollapsibleTrigger>
 <CollapsibleContent>
 
-```typescript showLineNumbers title="SelectPrompt.ts"
-import { Data, Effect, Match } from "effect";
+```typescript check showLineNumbers title="SelectPrompt.ts"
+import { Data, Effect, Match, Terminal } from "effect";
 import { Prompt } from "effect/cli";
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
 import { Ansi, Box, Cmd } from "effect-boxes";
 
 type Choice<A> = {
-  title: string;
-  value: A;
+  readonly title: string;
+  readonly value: A;
 };
 
-const choices: Choice<string>[] = [
+const choices: ReadonlyArray<Choice<string>> = [
   { title: "React", value: "react" },
   { title: "Vue", value: "vue" },
   { title: "Svelte", value: "svelte" },
@@ -271,7 +272,10 @@ const choices: Choice<string>[] = [
 
 const Action = Data.taggedEnum<Prompt.ActionDefinition>();
 
-const renderLayout = (cursor: number, submitted: boolean) => {
+const renderLayout = (
+  cursor: number,
+  submitted: boolean
+): Box.Box<Ansi.AnsiStyle> => {
   const label = Box.text("Select a framework").pipe(Box.annotate(Ansi.bold));
 
   if (submitted) {
@@ -287,72 +291,90 @@ const renderLayout = (cursor: number, submitted: boolean) => {
     );
   }
 
-  const items = choices.map((choice, i) => {
-    const isSelected = i === cursor;
-    const indicator = Box.char(isSelected ? "⏵" : " ").pipe(
+  const items = choices.map((choice, index) => {
+    const selected = index === cursor;
+    const indicator = Box.char(selected ? "⏵" : " ").pipe(
       Box.annotate(Ansi.cyan)
     );
     const title = Box.text(choice.title).pipe(
-      Box.annotate(isSelected ? Ansi.bold : Ansi.dim)
+      Box.annotate(selected ? Ansi.bold : Ansi.dim)
     );
-    return Box.hsep([indicator, title], 1, Box.left);
+    return Box.hsep([indicator, title], 1, Box.top);
   });
-
-  const content = Box.vcat([label, Box.vcat(items, Box.left)], Box.left);
-  return content;
+  const chrome = Box.vcat([label, ...items], Box.left).pipe(
+    Box.pad(0, 1),
+    Box.border("thick", { sides: { top: false, bottom: false, right: false } })
+  );
+  const hint = Box.text("↓ down • ↑ up • enter select").pipe(
+    Box.annotate(Ansi.dim),
+    Box.moveRight(2)
+  );
+  return Box.vcat([chrome, Box.emptyBox(1, 0), hint], Box.left);
 };
 
-let hasRendered = false;
+const handlers: Prompt.Handlers<number, string> = {
+  render: (cursor, action) =>
+    Effect.succeed(
+      Action.$match(action, {
+        NextFrame: () =>
+          Box.renderPrettySync(Cmd.cursorHide) +
+          Box.renderPrettySync(renderLayout(cursor, false)).replaceAll(
+            "\n",
+            "\r\n"
+          ) +
+          Box.renderPrettySync(Cmd.cursorNextLine(1)),
+        Submit: () =>
+          Box.renderPrettySync(renderLayout(cursor, true)) +
+          Box.renderPrettySync(Cmd.cursorNextLine(1)),
+        Beep: () => "\u0007",
+      })
+    ),
+  process: (input, cursor) =>
+    Effect.succeed(
+      Match.value(input).pipe(
+        Match.when({ key: { name: "down" } }, () =>
+          Action.NextFrame({ state: (cursor + 1) % choices.length })
+        ),
+        Match.when({ key: { name: "up" } }, () =>
+          Action.NextFrame({
+            state: (cursor - 1 + choices.length) % choices.length,
+          })
+        ),
+        Match.when({ key: { name: "return" } }, () => {
+          const selected = choices[cursor];
+          return selected
+            ? Action.Submit({ value: selected.value })
+            : Action.Beep();
+        }),
+        Match.orElse(() => Action.NextFrame({ state: cursor }))
+      )
+    ),
+  clear: (cursor) =>
+    Box.renderPretty(Cmd.clearLines(renderLayout(cursor, false).rows + 1)),
+};
 
-const select = Prompt.Custom<number, string>(0, {
-  render: Effect.fnUntraced(function* (cursor, action) {
-    const layout = Action.$match(action, {
-      Submit: () => renderLayout(cursor, true),
-      default: () => renderLayout(cursor, false),
-    });
-
-    const clear = hasRendered
-      ? Cmd.clearLines(renderLayout(cursor, false).rows)
-      : Cmd.cursorHide;
-    hasRendered = true;
-
-    const cmds =
-      action._tag === "Submit"
-        ? Box.combine(Cmd.cursorShow, Cmd.cursorNextLine(1))
-        : Cmd.cursorHide;
-
-    return yield* Box.renderPretty(
-      Box.combine(clear, layout.pipe(Box.combine(cmds)))
-    );
-  }),
-  process: Effect.fnUntraced(function* (input, cursor) {
-    return Match.value(input).pipe(
-      Match.when({ key: "down" }, () =>
-        Action.NextFrame({ state: (cursor + 1) % choices.length })
-      ),
-      Match.when({ key: "up" }, () =>
-        Action.NextFrame({
-          state: (cursor - 1 + choices.length) % choices.length,
-        })
-      ),
-      Match.when({ key: "return" }, () => {
-        const selected = choices[cursor];
-        if (selected) return Action.Submit({ value: selected.value });
-        return Action.Beep();
-      }),
-      Match.orElse(() => Action.NextFrame({ state: cursor }))
-    );
-  }),
-  clear: () => Effect.succeed(""),
-});
+const select = Prompt.Custom(0, handlers);
 
 const program = Effect.gen(function* () {
   const result = yield* select;
-  yield* Effect.log(`You chose: ${result}`);
-});
+  const terminal = yield* Terminal.Terminal;
+  yield* terminal.display(`You chose: ${result}\r\n`);
+}).pipe(
+  Effect.catchTag("QuitError", () =>
+    Effect.gen(function* () {
+      const terminal = yield* Terminal.Terminal;
+      yield* terminal.display("Cancelled.\r\n");
+    })
+  )
+);
 
 NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)));
 ```
 
 </CollapsibleContent>
 </Collapsible>
+
+## Next steps
+
+Change the choice titles and values, then run the prompt again.
+For layouts that update individual regions, read [Using Reactive](/guides/using-reactive).

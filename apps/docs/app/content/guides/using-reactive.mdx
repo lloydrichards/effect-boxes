@@ -1,147 +1,245 @@
 import * as Box from "effect-boxes/Box";
 import * as Reactive from "effect-boxes/Reactive";
 import * as Ansi from "effect-boxes/Ansi";
-import { pipe, Option, HashMap } from "effect";
+import { HashMap, Option } from "effect";
 
 # Using Reactive
 
-The `Reactive` module adds position tracking to boxes. Annotate any box with
-a string ID, then after layout you can query where it ended up: row, column,
-width, and height. This is useful for cursor navigation, hit-testing, and
-targeted updates in interactive terminal applications.
+Track a box by ID to find its row, column, height, and width after composition. Use those positions to navigate or update an interactive terminal layout. Reactive does not run an event loop or write to a terminal.
 
-## Making a box reactive
+Every fenced TypeScript example is complete. After [installing the dependencies](/getting-started), save one as `example.ts` and run `bun run example.ts` with Bun or `npx tsx example.ts` with Node. The final terminal program also needs `@effect/platform-node@^4`.
 
-Use `Reactive.makeReactive` to tag a box with an ID:
+## Track a region without losing its style
 
-export const outBasic = Box.renderPrettySync(
-  Box.vcat(
-    [
-      Reactive.makeReactive(Box.text("Header"), "header"),
-      Box.text("Content"),
-      Reactive.makeReactive(Box.text("Footer"), "footer"),
-    ],
-    Box.left
-  )
-);
+`Reactive.makeReactive` replaces the root annotation. To keep a styled box, place it inside a new composition and track that wrapper. The child retains its green style.
+
+export const outStyled = (() => {
+  const styled = Box.annotate(Box.text("Ready"), Ansi.green);
+  const tracked = Reactive.makeReactive(Box.hcat([styled], Box.top), "status");
+  const output = Box.renderPrettySync(tracked);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outStyled} />
+
+```typescript check preview=outStyled result=output showLineNumbers
 import * as Box from "effect-boxes/Box";
-import * as Reactive from "effect-boxes/Reactive";
-
-const layout = Box.vcat(
-  [
-    Reactive.makeReactive(Box.text("Header"), "header"),
-    Box.text("Content"),
-    Reactive.makeReactive(Box.text("Footer"), "footer"),
-  ],
-  Box.left
-);
-```
-
-<AnsiTerminal input={outBasic} />
-</CodeExample>
-
-The layout renders identically. Reactive annotations don't affect appearance,
-they only enable position queries after composition.
-
-## Querying positions
-
-Call `Reactive.getPositions` on any composed box to get a `HashMap` of IDs
-to their calculated positions:
-
-```typescript
-import { HashMap } from "effect";
-import * as Reactive from "effect-boxes/Reactive";
-
-const positions = Reactive.getPositions(layout);
-
-const headerPos = HashMap.get(positions, "header");
-// Some({ row: 0, col: 0, rows: 1, cols: 6 })
-
-const footerPos = HashMap.get(positions, "footer");
-// Some({ row: 2, col: 0, rows: 1, cols: 6 })
-```
-
-Positions are 0-based and reflect the final layout after all alignment,
-padding, and composition has been resolved.
-
-## Cursor navigation
-
-Once you know where a reactive box is, use `cursorToReactive` to generate
-an ANSI cursor-movement command:
-
-```typescript
-import * as Reactive from "effect-boxes/Reactive";
-import { pipe, Option } from "effect";
-
-const positions = Reactive.getPositions(layout);
-const moveCmd = Reactive.cursorToReactive(positions, "footer");
-
-pipe(
-  moveCmd,
-  Option.match({
-    onNone: () => console.log("ID not found"),
-    onSome: (cmd) => {
-      // cmd is a Box<AnsiStyle> containing cursor movement escape codes
-      console.log(Box.renderPrettySync(cmd));
-    },
-  })
-);
-```
-
-Returns `Option.none()` if the ID doesn't exist in the position map, so
-it's safe to use without runtime errors.
-
-## Practical example: highlight active item
-
-Combine reactive positions with `Cmd` to update a specific region without
-re-rendering the entire layout:
-
-```typescript
-import * as Box from "effect-boxes/Box";
-import * as Cmd from "effect-boxes/Cmd";
 import * as Reactive from "effect-boxes/Reactive";
 import * as Ansi from "effect-boxes/Ansi";
-import { pipe, Option } from "effect";
 
-// Build a menu with reactive items
+const styled = Box.annotate(Box.text("Ready"), Ansi.green);
+const tracked = Reactive.makeReactive(Box.hcat([styled], Box.top), "status");
+const output = Box.renderPrettySync(tracked);
+console.log(output);
+```
+
+</CodeExample>
+
+## Inspect positions after layout
+
+`getPositions` returns an Effect `HashMap`. Handle missing IDs with `Option`. The following preview shows the exact bounds of the green status text inside its border.
+
+export const outPositions = (() => {
+  const styled = Box.annotate(Box.text("Ready"), Ansi.green);
+  const tracked = Reactive.makeReactive(Box.hcat([styled], Box.top), "status");
+  const layout = Box.border(tracked, "single");
+  const positions = Reactive.getPositions(layout);
+  const bounds = Option.match(HashMap.get(positions, "status"), {
+    onNone: () => "Status not found",
+    onSome: (position) =>
+      `row=${position.row}, col=${position.col}, rows=${position.rows}, cols=${position.cols}`,
+  });
+  const output = `${Box.renderPrettySync(layout)}\n${bounds}`;
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outPositions} />
+
+```typescript check preview=outPositions result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Reactive from "effect-boxes/Reactive";
+import * as Ansi from "effect-boxes/Ansi";
+import { HashMap, Option } from "effect";
+
+const styled = Box.annotate(Box.text("Ready"), Ansi.green);
+const tracked = Reactive.makeReactive(Box.hcat([styled], Box.top), "status");
+const layout = Box.border(tracked, "single");
+const positions = Reactive.getPositions(layout);
+const bounds = Option.match(HashMap.get(positions, "status"), {
+  onNone: () => "Status not found",
+  onSome: (position) =>
+    `row=${position.row}, col=${position.col}, rows=${position.rows}, cols=${position.cols}`,
+});
+const output = `${Box.renderPrettySync(layout)}\n${bounds}`;
+console.log(output);
+```
+
+</CodeExample>
+
+Rows and columns are zero-based and relative to the top-left corner of the supplied layout. Recompute positions after resizing or changing the layout.
+
+Use unique IDs with `getPositions`. If an ID occurs more than once, this map retains only the last visited occurrence. Zero-height or zero-width boxes, and their descendants, contribute no positions.
+
+For overlapping or clipped layouts, resolve a frame with `Renderer.resolve` and query `Reactive.getRegion`. That API preserves every occurrence and its visible fragments. Use `Reactive.hitTest` for cells in the resolved frame. See [Render overlapping boxes](/guides/stacking-boxes) and the [Reactive API reference](/api/reactive).
+
+## Preview a bounded menu update
+
+Each menu row is exactly eight columns wide. The selected row replaces the first two spaces with `> `, so selecting Edit does not overwrite adjacent content.
+
+The first snapshot is the initial menu:
+
+export const outBefore = (() => {
+  const menu = Box.vcat(
+    [
+      Reactive.makeReactive(Box.text("  File  "), "file"),
+      Reactive.makeReactive(Box.text("  Edit  "), "edit"),
+      Reactive.makeReactive(Box.text("  View  "), "view"),
+    ],
+    Box.left
+  );
+  const output = Box.renderPrettySync(menu);
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outBefore} />
+
+```typescript check preview=outBefore result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Reactive from "effect-boxes/Reactive";
+
 const menu = Box.vcat(
   [
-    Reactive.makeReactive(Box.text("  File  "), "item-0"),
-    Reactive.makeReactive(Box.text("  Edit  "), "item-1"),
-    Reactive.makeReactive(Box.text("  View  "), "item-2"),
+    Reactive.makeReactive(Box.text("  File  "), "file"),
+    Reactive.makeReactive(Box.text("  Edit  "), "edit"),
+    Reactive.makeReactive(Box.text("  View  "), "view"),
   ],
   Box.left
 );
-
-// Get positions after layout
-const positions = Reactive.getPositions(menu);
-
-// Highlight item at index 1
-const highlightItem = (index: number) => {
-  const id = `item-${index}`;
-  return pipe(
-    Reactive.cursorToReactive(positions, id),
-    Option.map((moveCmd) =>
-      Box.combine(moveCmd, Box.text("> Active <").pipe(Box.annotate(Ansi.bold)))
-    )
-  );
-};
+const output = Box.renderPrettySync(menu);
+console.log(output);
 ```
 
-## When to use Reactive
+</CodeExample>
 
-- Interactive prompts, to track menu items for keyboard navigation
-- Dashboards, to update individual panels without full re-render
-- Forms, to map cursor position to input fields
+The second snapshot shows the menu after the Edit row is selected. It is a separately rendered final state, not an emulation of cursor commands.
 
-Reactive annotations compose with other annotations. A box can be both
-styled with `Ansi` and tracked with `Reactive` by nesting compositions.
+export const outAfter = (() => {
+  const selected = Box.annotate(Box.text("> Edit  "), Ansi.bold);
+  const menu = Box.vcat(
+    [Box.text("  File  "), selected, Box.text("  View  ")],
+    Box.left
+  );
+  const output = Box.renderPrettySync(menu);
+  return output;
+})();
 
-## API reference
+<CodeExample>
 
-See the full [Reactive API reference](/api/reactive) for type signatures
-and additional utilities.
+<AnsiTerminal input={outAfter} />
+
+```typescript check preview=outAfter result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const selected = Box.annotate(Box.text("> Edit  "), Ansi.bold);
+const menu = Box.vcat(
+  [Box.text("  File  "), selected, Box.text("  View  ")],
+  Box.left
+);
+const output = Box.renderPrettySync(menu);
+console.log(output);
+```
+
+</CodeExample>
+
+## Write the targeted update to a terminal
+
+`cursorToReactive` creates an absolute terminal cursor command from layout-relative coordinates. Those coordinates are correct only when the layout starts at terminal row zero and column zero. For another origin, add its row and column to the tracked position and pass them to `Cmd.cursorTo`.
+
+Install the Node platform package below and save this complete program as `menu.ts`. Use an ANSI terminal at least eight columns wide and three rows tall. Run `bun run menu.ts` with Bun or `npx tsx menu.ts` with Node. It enters the alternate screen, paints the menu at the origin, and updates only the Edit row.
+
+```sh
+npm install effect-boxes "effect@^4" "@effect/platform-node@^4"
+```
+
+```typescript check showLineNumbers
+import { Effect, HashMap, Option, Terminal } from "effect";
+import { NodeRuntime, NodeTerminal } from "@effect/platform-node";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Cmd from "effect-boxes/Cmd";
+import * as Reactive from "effect-boxes/Reactive";
+
+const menu = Box.vcat(
+  [
+    Reactive.makeReactive(Box.text("  File  "), "file"),
+    Reactive.makeReactive(Box.text("  Edit  "), "edit"),
+    Reactive.makeReactive(Box.text("  View  "), "view"),
+  ],
+  Box.left
+);
+const positions = Reactive.getPositions(menu);
+const selected = Box.annotate(Box.text("> Edit  "), Ansi.bold);
+const setup = Box.renderPrettySync(
+  Box.combineAll([
+    Cmd.altScreenEnter,
+    Cmd.cursorHide,
+    Cmd.clearScreen,
+    Cmd.home,
+  ])
+);
+const teardown = Box.renderPrettySync(
+  Box.combineAll([Cmd.altScreenLeave, Cmd.cursorShow])
+);
+
+const program = Effect.gen(function* () {
+  const terminal = yield* Terminal.Terminal;
+  yield* Effect.acquireUseRelease(
+    Effect.void,
+    () =>
+      Effect.gen(function* () {
+        yield* terminal.display(setup);
+        yield* terminal.display(Box.renderPrettySync(menu));
+        yield* Effect.sleep("500 millis");
+        const update = Option.flatMap(
+          HashMap.get(positions, "edit"),
+          (position) => {
+            if (
+              selected.rows !== position.rows ||
+              selected.cols !== position.cols
+            ) {
+              return Option.none();
+            }
+            return Option.map(
+              Reactive.cursorToReactive(positions, "edit"),
+              (move) => Box.renderPrettySync(Box.combineAll([move, selected]))
+            );
+          }
+        );
+        yield* Option.match(update, {
+          onNone: () =>
+            Effect.fail(
+              new Error("Edit region is missing or has different dimensions")
+            ),
+          onSome: (command) => terminal.display(command),
+        });
+        yield* Effect.sleep("500 millis");
+      }),
+    () => terminal.display(teardown)
+  );
+});
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeTerminal.layer)));
+```
+
+`terminal.display` writes the exact string without an extra newline. `console.log` would add a newline and move the cursor after every write. `acquireUseRelease` restores the main screen and cursor when the body succeeds, fails, or is interrupted.
+
+Keep exclusive control of the terminal during the update. Wrapping, scrolling, or another writer can invalidate the coordinates. The dimensions check protects this ASCII example; use layout measurements rather than JavaScript string length for wide characters. To replace shorter text, pad it to the full tracked width so old characters disappear.
+
+For input handling and repeated redraws, continue with [Select prompt](/tutorials/select-prompt). For terminal control and cleanup, see [Using Cmd](/guides/using-cmd).

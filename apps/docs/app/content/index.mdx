@@ -1,37 +1,38 @@
 # effect-boxes
 
-A functional text layout library for composing terminal UI with Effect.
+Compose rectangular text layouts for terminals and HTML with Effect.
+Place text beside other text, align it, add borders, and apply styling through annotations.
+All layout operations return new boxes without changing the originals.
 
-Build complex text layouts by composing simple, pure functions. Leverage
-Effect's utilities for type-safe, pipeable box operations with ANSI rendering
-support.
+## Render your first box
 
-## Features
-
-- **Pure functional composition** — all operations return new values
-- **Effect integration** — Pipeable, Equal, Hash interfaces
-- **ANSI rendering** — terminal output with color and styling
-- **Annotation system** — attach metadata to box regions
-- **Flexible alignment** — horizontal and vertical composition with alignment control
-
-## Installation
+Install the library and its Effect 4 peer dependency:
 
 ```bash
-npm install effect-boxes
+npm install effect-boxes "effect@^4"
 ```
 
-## Quick Example
-
-```typescript
+```typescript check showLineNumbers
 import * as Box from "effect-boxes/Box";
-import { pipe } from "effect";
 
-const layout = pipe(
-  Box.text("Hello, World!"),
-  Box.moveRight(5),
-  Box.moveDown(2),
-  Box.alignHoriz(Box.center1, 40)
-);
-
-console.log(Box.render(layout));
+const greeting = Box.text("Hello, World!");
+console.log(Box.renderPlainSync(greeting));
+// Hello, World!
 ```
+
+`Box.renderPlainSync` returns a string without setting up an Effect runtime.
+For styled terminal output, use `Box.renderPrettySync`.
+
+## Choose where to start
+
+- **Build your first text layout.** Read [What is Box?](/what-is-box), follow
+  [Getting started](/getting-started), and continue with [Using Box](/guides/using-box).
+  The [Directory tree tutorial](/tutorials/directory-tree) puts composition and styling together.
+- **Build an interactive terminal tool.** After [Rendering](/guides/rendering),
+  read [Using Cmd](/guides/using-cmd) and build the [Select prompt](/tutorials/select-prompt).
+  [Using Reactive](/guides/using-reactive) explains position tracking.
+- **Render HTML.** Start with [Using Box](/guides/using-box) and
+  [Using Annotation](/guides/using-annotation), then follow [Using Html](/guides/using-html).
+  [Rendering](/guides/rendering) explains how renderer layers select the output target.
+- **Look up an operation.** Open the [Box API reference](/api/box), or choose a module
+  under API reference in the sidebar. [Architecture](/architecture) explains the internal tree and renderers.

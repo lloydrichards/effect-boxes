@@ -1,270 +1,392 @@
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
-import { pipe } from "effect";
 
 # Using Ansi
 
-The `Ansi` module provides terminal styling — colors, backgrounds, and text
-effects like bold and underline. It works through the
-[annotation system](/guides/using-annotation), attaching `AnsiStyle` data to
-boxes that renderers convert into ANSI escape sequences.
+Style terminal output with colors, backgrounds, and text effects. `Ansi` annotations describe the style; the ANSI renderer converts them into escape sequences without changing the box's dimensions.
 
-## Text Colors
+Every example below is complete. After [installing the dependencies](/getting-started), save one as `example.ts` and run `bun run example.ts` with Bun or `npx tsx example.ts` with Node. The previews show the string produced by the displayed code.
 
-export const outColors = Box.renderPrettySync(
-  Box.vcat(
-    [
-      pipe(Box.text("Red text"), Box.annotate(Ansi.red)),
-      pipe(Box.text("Green text"), Box.annotate(Ansi.green)),
-      pipe(Box.text("Blue text"), Box.annotate(Ansi.blue)),
-      pipe(Box.text("Yellow text"), Box.annotate(Ansi.yellow)),
-      pipe(Box.text("Magenta text"), Box.annotate(Ansi.magenta)),
-      pipe(Box.text("Cyan text"), Box.annotate(Ansi.cyan)),
-    ],
-    Box.left
-  )
-);
+## Apply text colors
+
+Attach an `Ansi` style with `Box.annotate`, then render the layout with `Box.renderPrettySync`. The preview shows every line created by the example.
+
+export const outColors = (() => {
+  const colors = [
+    Box.annotate(Box.text("Red text"), Ansi.red),
+    Box.annotate(Box.text("Green text"), Ansi.green),
+    Box.annotate(Box.text("Blue text"), Ansi.blue),
+    Box.annotate(Box.text("Yellow text"), Ansi.yellow),
+    Box.annotate(Box.text("Magenta text"), Ansi.magenta),
+    Box.annotate(Box.text("Cyan text"), Ansi.cyan),
+  ];
+  const output = Box.renderPrettySync(Box.vcat(colors, Box.left));
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-import { pipe } from "effect";
-
-const red = pipe(Box.text("Red text"), Box.annotate(Ansi.red));
-const green = pipe(Box.text("Green text"), Box.annotate(Ansi.green));
-const blue = pipe(Box.text("Blue text"), Box.annotate(Ansi.blue));
-```
 
 <AnsiTerminal input={outColors} />
+
+```typescript check preview=outColors result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const colors = [
+  Box.annotate(Box.text("Red text"), Ansi.red),
+  Box.annotate(Box.text("Green text"), Ansi.green),
+  Box.annotate(Box.text("Blue text"), Ansi.blue),
+  Box.annotate(Box.text("Yellow text"), Ansi.yellow),
+  Box.annotate(Box.text("Magenta text"), Ansi.magenta),
+  Box.annotate(Box.text("Cyan text"), Ansi.cyan),
+];
+const output = Box.renderPrettySync(Box.vcat(colors, Box.left));
+console.log(output);
+```
+
 </CodeExample>
 
-Available standard colors: `black`, `red`, `green`, `yellow`, `blue`,
-`magenta`, `cyan`, `white`. Each also has a bright variant: `brightRed`,
-`brightGreen`, etc.
+Standard foreground colors are `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, and `white`. Each has a bright variant, such as `brightRed` or `brightWhite`. `fgDefault` selects the terminal's default foreground. The terminal theme determines the exact standard colors.
 
-## Background Colors
+## Apply background colors
 
-export const outBg = Box.renderPrettySync(
-  Box.vcat(
-    [
-      pipe(
-        Box.text(" Warning "),
-        Box.annotate(Ansi.combine(Ansi.black, Ansi.bgYellow))
-      ),
-      pipe(
-        Box.text(" Error   "),
-        Box.annotate(Ansi.combine(Ansi.white, Ansi.bgRed))
-      ),
-      pipe(
-        Box.text(" Info    "),
-        Box.annotate(Ansi.combine(Ansi.white, Ansi.bgBlue))
-      ),
-    ],
-    Box.left
-  )
-);
+Combine a foreground and a background to keep the label readable.
+
+export const outBg = (() => {
+  const labels = [
+    Box.annotate(
+      Box.text(" Warning "),
+      Ansi.combine(Ansi.black, Ansi.bgYellow)
+    ),
+    Box.annotate(Box.text(" Error "), Ansi.combine(Ansi.white, Ansi.bgRed)),
+    Box.annotate(Box.text(" Info "), Ansi.combine(Ansi.white, Ansi.bgBlue)),
+  ];
+  const output = Box.renderPrettySync(Box.vcat(labels, Box.left));
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-const warning = pipe(
-  Box.text(" Warning "),
-  Box.annotate(Ansi.combine(Ansi.black, Ansi.bgYellow))
-);
-
-const error = pipe(
-  Box.text(" Error   "),
-  Box.annotate(Ansi.combine(Ansi.white, Ansi.bgRed))
-);
-```
 
 <AnsiTerminal input={outBg} />
+
+```typescript check preview=outBg result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const labels = [
+  Box.annotate(Box.text(" Warning "), Ansi.combine(Ansi.black, Ansi.bgYellow)),
+  Box.annotate(Box.text(" Error "), Ansi.combine(Ansi.white, Ansi.bgRed)),
+  Box.annotate(Box.text(" Info "), Ansi.combine(Ansi.white, Ansi.bgBlue)),
+];
+const output = Box.renderPrettySync(Box.vcat(labels, Box.left));
+console.log(output);
+```
+
 </CodeExample>
 
-Background colors follow the same naming: `bgBlack`, `bgRed`, `bgGreen`,
-`bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite`, plus bright variants.
+Background names use the `bg` prefix, such as `bgRed` and `bgWhite`. Bright backgrounds use `bgBrightRed` and `bgBrightWhite`. `bgDefault` selects the terminal's default background.
 
-## Text Effects
+## Apply text effects
 
-export const outEffects = Box.renderPrettySync(
-  Box.vcat(
-    [
-      pipe(Box.text("Bold text"), Box.annotate(Ansi.bold)),
-      pipe(Box.text("Dim text"), Box.annotate(Ansi.dim)),
-      pipe(Box.text("Italic text"), Box.annotate(Ansi.italic)),
-      pipe(Box.text("Underlined text"), Box.annotate(Ansi.underlined)),
-      pipe(Box.text("Strike"), Box.annotate(Ansi.strikethrough)),
-    ],
-    Box.left
-  )
-);
+Use text effects alongside words that communicate the meaning. Terminal support for individual effects varies.
+
+export const outEffects = (() => {
+  const effects = [
+    Box.annotate(Box.text("Bold text"), Ansi.bold),
+    Box.annotate(Box.text("Dim text"), Ansi.dim),
+    Box.annotate(Box.text("Italic text"), Ansi.italic),
+    Box.annotate(Box.text("Underlined text"), Ansi.underlined),
+    Box.annotate(Box.text("Strike"), Ansi.strikethrough),
+  ];
+  const output = Box.renderPrettySync(Box.vcat(effects, Box.left));
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-const bold = pipe(Box.text("Bold text"), Box.annotate(Ansi.bold));
-const dim = pipe(Box.text("Dim text"), Box.annotate(Ansi.dim));
-const italic = pipe(Box.text("Italic text"), Box.annotate(Ansi.italic));
-const underlined = pipe(Box.text("Underlined"), Box.annotate(Ansi.underlined));
-const strike = pipe(Box.text("Strike"), Box.annotate(Ansi.strikethrough));
-```
 
 <AnsiTerminal input={outEffects} />
+
+```typescript check preview=outEffects result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const effects = [
+  Box.annotate(Box.text("Bold text"), Ansi.bold),
+  Box.annotate(Box.text("Dim text"), Ansi.dim),
+  Box.annotate(Box.text("Italic text"), Ansi.italic),
+  Box.annotate(Box.text("Underlined text"), Ansi.underlined),
+  Box.annotate(Box.text("Strike"), Ansi.strikethrough),
+];
+const output = Box.renderPrettySync(Box.vcat(effects, Box.left));
+console.log(output);
+```
+
 </CodeExample>
 
-## Combining Styles
+The module also provides `blink`, `inverse`, `hidden`, and `overline`. These effects depend on terminal support; hidden text is still present in the output string.
 
-Use `Ansi.combine` to merge multiple styles into one annotation. Conflicts
-resolve with a last-wins strategy:
+## Combine styles
 
-export const outCombined = Box.renderPrettySync(
-  Box.vcat(
-    [
-      pipe(
-        Box.text(" CRITICAL "),
-        Box.annotate(Ansi.combine(Ansi.bold, Ansi.white, Ansi.bgRed))
-      ),
-      pipe(
-        Box.text(" SUCCESS  "),
-        Box.annotate(Ansi.combine(Ansi.bold, Ansi.white, Ansi.bgGreen))
-      ),
-      pipe(
-        Box.text(" PENDING  "),
-        Box.annotate(Ansi.combine(Ansi.bold, Ansi.underlined, Ansi.yellow))
-      ),
-    ],
-    Box.left
-  )
-);
+`Ansi.combine` keeps one foreground color and one background color. When colors conflict, the last color wins. Different text effects can coexist.
+
+export const outCombined = (() => {
+  const labels = [
+    Box.annotate(
+      Box.text(" CRITICAL "),
+      Ansi.combine(Ansi.bold, Ansi.white, Ansi.bgRed)
+    ),
+    Box.annotate(
+      Box.text(" SUCCESS "),
+      Ansi.combine(Ansi.bold, Ansi.white, Ansi.bgGreen)
+    ),
+    Box.annotate(
+      Box.text(" PENDING "),
+      Ansi.combine(Ansi.bold, Ansi.underlined, Ansi.yellow)
+    ),
+    Box.annotate(
+      Box.text("Last foreground wins: green"),
+      Ansi.combine(Ansi.red, Ansi.green)
+    ),
+  ];
+  const output = Box.renderPrettySync(Box.vcat(labels, Box.left));
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-const critical = pipe(
-  Box.text(" CRITICAL "),
-  Box.annotate(Ansi.combine(Ansi.bold, Ansi.white, Ansi.bgRed))
-);
-
-const success = pipe(
-  Box.text(" SUCCESS "),
-  Box.annotate(Ansi.combine(Ansi.bold, Ansi.white, Ansi.bgGreen))
-);
-
-const pending = pipe(
-  Box.text(" PENDING "),
-  Box.annotate(Ansi.combine(Ansi.bold, Ansi.underlined, Ansi.yellow))
-);
-```
 
 <AnsiTerminal input={outCombined} />
+
+```typescript check preview=outCombined result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const labels = [
+  Box.annotate(
+    Box.text(" CRITICAL "),
+    Ansi.combine(Ansi.bold, Ansi.white, Ansi.bgRed)
+  ),
+  Box.annotate(
+    Box.text(" SUCCESS "),
+    Ansi.combine(Ansi.bold, Ansi.white, Ansi.bgGreen)
+  ),
+  Box.annotate(
+    Box.text(" PENDING "),
+    Ansi.combine(Ansi.bold, Ansi.underlined, Ansi.yellow)
+  ),
+  Box.annotate(
+    Box.text("Last foreground wins: green"),
+    Ansi.combine(Ansi.red, Ansi.green)
+  ),
+];
+const output = Box.renderPrettySync(Box.vcat(labels, Box.left));
+console.log(output);
+```
+
 </CodeExample>
 
-## Extended Colors
+Calling `Box.annotate` again on the same box replaces its root annotation. Combine styles before attaching them to preserve both.
 
-### 256-Color Palette
+## Use the 256-color palette
 
-Use `Ansi.color256(n)` and `Ansi.bgColor256(n)` for the extended 256-color
-palette (0-255):
+Pass a palette index from 0 through 255 to `Ansi.color256` or `Ansi.bgColor256`. Use integer indices; out-of-range values are clamped to that range.
 
-export const out256 = Box.renderPrettySync(
-  Box.hcat(
-    Array.from({ length: 12 }, (_, i) =>
-      pipe(Box.text(" "), Box.annotate(Ansi.bgColor256(i * 20)))
+export const out256 = (() => {
+  const colors = [
+    Box.annotate(Box.text("Purple foreground: 129"), Ansi.color256(129)),
+    Box.annotate(
+      Box.text(" Teal background: 30 "),
+      Ansi.combine(Ansi.white, Ansi.bgColor256(30))
     ),
-    Box.top
-  )
-);
+  ];
+  const output = Box.renderPrettySync(Box.vcat(colors, Box.left));
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-const purple = pipe(Box.text("Purple"), Box.annotate(Ansi.color256(129)));
-const teal = pipe(Box.text("Teal"), Box.annotate(Ansi.bgColor256(30)));
-```
 
 <AnsiTerminal input={out256} />
+
+```typescript check preview=out256 result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const colors = [
+  Box.annotate(Box.text("Purple foreground: 129"), Ansi.color256(129)),
+  Box.annotate(
+    Box.text(" Teal background: 30 "),
+    Ansi.combine(Ansi.white, Ansi.bgColor256(30))
+  ),
+];
+const output = Box.renderPrettySync(Box.vcat(colors, Box.left));
+console.log(output);
+```
+
 </CodeExample>
 
-### True Color (RGB)
+## Use RGB colors
 
-For full 24-bit color, use `Ansi.colorRGB(r, g, b)` and `Ansi.bgColorRGB(r, g, b)`:
+Use `Ansi.colorRGB` and `Ansi.bgColorRGB` for 24-bit color. Pass integer red, green, and blue channels from 0 through 255. Each channel is clamped to that range.
 
-export const outRgb = Box.renderPrettySync(
-  Box.vcat(
-    [
-      pipe(Box.text("Orange text"), Box.annotate(Ansi.colorRGB(255, 165, 0))),
-      pipe(Box.text("Custom teal"), Box.annotate(Ansi.colorRGB(0, 200, 180))),
-      pipe(
-        Box.text(" Gradient background "),
-        Box.annotate(Ansi.combine(Ansi.white, Ansi.bgColorRGB(80, 40, 120)))
-      ),
-    ],
-    Box.left
-  )
-);
+export const outRgb = (() => {
+  const colors = [
+    Box.annotate(Box.text("Orange text"), Ansi.colorRGB(255, 165, 0)),
+    Box.annotate(Box.text("Custom teal"), Ansi.colorRGB(0, 200, 180)),
+    Box.annotate(
+      Box.text(" Purple background "),
+      Ansi.combine(Ansi.white, Ansi.bgColorRGB(80, 40, 120))
+    ),
+  ];
+  const output = Box.renderPrettySync(Box.vcat(colors, Box.left));
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-const orange = pipe(
-  Box.text("Orange text"),
-  Box.annotate(Ansi.colorRGB(255, 165, 0))
-);
-
-const custom = pipe(
-  Box.text("Custom teal"),
-  Box.annotate(Ansi.colorRGB(0, 200, 180))
-);
-```
 
 <AnsiTerminal input={outRgb} />
+
+```typescript check preview=outRgb result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const colors = [
+  Box.annotate(Box.text("Orange text"), Ansi.colorRGB(255, 165, 0)),
+  Box.annotate(Box.text("Custom teal"), Ansi.colorRGB(0, 200, 180)),
+  Box.annotate(
+    Box.text(" Purple background "),
+    Ansi.combine(Ansi.white, Ansi.bgColorRGB(80, 40, 120))
+  ),
+];
+const output = Box.renderPrettySync(Box.vcat(colors, Box.left));
+console.log(output);
+```
+
 </CodeExample>
 
-### Hex Colors
+Choose extended colors only when the target terminal supports them. The web previews display the requested RGB colors.
 
-Shorthand for RGB using hex strings:
+## Use hex colors
 
-export const outHex = Box.renderPrettySync(
+`Ansi.colorHex` and `Ansi.bgColorHex` accept three or six hexadecimal digits, with an optional `#`. An invalid string throws an error.
+
+export const outHex = (() => {
+  const colors = [
+    Box.annotate(Box.text("Hex foreground"), Ansi.colorHex("#ff6600")),
+    Box.annotate(
+      Box.text(" Hex background "),
+      Ansi.combine(Ansi.white, Ansi.bgColorHex("#333"))
+    ),
+  ];
+  const output = Box.renderPrettySync(Box.vcat(colors, Box.left));
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outHex} />
+
+```typescript check preview=outHex result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const colors = [
+  Box.annotate(Box.text("Hex foreground"), Ansi.colorHex("#ff6600")),
+  Box.annotate(
+    Box.text(" Hex background "),
+    Ansi.combine(Ansi.white, Ansi.bgColorHex("#333"))
+  ),
+];
+const output = Box.renderPrettySync(Box.vcat(colors, Box.left));
+console.log(output);
+```
+
+</CodeExample>
+
+## Nest styles and restore the parent
+
+Style a composed parent to give its children a shared style. A child color overrides the parent color for that child. After the child, the renderer restores the parent style.
+
+export const outNested = (() => {
+  const child = Box.annotate(Box.text("red child"), Ansi.red);
+  const parent = Box.annotate(
+    Box.hcat(
+      [Box.text("Green parent | "), child, Box.text(" | green again")],
+      Box.top
+    ),
+    Ansi.combine(Ansi.bold, Ansi.green)
+  );
+  const output = Box.renderPrettySync(parent);
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outNested} />
+
+```typescript check preview=outNested result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const child = Box.annotate(Box.text("red child"), Ansi.red);
+const parent = Box.annotate(
+  Box.hcat(
+    [Box.text("Green parent | "), child, Box.text(" | green again")],
+    Box.top
+  ),
+  Ansi.combine(Ansi.bold, Ansi.green)
+);
+const output = Box.renderPrettySync(parent);
+console.log(output);
+```
+
+</CodeExample>
+
+The child inherits bold from the parent. See [Using Annotation](/guides/using-annotation) for the difference between nested annotations and replacing an annotation.
+
+## Render styled and plain output
+
+`Box.renderPrettySync` interprets ANSI styles. `Box.renderPlainSync` ignores styles and preserves layout whitespace. Neither function appends a newline. This example displays the styled text, its plain output, and its escaped ANSI representation.
+
+export const outRendering = (() => {
+  const styled = Box.annotate(Box.text("Hello"), Ansi.red);
+  const ansi = Box.renderPrettySync(styled);
+  const plain = Box.renderPlainSync(styled);
+  const output = Box.renderPrettySync(
+    Box.vcat(
+      [
+        styled,
+        Box.text(`Plain: ${plain}`),
+        Box.text(`ANSI: ${JSON.stringify(ansi)}`),
+      ],
+      Box.left
+    )
+  );
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outRendering} />
+
+```typescript check preview=outRendering result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const styled = Box.annotate(Box.text("Hello"), Ansi.red);
+const ansi = Box.renderPrettySync(styled);
+const plain = Box.renderPlainSync(styled);
+const output = Box.renderPrettySync(
   Box.vcat(
     [
-      pipe(Box.text("Hex foreground"), Box.annotate(Ansi.colorHex("#ff6600"))),
-      pipe(
-        Box.text(" Hex background "),
-        Box.annotate(Ansi.combine(Ansi.white, Ansi.bgColorHex("#333333")))
-      ),
+      styled,
+      Box.text(`Plain: ${plain}`),
+      Box.text(`ANSI: ${JSON.stringify(ansi)}`),
     ],
     Box.left
   )
 );
-
-<CodeExample>
-
-```typescript
-const hexFg = pipe(
-  Box.text("Hex foreground"),
-  Box.annotate(Ansi.colorHex("#ff6600"))
-);
-const hexBg = pipe(
-  Box.text(" Hex background "),
-  Box.annotate(Ansi.combine(Ansi.white, Ansi.bgColorHex("#333333")))
-);
+console.log(output);
 ```
 
-<AnsiTerminal input={outHex} />
 </CodeExample>
 
-## Rendering
-
-ANSI annotations are only visible when rendered with `renderPrettySync` or
-the `AnsiRendererLive` layer. Plain rendering strips all styling:
-
-```typescript
-const styled = pipe(Box.text("Hello"), Box.annotate(Ansi.red));
-
-Box.renderPrettySync(styled); // "\x1b[31mHello\x1b[0m\n"
-Box.renderPlainSync(styled); // "Hello\n"
-```
-
-See the [Rendering guide](/guides/rendering) for more on renderer selection.
+For Effect programs, provide `Renderer.AnsiRendererLive` when calling `Renderer.render`. See [Rendering](/guides/rendering) for renderer selection and whitespace options. Use [Cmd](/guides/using-cmd) for cursor movement and terminal control commands.

@@ -1,128 +1,159 @@
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
-import { pipe, Effect } from "effect";
 
-# Rendering
-
-Rendering converts a `Box<A>` into a string. effect-boxes provides three
-levels of rendering depending on your needs: sync convenience functions,
-Effect-based functions, and the full layer-based Renderer service.
-
-## Sync Rendering
-
-The simplest way to render a box. No Effect runtime needed.
-
-export const sampleBox = pipe(Box.text("Hello"), Box.annotate(Ansi.bold));
+export const sampleBox = Box.text("Hello").pipe(Box.annotate(Ansi.bold));
 export const outPlain = Box.renderPlainSync(sampleBox);
 export const outPretty = Box.renderPrettySync(sampleBox);
 
-```typescript
-import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
-import { pipe } from "effect";
+# Rendering
 
-const box = pipe(Box.text("Hello"), Box.annotate(Ansi.bold));
-```
+Render a box to a string before writing it to a terminal, file, or web page.
+Rendering does not write the string. The examples below are complete unless
+marked as continuations.
 
-<CodeExample layout="side-by-side">
+## Render synchronously
 
-```typescript // Strips all annotations — plain text output
-Box.renderPlainSync(box);
-```
+Use `renderPlainSync` for plain text. It strips annotations and preserves
+trailing spaces, including spaces added by layout alignment.
+
+<CodeExample>
 
 <AnsiTerminal input={outPlain} title="renderPlainSync" />
-</CodeExample>
 
-<CodeExample layout="side-by-side">
+```typescript check preview=outPlain result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
 
-```typescript // Preserves ANSI escape codes for terminal display
-Box.renderPrettySync(box);
+const box = Box.text("Hello").pipe(Box.annotate(Ansi.bold));
+const output = Box.renderPlainSync(box); // "Hello"
 ```
 
-<AnsiTerminal input={outPretty} title="renderPrettySync" />
 </CodeExample>
 
-Use `renderPlainSync` when you need raw text (logging, file output, testing).
-Use `renderPrettySync` when displaying in a terminal that supports ANSI codes.
+Use `renderPrettySync` for an ANSI terminal. It interprets `AnsiStyle`
+annotations and removes trailing whitespace from each rendered line.
 
-## Effect-based Rendering
+<CodeExample>
 
-For use within Effect programs. These functions return an `Effect` but do not
-require a Renderer layer — they use a built-in renderer internally.
+<AnsiTerminal input={outPretty} title="renderPrettySync" />
 
-```typescript
+```typescript check preview=outPretty result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const box = Box.text("Hello").pipe(Box.annotate(Ansi.bold));
+const output = Box.renderPrettySync(box); // "\u001b[1mHello\u001b[0m"
+```
+
+</CodeExample>
+
+Neither function appends a newline. `console.log(output)` adds a newline when
+it writes the string. For cursor-controlled output, use a writer that preserves
+the exact string, as shown in [Using Cmd](/guides/using-cmd).
+
+This complete example makes the whitespace difference visible:
+
+```typescript check showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const box = Box.text("Hi").pipe(Box.alignHoriz(Box.left, 5));
+const plain = Box.renderPlainSync(box); // "Hi   "
+const pretty = Box.renderPrettySync(box); // "Hi"
+console.log(JSON.stringify({ plain, pretty }));
+// {"plain":"Hi   ","pretty":"Hi"}
+```
+
+## Render within an Effect program
+
+`renderPlain` and `renderPretty` return an `Effect` with a built-in renderer.
+They have the same whitespace behavior as their synchronous counterparts.
+The Effect must run to produce the string.
+
+```typescript check showLineNumbers
 import { Effect } from "effect";
 import * as Box from "effect-boxes/Box";
 
 const box = Box.text("Hello");
-
-// Plain text as Effect
 const plain: Effect.Effect<string> = Box.renderPlain(box);
-
-// ANSI-styled as Effect
 const pretty: Effect.Effect<string> = Box.renderPretty(box);
 
-// Run them
-Effect.runSync(plain); // "Hello\n"
-Effect.runSync(pretty); // "Hello\n" (with ANSI codes if annotated)
+const plainOutput = Effect.runSync(plain); // "Hello"
+const prettyOutput = Effect.runSync(pretty); // "Hello"
 ```
 
-These are useful when composing rendering into a larger Effect pipeline
-without needing to manage renderer configuration.
+## Configure a renderer layer
 
-## Layer-based Rendering
+Use `Box.render` when the application supplies a renderer. Its default
+`preserveWhitespace` setting is `false`. Set it explicitly when spaces form
+part of the required output.
 
-For full control, use `Box.render` with a Renderer layer. This enables
-dependency injection, custom rendering configuration, and testability.
+```typescript check showLineNumbers
+import { Effect, pipe } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Renderer from "effect-boxes/Renderer";
 
-```typescript
+const box = Box.text("Hello").pipe(Box.alignHoriz(Box.left, 8));
+const program = pipe(
+  Box.render(box, { preserveWhitespace: true }),
+  Effect.provide(Renderer.PlainRendererLive)
+);
+
+const output = Effect.runSync(program); // "Hello   "
+```
+
+`Box.printBox` renders and writes through Effect's console service. It adds a
+newline, so use it for line-oriented output rather than terminal commands.
+This complete example prints one greeting:
+
+```typescript check showLineNumbers
 import { Effect } from "effect";
 import * as Box from "effect-boxes/Box";
 import * as Renderer from "effect-boxes/Renderer";
 
-const box = Box.text("Hello");
-
-// Render using a specific renderer layer
-const program = pipe(
-  Box.render(box),
-  Effect.provide(Renderer.AnsiRendererLive)
-);
-
-Effect.runSync(program); // "Hello\n" with ANSI support
-
-// Print directly to console
-const print = pipe(
-  Box.printBox(box),
+const print = Box.printBox(Box.text("Hello")).pipe(
   Effect.provide(Renderer.PlainRendererLive)
 );
-
 Effect.runPromise(print);
 ```
 
-### Available Renderer Layers
+| Layer                    | Annotation interpretation | Output               |
+| ------------------------ | ------------------------- | -------------------- |
+| `PlainRendererLive`      | Strips annotations        | Plain text           |
+| `AnsiRendererLive`       | `AnsiStyle`               | ANSI terminal text   |
+| `HtmlRendererLive`       | `HtmlAnnotationData`      | HTML markup          |
+| `HtmlPrettyRendererLive` | `HtmlAnnotationData`      | Indented HTML markup |
 
-| Layer                    | Output                  | Use Case                    |
-| ------------------------ | ----------------------- | --------------------------- |
-| `PlainRendererLive`      | Raw text, no formatting | Logging, file output, tests |
-| `AnsiRendererLive`       | ANSI escape sequences   | Terminal display            |
-| `HtmlRendererLive`       | HTML elements           | Web rendering               |
-| `HtmlPrettyRendererLive` | Indented HTML           | Readable HTML output        |
+HTML layers have their own whitespace defaults. See [Using Html](/guides/using-html)
+for serialization examples. Changing renderer layers does not translate ANSI
+styles into HTML annotations.
 
-### Choosing a Renderer
+## Track positions or render overlapping layers
 
-- **Plain** — Use when annotations should be stripped. Good for testing
-  and non-terminal output.
-- **Ansi** — Use for terminal applications. Interprets `AnsiStyle`
-  annotations as color/bold/underline escape codes.
-- **Html** — Use when rendering boxes for the web. Interprets
-  `HtmlAnnotationData` annotations as HTML tags and attributes.
+Use `Renderer.tracked` for ordinary box trees when you need rendered text and
+reactive positions together. See [Using Reactive](/guides/using-reactive) for
+queries and updates. The reported coordinates are relative to the box's origin,
+not the terminal cursor's position.
 
-## When to Use Which
+Use `Renderer.frame` for overlapping `Layout.Stack` layers. It resolves one
+viewport, then encodes that snapshot through `FrameEncoder`. Plain and ANSI
+renderer layers provide both ordinary rendering and frame encoding. Frame
+rendering rejects terminal commands and HTML annotations. Write terminal
+commands separately from the frame's output.
 
-| Scenario                  | Function                       |
-| ------------------------- | ------------------------------ |
-| Quick terminal output     | `renderPrettySync`             |
-| Plain text for tests      | `renderPlainSync`              |
-| Inside an Effect pipeline | `renderPlain` / `renderPretty` |
-| Custom renderer or DI     | `render` + layer               |
-| HTML generation           | `render` + `HtmlRendererLive`  |
+This complete example produces a three-column frame:
+
+```typescript check showLineNumbers
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Renderer from "effect-boxes/Renderer";
+
+const frame = Effect.runSync(
+  Renderer.frame(Box.text("Hi").pipe(Box.alignHoriz(Box.left, 3)), {
+    preserveWhitespace: true,
+  }).pipe(Effect.provide(Renderer.PlainRendererLive))
+);
+const output = frame.output; // "Hi "
+// frame.lines retains full-width lines, regardless of output whitespace trimming.
+```
+
+For a popup example, see [Render overlapping boxes](/guides/stacking-boxes).

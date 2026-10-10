@@ -1,38 +1,64 @@
 # Getting started
 
-## Installation
+Build and print a two-column text layout. You need a TypeScript project and a
+runtime that can execute TypeScript, such as Bun or Node with `tsx`.
+You can follow this example without learning Effect services or layers first.
+
+## Install the library
+
+Install effect-boxes with Effect 4:
 
 ```bash
-npm install effect-boxes effect
+npm install effect-boxes "effect@^4"
 ```
 
-## Basic usage
+Effect is a peer dependency. Install it in your application alongside effect-boxes.
 
-```typescript
+## Print a greeting
+
+Save this as `hello.ts`:
+
+```typescript check showLineNumbers
 import * as Box from "effect-boxes/Box";
-import { pipe } from "effect";
 
-// Create a simple text box
 const hello = Box.text("Hello, World!");
-
-// Render to string
-console.log(Box.render(hello));
+console.log(Box.renderPlainSync(hello));
 // Hello, World!
 ```
 
-## Composition
+Run `bun hello.ts`, or use `npx tsx hello.ts` with Node. The terminal prints
+`Hello, World!`.
 
-Boxes compose horizontally and vertically:
+`Box.renderPlainSync` returns a string. `Box.render` returns an Effect computation
+that needs a renderer layer before you run it. Start with the synchronous helper;
+[Rendering](/guides/rendering) covers layers and output targets.
 
-```typescript
-const row = Box.hcat([Box.text("Left"), Box.text("Right")], Box.top);
-const col = Box.vcat([Box.text("Top"), Box.text("Bottom")], Box.left);
+## Compose columns and rows
+
+Replace the greeting with this layout:
+
+```typescript check showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const names = Box.vcat([Box.text("Name"), Box.text("Alice")], Box.left);
+const ages = Box.vcat([Box.text("Age"), Box.text("30")], Box.left);
+const table = Box.hsep([names, ages], 2, Box.top);
+
+console.log(Box.renderPlainSync(table));
+// Name   Age
+// Alice  30
 ```
 
-All operations are pure: they return new boxes without mutating the originals.
+`vcat` stacks boxes vertically. `hsep` places them beside each other with a gap.
+`Box.left` aligns text in each column; `Box.top` aligns the columns at the top.
+All operations return new boxes without changing the originals.
 
 ## Next steps
 
-- [What is Box?](/what-is-box) for the mental model and how the library works
-- [Using Box](/guides/using-box) for the full API walkthrough
-- [Directory Tree tutorial](/tutorials/directory-tree) to build something real
+- Continue with [Using Box](/guides/using-box), then [Using Annotation](/guides/using-annotation),
+  [Using Ansi](/guides/using-ansi), and [Rendering](/guides/rendering) before the
+  [Directory tree tutorial](/tutorials/directory-tree).
+- For interactive terminal programs, follow [Using Cmd](/guides/using-cmd) and
+  [Select prompt](/tutorials/select-prompt).
+- For web output, follow [Using Annotation](/guides/using-annotation) and
+  [Using Html](/guides/using-html).

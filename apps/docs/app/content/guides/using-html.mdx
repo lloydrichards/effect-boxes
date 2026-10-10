@@ -1,165 +1,394 @@
 import * as Box from "effect-boxes/Box";
 import * as Html from "effect-boxes/Html";
 import * as Renderer from "effect-boxes/Renderer";
-import { pipe, Effect } from "effect";
+import { Effect, pipe } from "effect";
+import { AnsiTerminal } from "~/components/ansi-terminal";
+
+export const outBasic = (() => {
+  const heading = pipe(Box.text("Hello World"), Box.annotate(Html.h1()));
+  const paragraph = pipe(
+    Box.text("Welcome to the docs."),
+    Box.annotate(Html.p())
+  );
+  const page = Box.vcat([heading, paragraph], Box.left);
+  const html = Effect.runSync(
+    Box.render(page).pipe(Effect.provide(Renderer.HtmlRendererLive))
+  );
+  const output = html;
+  return output;
+})();
+
+export const outAttributes = (() => {
+  const link = Box.text("Example website").pipe(
+    Box.annotate(
+      Html.a({ href: "https://example.com", title: "Examples & guides" })
+    )
+  );
+  const highlighted = Box.text("Highlighted").pipe(
+    Box.annotate(Html.div({ class: "highlight", id: "message" }))
+  );
+  const page = Box.vcat([link, highlighted], Box.left);
+  const output = Effect.runSync(
+    Box.render(page).pipe(Effect.provide(Renderer.HtmlRendererLive))
+  );
+  return output;
+})();
+
+export const outComposed = (() => {
+  const nav = Box.hcat(
+    [
+      Box.text("Using Box").pipe(
+        Box.annotate(Html.a({ href: "/guides/using-box" }))
+      ),
+      Box.text("Using Html").pipe(
+        Box.annotate(Html.a({ href: "/guides/using-html" }))
+      ),
+    ],
+    Box.top
+  ).pipe(Box.annotate(Html.nav({ style: "display: flex; gap: 1rem" })));
+  const content = Box.vcat(
+    [
+      Box.text("Welcome").pipe(Box.annotate(Html.h2())),
+      Box.text("This page uses HTML elements.").pipe(Box.annotate(Html.p())),
+    ],
+    Box.left
+  ).pipe(Box.annotate(Html.section()));
+  const page = Box.vcat([nav, content], Box.left).pipe(
+    Box.annotate(
+      Html.article({ style: "font-family: sans-serif; padding: 1rem" })
+    )
+  );
+  const output = Effect.runSync(
+    Box.render(page).pipe(Effect.provide(Renderer.HtmlRendererLive))
+  );
+  return output;
+})();
+
+export const outFormatting = (() => {
+  const page = Box.vcat(
+    [Box.text("Ready").pipe(Box.annotate(Html.strong()))],
+    Box.left
+  ).pipe(Box.annotate(Html.div()));
+  const compact = Effect.runSync(
+    Box.render(page).pipe(Effect.provide(Renderer.HtmlRendererLive))
+  );
+  const pretty = Effect.runSync(
+    Box.render(page).pipe(Effect.provide(Renderer.HtmlPrettyRendererLive))
+  );
+  const output = ["Default:", compact, "", "Pretty:", pretty].join("\n");
+  return output;
+})();
+
+export const outEscaped = (() => {
+  const userInput = "<script>alert('xss')</script> & friends";
+  const message = Box.text(userInput).pipe(
+    Box.annotate(Html.p({ title: 'A "quoted" value & more' }))
+  );
+  const output = Effect.runSync(
+    Box.render(message).pipe(Effect.provide(Renderer.HtmlRendererLive))
+  );
+  return output;
+})();
+
+export const outEscapeUtility = (() => {
+  const userInput = "<hello & world>";
+  const output = Html.escapeHtml(userInput);
+  return output;
+})();
+
+export const outVoid = (() => {
+  const separator = Box.nullBox.pipe(Box.annotate(Html.hr()));
+  const output = Effect.runSync(
+    Box.render(separator).pipe(Effect.provide(Renderer.HtmlRendererLive))
+  );
+  return output;
+})();
 
 # Using Html
 
-The `Html` module provides annotations that the HTML renderer interprets as
-markup. Annotate boxes with HTML element types and attributes, then render
-with `HtmlRendererLive` to produce structured HTML output.
+Render annotated boxes as HTML markup. Use this renderer when your output belongs
+in a browser, a generated page, or an HTML fragment. For terminal colors, use
+[Using Ansi](/guides/using-ansi) instead.
 
-## Basic HTML annotations
+Each example runs independently. The terminal previews show the generated markup.
+The browser previews render that same markup in an isolated frame with browser
+default styles, except where the example supplies CSS.
 
-Annotate a box with an HTML element using constructors like `Html.div`,
-`Html.span`, `Html.p`:
+## Render headings and paragraphs
 
-```typescript
+Attach an element annotation to each box, then provide `Renderer.HtmlRendererLive`
+to `Box.render`. `Effect.runSync` executes this renderer and returns an HTML string.
+
+<CodeExample>
+
+<AnsiTerminal input={outBasic} title="Generated HTML" />
+
+<iframe
+  title="Rendered heading and paragraph"
+  sandbox=""
+  srcDoc={outBasic}
+  className="my-6 w-full border border-code-block-border bg-white"
+  style={{ height: "180px" }}
+/>
+
+```typescript check preview=outBasic result=output showLineNumbers
 import * as Box from "effect-boxes/Box";
 import * as Html from "effect-boxes/Html";
 import * as Renderer from "effect-boxes/Renderer";
-import { pipe, Effect } from "effect";
+import { Effect, pipe } from "effect";
 
 const heading = pipe(Box.text("Hello World"), Box.annotate(Html.h1()));
-
 const paragraph = pipe(
   Box.text("Welcome to the docs."),
   Box.annotate(Html.p())
 );
-
 const page = Box.vcat([heading, paragraph], Box.left);
-
-// Render to HTML
-const html = pipe(
-  Box.render(page),
-  Effect.provide(Renderer.HtmlRendererLive),
-  Effect.runSync
+const html = Effect.runSync(
+  Box.render(page).pipe(Effect.provide(Renderer.HtmlRendererLive))
 );
-// <h1>Hello World</h1><p>Welcome to the docs.</p>
+const output = html;
+console.log(output);
 ```
 
-## Adding attributes
+</CodeExample>
 
-Every HTML constructor accepts an optional `attributes` record:
+## Add attributes
 
-```typescript
-const link = pipe(
-  Box.text("Click here"),
-  Box.annotate(Html.a({ href: "https://example.com", target: "_blank" }))
+Every element constructor accepts an optional record of string attribute values.
+Use HTML names such as `class`, rather than React names such as `className`.
+The renderer escapes attribute values, including the ampersand in this link's title.
+
+<CodeExample>
+
+<AnsiTerminal input={outAttributes} title="Link and container markup" />
+
+```typescript check preview=outAttributes result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Html from "effect-boxes/Html";
+import * as Renderer from "effect-boxes/Renderer";
+import { Effect } from "effect";
+
+const link = Box.text("Example website").pipe(
+  Box.annotate(
+    Html.a({ href: "https://example.com", title: "Examples & guides" })
+  )
 );
-// <a href="https://example.com" target="_blank">Click here</a>
-
-const styledDiv = pipe(
-  Box.text("Highlighted"),
-  Box.annotate(Html.div({ class: "highlight", id: "main" }))
+const highlighted = Box.text("Highlighted").pipe(
+  Box.annotate(Html.div({ class: "highlight", id: "message" }))
 );
-// <div class="highlight" id="main">Highlighted</div>
+const page = Box.vcat([link, highlighted], Box.left);
+const output = Effect.runSync(
+  Box.render(page).pipe(Effect.provide(Renderer.HtmlRendererLive))
+);
+console.log(output);
 ```
+
+</CodeExample>
+
+A `class` attribute refers to your application's stylesheet. The renderer does
+not supply CSS for `highlight`, and the generated string does not mount itself
+into the page.
+
+## Compose elements and apply CSS
+
+Use a row or column to group annotated children, then annotate the group with its
+parent element. Both `Box.hcat` and `Box.vcat` preserve document order in HTML.
+Use CSS to arrange browser elements. Here, `display: flex` and `gap` place the
+navigation links side by side.
+
+<CodeExample>
+
+<AnsiTerminal input={outComposed} title="Navigation and article markup" />
+
+<iframe
+  title="Rendered navigation and article"
+  sandbox=""
+  srcDoc={outComposed}
+  className="my-6 w-full border border-code-block-border bg-white"
+  style={{ height: "180px" }}
+/>
+
+```typescript check preview=outComposed result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Html from "effect-boxes/Html";
+import * as Renderer from "effect-boxes/Renderer";
+import { Effect } from "effect";
+
+const nav = Box.hcat(
+  [
+    Box.text("Using Box").pipe(
+      Box.annotate(Html.a({ href: "/guides/using-box" }))
+    ),
+    Box.text("Using Html").pipe(
+      Box.annotate(Html.a({ href: "/guides/using-html" }))
+    ),
+  ],
+  Box.top
+).pipe(Box.annotate(Html.nav({ style: "display: flex; gap: 1rem" })));
+const content = Box.vcat(
+  [
+    Box.text("Welcome").pipe(Box.annotate(Html.h2())),
+    Box.text("This page uses HTML elements.").pipe(Box.annotate(Html.p())),
+  ],
+  Box.left
+).pipe(Box.annotate(Html.section()));
+const page = Box.vcat([nav, content], Box.left).pipe(
+  Box.annotate(
+    Html.article({ style: "font-family: sans-serif; padding: 1rem" })
+  )
+);
+const output = Effect.runSync(
+  Box.render(page).pipe(Effect.provide(Renderer.HtmlRendererLive))
+);
+console.log(output);
+```
+
+</CodeExample>
+
+Box widths, alignment, padding, and borders describe terminal cells. The HTML
+renderer does not translate those dimensions or borders into CSS. Define the
+browser layout with attributes and your stylesheet.
+
+`Box.annotate` replaces the annotation on the current box. To nest two elements,
+wrap the annotated child in a row or column before annotating the parent, as the
+article above does. See [Using Annotation](/guides/using-annotation) for nesting.
+
+## Choose output formatting
+
+Both HTML renderer layers put tags and content on separate lines.
+`HtmlRendererLive` omits indentation and trims trailing whitespace.
+`HtmlPrettyRendererLive` adds indentation and preserves trailing whitespace.
+Neither layer minifies HTML.
+
+<CodeExample>
+
+<AnsiTerminal input={outFormatting} title="Default and pretty markup" />
+
+```typescript check preview=outFormatting result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Html from "effect-boxes/Html";
+import * as Renderer from "effect-boxes/Renderer";
+import { Effect } from "effect";
+
+const page = Box.vcat(
+  [Box.text("Ready").pipe(Box.annotate(Html.strong()))],
+  Box.left
+).pipe(Box.annotate(Html.div()));
+const compact = Effect.runSync(
+  Box.render(page).pipe(Effect.provide(Renderer.HtmlRendererLive))
+);
+const pretty = Effect.runSync(
+  Box.render(page).pipe(Effect.provide(Renderer.HtmlPrettyRendererLive))
+);
+const output = ["Default:", compact, "", "Pretty:", pretty].join("\n");
+console.log(output);
+```
+
+</CodeExample>
+
+Browser HTML normally collapses whitespace. To preserve visible spacing, use a
+`pre` element or a CSS `white-space` rule. Pretty output changes the source string;
+it does not create a terminal-style layout in the browser.
+
+## Escape text and attribute values
+
+Pass unescaped text and attribute values to the constructors. The renderer escapes
+them automatically. Pre-escaped entities would be escaped a second time.
+In this preview, the script-like text appears as text.
+
+<CodeExample>
+
+<AnsiTerminal input={outEscaped} title="Escaped markup" />
+
+<iframe
+  title="Rendered escaped text"
+  sandbox=""
+  srcDoc={outEscaped}
+  className="my-6 w-full border border-code-block-border bg-white"
+  style={{ height: "180px" }}
+/>
+
+```typescript check preview=outEscaped result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Html from "effect-boxes/Html";
+import * as Renderer from "effect-boxes/Renderer";
+import { Effect } from "effect";
+
+const userInput = "<script>alert('xss')</script> & friends";
+const message = Box.text(userInput).pipe(
+  Box.annotate(Html.p({ title: 'A "quoted" value & more' }))
+);
+const output = Effect.runSync(
+  Box.render(message).pipe(Effect.provide(Renderer.HtmlRendererLive))
+);
+console.log(output);
+```
+
+</CodeExample>
+
+Escaping protects HTML syntax. Use trusted attribute names and validate URL
+schemes when values come from users. Escaping a `javascript:` URL does not make
+that URL safe. The preview frames disable scripts through their sandbox.
+
+For text inserted into HTML outside this renderer, use `Html.escapeHtml`:
+
+<CodeExample>
+
+<AnsiTerminal input={outEscapeUtility} title="Escaped string" />
+
+```typescript check preview=outEscapeUtility result=output showLineNumbers
+import * as Html from "effect-boxes/Html";
+
+const userInput = "<hello & world>";
+const output = Html.escapeHtml(userInput);
+console.log(output);
+```
+
+</CodeExample>
+
+## Create empty elements
+
+Use `Box.nullBox` for void elements such as `br` and `hr`. These elements have no
+content or closing tag. Annotating a nonempty text box with a void element keeps
+the text and does not emit that element.
+
+<CodeExample>
+
+<AnsiTerminal input={outVoid} title="Horizontal rule markup" />
+
+```typescript check preview=outVoid result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Html from "effect-boxes/Html";
+import * as Renderer from "effect-boxes/Renderer";
+import { Effect } from "effect";
+
+const separator = Box.nullBox.pipe(Box.annotate(Html.hr()));
+const output = Effect.runSync(
+  Box.render(separator).pipe(Effect.provide(Renderer.HtmlRendererLive))
+);
+console.log(output);
+```
+
+</CodeExample>
 
 ## Available elements
 
-The module provides constructors for common HTML elements:
+| Constructors                               | HTML elements            | Use                                     |
+| ------------------------------------------ | ------------------------ | --------------------------------------- |
+| `div`, `span`                              | `<div>`, `<span>`        | Block and inline containers             |
+| `p`, `h1` through `h6`                     | Paragraphs and headings  | Text structure                          |
+| `section`, `article`                       | `<section>`, `<article>` | Content groups                          |
+| `header`, `footer`, `main`, `nav`, `aside` | Semantic containers      | Page structure                          |
+| `ul`, `ol`, `li`                           | Lists and list items     | List structure                          |
+| `a`                                        | `<a>`                    | Links                                   |
+| `strong`, `em`                             | `<strong>`, `<em>`       | Emphasis                                |
+| `code`, `pre`                              | `<code>`, `<pre>`        | Code and preformatted text              |
+| `br`, `hr`                                 | `<br>`, `<hr>`           | Empty line break and separator elements |
 
-| Constructor      | Element       | Typical use            |
-| ---------------- | ------------- | ---------------------- |
-| `div`            | `<div>`       | Block container        |
-| `span`           | `<span>`      | Inline container       |
-| `p`              | `<p>`         | Paragraph              |
-| `h1`-`h6`        | `<h1>`-`<h6>` | Headings               |
-| `section`        | `<section>`   | Document section       |
-| `article`        | `<article>`   | Self-contained content |
-| `header`         | `<header>`    | Introductory content   |
-| `footer`         | `<footer>`    | Footer content         |
-| `main`           | `<main>`      | Main content           |
-| `nav`            | `<nav>`       | Navigation             |
-| `aside`          | `<aside>`     | Sidebar content        |
-| `ul`, `ol`, `li` | Lists         | List structures        |
-| `a`              | `<a>`         | Hyperlinks             |
-| `strong`         | `<strong>`    | Bold emphasis          |
-| `em`             | `<em>`        | Italic emphasis        |
-| `code`           | `<code>`      | Inline code            |
-| `pre`            | `<pre>`       | Preformatted text      |
-| `br`             | `<br>`        | Line break             |
-| `hr`             | `<hr>`        | Horizontal rule        |
+The renderer writes the elements you request. It does not validate HTML nesting
+or add browser event handlers.
 
-## Composing HTML layouts
+## Next steps
 
-Compose annotated boxes the same way as any other layout. The HTML renderer
-wraps each annotated region in its element:
-
-```typescript
-const nav = pipe(
-  Box.hcat(
-    [
-      pipe(Box.text("Home"), Box.annotate(Html.a({ href: "/" }))),
-      pipe(Box.text("About"), Box.annotate(Html.a({ href: "/about" }))),
-      pipe(Box.text("Contact"), Box.annotate(Html.a({ href: "/contact" }))),
-    ],
-    Box.top
-  ),
-  Box.annotate(Html.nav({ class: "main-nav" }))
-);
-
-const content = pipe(
-  Box.vcat(
-    [
-      pipe(Box.text("Welcome"), Box.annotate(Html.h1())),
-      pipe(Box.text("This is the homepage."), Box.annotate(Html.p())),
-    ],
-    Box.left
-  ),
-  Box.annotate(Html.main())
-);
-
-const page = Box.vcat([nav, content], Box.left);
-```
-
-Annotations nest naturally: inner elements appear inside outer elements
-in the output.
-
-## Renderer configuration
-
-The HTML renderer supports configuration for formatting:
-
-```typescript
-import * as Renderer from "effect-boxes/Renderer";
-import { Effect, Layer } from "effect";
-
-// Compact output (default)
-const compact = pipe(
-  Box.render(page),
-  Effect.provide(Renderer.HtmlRendererLive),
-  Effect.runSync
-);
-
-// Pretty-printed with indentation
-const pretty = pipe(
-  Box.render(page),
-  Effect.provide(Renderer.HtmlPrettyRendererLive),
-  Effect.runSync
-);
-```
-
-`HtmlPrettyRendererLive` adds indentation and newlines for readable output.
-Use `HtmlRendererLive` for production where size matters.
-
-## Escaping content
-
-Use `Html.escapeHtml` when you need to safely include user-provided text:
-
-```typescript
-import * as Html from "effect-boxes/Html";
-
-const userInput = "<script>alert('xss')</script>";
-const safe = Html.escapeHtml(userInput);
-// &lt;script&gt;alert(&#039;xss&#039;)&lt;/script&gt;
-```
-
-The renderer handles escaping of box text content automatically. Use
-`escapeHtml` directly only when constructing attributes or raw strings
-outside the box system.
-
-## API reference
-
-See the full [Html API reference](/api/html) for all constructors and
-type definitions.
+See the [Html API reference](/api/html) for constructor signatures and
+[Rendering](/guides/rendering) to compare HTML, plain text, and ANSI output.

@@ -1,132 +1,133 @@
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 import { Flex, Container, Grid } from "effect-boxes/Layout";
-import { pipe, Equal } from "effect";
+import { pipe, Equal, Match } from "effect";
 
-# Common Patterns
+# Common patterns
 
-Reusable patterns and Effect.js integration techniques for building
-layouts with effect-boxes.
+Copy a complete recipe to build a status display, table, or dashboard. Each example includes its inputs and renders the output shown below. After [installing the dependencies](/getting-started), save a recipe as `example.ts` and run `bun run example.ts` with Bun or `npx tsx example.ts` with Node.
 
-## Effect.js Integration
+## Compose transformations
 
-### Pipe and Data-Last Style
+Functions such as `moveRight` support both data-first and data-last calls. Constructors such as `text` take their own inputs. Use `pipe` or a box's `.pipe()` method to compose transformations. `Box.border<never>` adds an unannotated border while retaining the content annotations.
 
-All box operations support data-last style for use with `pipe`. Functions
-are also callable data-first:
+export const outPipe = (() => {
+const box1 = pipe(Box.text("Hello"), Box.moveRight(5), Box.annotate(Ansi.bold), Box.border("rounded"));
+const box2 = Box.moveRight(Box.text("Hello"), 5).pipe(Box.annotate(Ansi.bold), Box.border("rounded"));
+const box3 = Box.text("Hello").pipe(Box.moveRight(5), Box.annotate(Ansi.bold), Box.border("rounded"));
+const output = Box.renderPrettySync(box1);
+return output;
 
-export const outPipe = Box.renderPrettySync(
-  pipe(
-    Box.text("Hello"),
-    Box.moveRight(5),
-    Box.annotate(Ansi.bold),
-    Box.border("rounded")
-  )
-);
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outPipe} />
+
+```typescript check preview=outPipe result=output showLineNumbers
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
 import { pipe } from "effect";
 
-// Data-last with pipe (recommended)
 const box1 = pipe(
   Box.text("Hello"),
   Box.moveRight(5),
   Box.annotate(Ansi.bold),
-  Box.border("rounded")
+  Box.border<never>("rounded")
 );
-
-// Data-first (also works)
-const box2 = pipe(
-  Box.moveRight(Box.text("Hello"), 5),
+const box2 = Box.moveRight(Box.text("Hello"), 5).pipe(
   Box.annotate(Ansi.bold),
-  Box.border("rounded")
+  Box.border<never>("rounded")
 );
-
-// Method chaining with .pipe()
-const box3 = pipe(
-  Box.text("Hello").pipe(Box.moveRight(5)),
+const box3 = Box.text("Hello").pipe(
+  Box.moveRight(5),
   Box.annotate(Ansi.bold),
-  Box.border("rounded")
+  Box.border<never>("rounded")
 );
+const output = Box.renderPrettySync(box1);
+console.log(output);
 ```
 
-<AnsiTerminal input={outPipe} />
 </CodeExample>
 
-### Structural Equality
+## Compare boxes
 
-Boxes implement Effect's `Equal` and `Hash` interfaces. Two boxes with the
-same content and dimensions are structurally equal:
+Boxes implement Effect's `Equal` and `Hash` interfaces, so you can use boxes in `HashMap` and `HashSet`. Equality compares box structure and annotations. Matching rendered text alone does not establish equality.
 
-```typescript
-import { Equal } from "effect";
+export const outEqual = (() => {
+const a = Box.text("hello");
+const b = Box.text("hello");
+const c = Box.text("world");
+const styled = a.pipe(Box.annotate(Ansi.bold));
+const output = Box.renderPrettySync(Box.text([
+  `Same text boxes: ${Equal.equals(a, b)}`,
+  `Different text: ${Equal.equals(a, c)}`,
+  `Added annotation: ${Equal.equals(a, styled)}`
+].join(`
+`)));
+return output;
+
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outEqual} />
+
+```typescript check preview=outEqual result=output showLineNumbers
 import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { pipe, Equal } from "effect";
 
 const a = Box.text("hello");
 const b = Box.text("hello");
 const c = Box.text("world");
-
-Equal.equals(a, b); // true
-Equal.equals(a, c); // false
-```
-
-This means boxes can be used as keys in `HashMap` or deduplicated in `HashSet`.
-
-## UI Patterns
-
-### Status Indicators
-
-export const outStatus = Box.renderPrettySync(
-  Box.vcat(
+const styled = a.pipe(Box.annotate(Ansi.bold));
+const output = Box.renderPrettySync(
+  Box.text(
     [
-      Box.hcat(
-        [
-          pipe(Box.text("✓ "), Box.annotate(Ansi.green)),
-          pipe(Box.text("Tests passed"), Box.annotate(Ansi.green)),
-        ],
-        Box.top
-      ),
-      Box.hcat(
-        [
-          pipe(Box.text("✗ "), Box.annotate(Ansi.red)),
-          pipe(Box.text("Build failed"), Box.annotate(Ansi.red)),
-        ],
-        Box.top
-      ),
-      Box.hcat(
-        [
-          pipe(Box.text("⚠ "), Box.annotate(Ansi.yellow)),
-          pipe(Box.text("3 warnings"), Box.annotate(Ansi.yellow)),
-        ],
-        Box.top
-      ),
-      Box.hcat(
-        [
-          pipe(Box.text("ℹ "), Box.annotate(Ansi.blue)),
-          pipe(Box.text("Running..."), Box.annotate(Ansi.blue)),
-        ],
-        Box.top
-      ),
-    ],
-    Box.left
+      `Same text boxes: ${Equal.equals(a, b)}`,
+      `Different text: ${Equal.equals(a, c)}`,
+      `Added annotation: ${Equal.equals(a, styled)}`,
+    ].join("\n")
   )
 );
+console.log(output);
+```
+
+</CodeExample>
+
+## Show status indicators
+
+Return a box from a helper, then combine the boxes vertically. The icon and text share one annotation.
+
+export const outStatus = (() => {
+const statusIcon = (icon, text, color) => Box.text(`${icon} ${text}`).pipe(Box.annotate(color));
+const statuses = Box.vcat([
+  statusIcon("✓", "Tests passed", Ansi.green),
+  statusIcon("✗", "Build failed", Ansi.red),
+  statusIcon("⚠", "3 warnings", Ansi.yellow),
+  statusIcon("ℹ", "Running...", Ansi.blue)
+], Box.left);
+const output = Box.renderPrettySync(statuses);
+return output;
+
+})();
 
 <CodeExample>
 
-```typescript
-const statusIcon = (icon: string, text: string, color: Ansi.AnsiAnnotation) =>
-  Box.hcat(
-    [
-      pipe(Box.text(`${icon} `), Box.annotate(color)),
-      pipe(Box.text(text), Box.annotate(color)),
-    ],
-    Box.top
-  );
+<AnsiTerminal input={outStatus} />
+
+```typescript check preview=outStatus result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { pipe } from "effect";
+
+const statusIcon = (
+  icon: string,
+  text: string,
+  color: Ansi.AnsiAnnotation
+): Box.Box<Ansi.AnsiStyle> =>
+  Box.text(`${icon} ${text}`).pipe(Box.annotate(color));
 
 const statuses = Box.vcat(
   [
@@ -137,112 +138,126 @@ const statuses = Box.vcat(
   ],
   Box.left
 );
+const output = Box.renderPrettySync(statuses);
+console.log(output);
 ```
 
-<AnsiTerminal input={outStatus} />
 </CodeExample>
 
-### Progress Bar
+## Draw a progress bar
 
-export const outProgress = Box.renderPrettySync(
-  pipe(
-    Box.hcat(
-      [
-        pipe(Box.text("█".repeat(35)), Box.annotate(Ansi.green)),
-        pipe(Box.text("░".repeat(15)), Box.annotate(Ansi.dim)),
-        Box.text(" 70%"),
-      ],
-      Box.top
-    ),
-    Box.border("rounded")
-  )
-);
+Clamp progress to the range from zero to the total. A nonpositive total displays zero percent. Reject nonfinite inputs and widths that are not nonnegative integers before calling `repeat`. The width counts bar cells; the percentage and border add columns.
+
+export const outProgress = (() => {
+const progressBar = (progress, total, width) => {
+  if (!Number.isFinite(progress) || !Number.isFinite(total)) {
+    throw new RangeError("Progress and total must be finite");
+  }
+  if (!Number.isInteger(width) || width < 0) {
+    throw new RangeError("Width must be a nonnegative integer");
+  }
+  const ratio = total > 0 ? Math.max(0, Math.min(progress / total, 1)) : 0;
+  const filled = Math.round(ratio * width);
+  return Box.hcat([
+    Box.text("█".repeat(filled)).pipe(Box.annotate(Ansi.green)),
+    Box.text("░".repeat(width - filled)).pipe(Box.annotate(Ansi.dim)),
+    Box.text(` ${Math.round(ratio * 100)}%`)
+  ], Box.top);
+};
+const bar = progressBar(70, 100, 50).pipe(Box.border("rounded"));
+const output = Box.renderPrettySync(bar);
+return output;
+
+})();
 
 <CodeExample>
 
-```typescript
-const progressBar = (progress: number, total: number, width: number) => {
-  const ratio = Math.min(progress / total, 1);
-  const filled = Math.round(ratio * width);
-  const empty = width - filled;
+<AnsiTerminal input={outProgress} />
 
+```typescript check preview=outProgress result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { pipe } from "effect";
+
+const progressBar = (
+  progress: number,
+  total: number,
+  width: number
+): Box.Box<Ansi.AnsiStyle> => {
+  if (!Number.isFinite(progress) || !Number.isFinite(total)) {
+    throw new RangeError("Progress and total must be finite");
+  }
+  if (!Number.isInteger(width) || width < 0) {
+    throw new RangeError("Width must be a nonnegative integer");
+  }
+  const ratio = total > 0 ? Math.max(0, Math.min(progress / total, 1)) : 0;
+  const filled = Math.round(ratio * width);
   return Box.hcat(
     [
-      pipe(Box.text("█".repeat(filled)), Box.annotate(Ansi.green)),
-      pipe(Box.text("░".repeat(empty)), Box.annotate(Ansi.dim)),
+      Box.text("█".repeat(filled)).pipe(Box.annotate(Ansi.green)),
+      Box.text("░".repeat(width - filled)).pipe(Box.annotate(Ansi.dim)),
       Box.text(` ${Math.round(ratio * 100)}%`),
     ],
     Box.top
   );
 };
-
-const bar = progressBar(70, 100, 50);
+const bar = progressBar(70, 100, 50).pipe(Box.border<never>("rounded"));
+const output = Box.renderPrettySync(bar);
+console.log(output);
 ```
 
-<AnsiTerminal input={outProgress} />
 </CodeExample>
 
-### Data Table
+## Build a data table
 
-export const outTable = Box.renderPrettySync(
-  pipe(
-    Box.vcat(
-      [
-        Box.punctuateH(
-          ["Name", "Role", "Status"].map((h) =>
-            pipe(
-              Box.text(h),
-              Box.annotate(Ansi.bold),
-              Box.alignHoriz(Box.left, 16)
-            )
-          ),
-          Box.top,
-          Box.text("│")
-        ),
-        Box.text("─".repeat(50)),
-        Box.punctuateH(
-          [
-            Box.text("Alice"),
-            Box.text("Engineer"),
-            pipe(Box.text("Active"), Box.annotate(Ansi.green)),
-          ].map((b) => pipe(b, Box.alignHoriz(Box.left, 16))),
-          Box.top,
-          Box.text("│")
-        ),
-        Box.punctuateH(
-          [
-            Box.text("Bob"),
-            Box.text("Designer"),
-            pipe(Box.text("Away"), Box.annotate(Ansi.yellow)),
-          ].map((b) => pipe(b, Box.alignHoriz(Box.left, 16))),
-          Box.top,
-          Box.text("│")
-        ),
-        Box.punctuateH(
-          [
-            Box.text("Carol"),
-            Box.text("Manager"),
-            pipe(Box.text("Offline"), Box.annotate(Ansi.dim)),
-          ].map((b) => pipe(b, Box.alignHoriz(Box.left, 16))),
-          Box.top,
-          Box.text("│")
-        ),
-      ],
-      Box.left
-    ),
-    Box.border("rounded")
-  )
-);
+Give every row one cell per header. This recipe uses fixed-width columns and truncates cells that exceed that width. Apply the outer border in the sample call.
+
+export const outTable = (() => {
+const table = (headers, rows) => {
+  const colWidth = 16;
+  if (headers.length === 0 || rows.some((row) => row.length !== headers.length)) {
+    throw new RangeError("Provide headers and one cell per header in every row");
+  }
+  const headerRow = Box.punctuateH(headers.map((header) => Box.text(header).pipe(Box.annotate(Ansi.bold), Box.alignHoriz(Box.left, colWidth))), Box.top, Box.text("│"));
+  const separator = Box.text("─".repeat(headers.length * colWidth + headers.length - 1));
+  const dataRows = rows.map((row) => Box.punctuateH(row.map((cell) => cell.pipe(Box.alignHoriz(Box.left, colWidth))), Box.top, Box.text("│")));
+  return Box.vcat([headerRow, separator, ...dataRows], Box.left);
+};
+const people = table(["Name", "Role", "Status"], [
+  [Box.text("Alice"), Box.text("Engineer"), Box.text("Active").pipe(Box.annotate(Ansi.green))],
+  [Box.text("Bob"), Box.text("Designer"), Box.text("Away").pipe(Box.annotate(Ansi.yellow))],
+  [Box.text("Carol"), Box.text("Manager"), Box.text("Offline").pipe(Box.annotate(Ansi.dim))]
+]).pipe(Box.border("rounded"));
+const output = Box.renderPrettySync(people);
+return output;
+
+})();
 
 <CodeExample>
 
-```typescript
-const table = (headers: string[], rows: Box.Box<Ansi.AnsiStyle>[][]) => {
+<AnsiTerminal input={outTable} />
+
+```typescript check preview=outTable result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { pipe } from "effect";
+
+const table = (
+  headers: readonly string[],
+  rows: readonly (readonly Box.Box<Ansi.AnsiStyle>[])[]
+): Box.Box<Ansi.AnsiStyle> => {
   const colWidth = 16;
+  if (
+    headers.length === 0 ||
+    rows.some((row) => row.length !== headers.length)
+  ) {
+    throw new RangeError(
+      "Provide headers and one cell per header in every row"
+    );
+  }
   const headerRow = Box.punctuateH(
-    headers.map((h) =>
-      pipe(
-        Box.text(h),
+    headers.map((header) =>
+      Box.text(header).pipe(
         Box.annotate(Ansi.bold),
         Box.alignHoriz(Box.left, colWidth)
       )
@@ -255,163 +270,291 @@ const table = (headers: string[], rows: Box.Box<Ansi.AnsiStyle>[][]) => {
   );
   const dataRows = rows.map((row) =>
     Box.punctuateH(
-      row.map((cell) => pipe(cell, Box.alignHoriz(Box.left, colWidth))),
+      row.map((cell) => cell.pipe(Box.alignHoriz(Box.left, colWidth))),
       Box.top,
       Box.text("│")
     )
   );
   return Box.vcat([headerRow, separator, ...dataRows], Box.left);
 };
+const people = table(
+  ["Name", "Role", "Status"],
+  [
+    [
+      Box.text("Alice"),
+      Box.text("Engineer"),
+      Box.text("Active").pipe(Box.annotate(Ansi.green)),
+    ],
+    [
+      Box.text("Bob"),
+      Box.text("Designer"),
+      Box.text("Away").pipe(Box.annotate(Ansi.yellow)),
+    ],
+    [
+      Box.text("Carol"),
+      Box.text("Manager"),
+      Box.text("Offline").pipe(Box.annotate(Ansi.dim)),
+    ],
+  ]
+).pipe(Box.border<never>("rounded"));
+const output = Box.renderPrettySync(people);
+console.log(output);
 ```
 
-<AnsiTerminal input={outTable} />
 </CodeExample>
 
-### Key-Value Panel
+## Align keys and values
 
-export const outKv = Box.renderPrettySync(
-  pipe(
-    Container.make({ width: 40, padding: 1 }, (ctx) =>
-      Box.vcat(
-        [
-          Flex.row(
-            [
-              Flex.fixed(pipe(Box.text("Host:"), Box.annotate(Ansi.dim))),
-              Flex.spacer(),
-              Flex.fixed(Box.text("prod-01")),
-            ],
-            ctx.innerWidth
-          ),
-          Flex.row(
-            [
-              Flex.fixed(pipe(Box.text("Status:"), Box.annotate(Ansi.dim))),
-              Flex.spacer(),
-              Flex.fixed(pipe(Box.text("healthy"), Box.annotate(Ansi.green))),
-            ],
-            ctx.innerWidth
-          ),
-          Flex.row(
-            [
-              Flex.fixed(pipe(Box.text("Uptime:"), Box.annotate(Ansi.dim))),
-              Flex.spacer(),
-              Flex.fixed(Box.text("14d 3h")),
-            ],
-            ctx.innerWidth
-          ),
-          Flex.row(
-            [
-              Flex.fixed(pipe(Box.text("Load:"), Box.annotate(Ansi.dim))),
-              Flex.spacer(),
-              Flex.fixed(Box.text("0.42")),
-            ],
-            ctx.innerWidth
-          ),
-        ],
-        Box.left
-      )
-    ),
-    Box.border("rounded")
-  )
-);
+A spacer uses the remaining width between the label and value. Choose a width that fits both fixed boxes and padding. This panel is 40 columns before its outer border, which adds two columns.
+
+export const outKv = (() => {
+const kvPanel = (entries, width) => Container.make({ width, padding: 1 }, (ctx) => Box.vcat(entries.map(([key, value]) => Flex.row([
+  Flex.fixed(Box.text(`${key}:`).pipe(Box.annotate(Ansi.dim))),
+  Flex.spacer(),
+  Flex.fixed(value)
+], ctx.innerWidth)), Box.left)).pipe(Box.border("rounded"));
+const panel = kvPanel([
+  ["Host", Box.text("prod-01")],
+  ["Status", Box.text("healthy").pipe(Box.annotate(Ansi.green))],
+  ["Uptime", Box.text("14d 3h")],
+  ["Load", Box.text("0.42")]
+], 40);
+const output = Box.renderPrettySync(panel);
+return output;
+
+})();
 
 <CodeExample>
 
-```typescript
-const kvPanel = (entries: [string, Box.Box<any>][], width: number) =>
-  pipe(
-    Container.make({ width, padding: 1 }, (ctx) =>
-      Box.vcat(
-        entries.map(([key, value]) =>
-          Flex.row(
-            [
-              Flex.fixed(pipe(Box.text(`${key}:`), Box.annotate(Ansi.dim))),
-              Flex.spacer(),
-              Flex.fixed(value),
-            ],
-            ctx.innerWidth
-          )
-        ),
-        Box.left
-      )
-    ),
-    Box.border("rounded")
-  );
+<AnsiTerminal input={outKv} />
+
+```typescript check preview=outKv result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { Flex, Container } from "effect-boxes/Layout";
+import { pipe } from "effect";
+
+const kvPanel = (
+  entries: readonly (readonly [string, Box.Box<Ansi.AnsiStyle>])[],
+  width: number
+): Box.Box<Ansi.AnsiStyle> =>
+  Container.make({ width, padding: 1 }, (ctx) =>
+    Box.vcat(
+      entries.map(([key, value]) =>
+        Flex.row(
+          [
+            Flex.fixed(Box.text(`${key}:`).pipe(Box.annotate(Ansi.dim))),
+            Flex.spacer(),
+            Flex.fixed(value),
+          ],
+          ctx.innerWidth
+        )
+      ),
+      Box.left
+    )
+  ).pipe(Box.border<never>("rounded"));
+const panel = kvPanel(
+  [
+    ["Host", Box.text("prod-01")],
+    ["Status", Box.text("healthy").pipe(Box.annotate(Ansi.green))],
+    ["Uptime", Box.text("14d 3h")],
+    ["Load", Box.text("0.42")],
+  ],
+  40
+);
+const output = Box.renderPrettySync(panel);
+console.log(output);
 ```
 
-<AnsiTerminal input={outKv} />
 </CodeExample>
 
-## Composition Patterns
+## Reuse component styles
 
-### Building Reusable Components
+Keep helpers pure by returning boxes. This section combines a heading, a separator, and a bordered badge.
 
-Create helper functions that return `Box` values for consistent styling:
+export const outComponents = (() => {
+const heading = (text) => Box.text(text).pipe(Box.annotate(Ansi.combine(Ansi.bold, Ansi.white)));
+const badge = (text, color) => Box.text(` ${text} `).pipe(Box.annotate(color), Box.border("rounded"));
+const section = (title, content) => Box.vcat([heading(title), Box.text("─".repeat(40)), content], Box.left);
+const output = Box.renderPrettySync(section("Deployment", badge("healthy", Ansi.green)));
+return output;
 
-```typescript
-const heading = (text: string) =>
-  pipe(Box.text(text), Box.annotate(Ansi.combine(Ansi.bold, Ansi.white)));
+})();
 
-const label = (text: string) => pipe(Box.text(text), Box.annotate(Ansi.dim));
+<CodeExample>
 
-const badge = (text: string, color: Ansi.AnsiAnnotation) =>
-  pipe(Box.text(` ${text} `), Box.annotate(color), Box.border("rounded"));
+<AnsiTerminal input={outComponents} />
 
-const section = (title: string, content: Box.Box<Ansi.AnsiStyle>) =>
+```typescript check preview=outComponents result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { pipe } from "effect";
+
+const heading = (text: string): Box.Box<Ansi.AnsiStyle> =>
+  Box.text(text).pipe(Box.annotate(Ansi.combine(Ansi.bold, Ansi.white)));
+const badge = (
+  text: string,
+  color: Ansi.AnsiAnnotation
+): Box.Box<Ansi.AnsiStyle> =>
+  Box.text(` ${text} `).pipe(Box.annotate(color), Box.border<never>("rounded"));
+const section = (
+  title: string,
+  content: Box.Box<Ansi.AnsiStyle>
+): Box.Box<Ansi.AnsiStyle> =>
   Box.vcat([heading(title), Box.text("─".repeat(40)), content], Box.left);
+const output = Box.renderPrettySync(
+  section("Deployment", badge("healthy", Ansi.green))
+);
+console.log(output);
 ```
 
-### Container + Flex + Grid
+</CodeExample>
 
-The three Layout primitives compose for complex responsive layouts:
+## Compose Container, Flex, and Grid
 
-```typescript
-const dashboard = Container.make({ width: 65, padding: 1 }, (ctx) => {
-  // Header with flex
-  const header = Flex.row(
-    [
-      Flex.fixed(heading("Dashboard")),
-      Flex.spacer(),
-      Flex.fixed(label("v1.0")),
-    ],
-    ctx.innerWidth
-  );
+Set both width and height when a child uses `ctx.innerHeight`. Without a height, `innerHeight` is zero. This dashboard reserves 12 rows including padding, then gives the remaining inner rows to the activity panel.
 
-  // KPI cards in a grid
-  const kpis = Grid.auto(kpiData.map(renderKpiCard), ctx.innerWidth, {
-    minColWidth: 20,
-  });
-
-  // Vertical stack
-  return Flex.col(
-    [Flex.fixed(header), Flex.fixed(kpis), Flex.grow(mainContent)],
-    ctx.innerHeight
-  );
+export const outDashboard = (() => {
+const heading = (text) => Box.text(text).pipe(Box.annotate(Ansi.bold));
+const label = (text) => Box.text(text).pipe(Box.annotate(Ansi.dim));
+const kpiData = [
+  { name: "Requests", value: "1,204" },
+  { name: "Errors", value: "0" },
+  { name: "Latency", value: "24 ms" }
+];
+const renderKpiCard = (kpi) => Box.vcat([label(kpi.name), heading(kpi.value)], Box.left);
+const mainContent = Box.text(`Recent activity
+Deployment completed
+All checks passed`);
+const dashboard = Container.make({ width: 65, height: 12, padding: 1 }, (ctx) => {
+  const header = Flex.row([
+    Flex.fixed(heading("Dashboard")),
+    Flex.spacer(),
+    Flex.fixed(label("v1.0"))
+  ], ctx.innerWidth);
+  const kpis = Grid.auto(kpiData.map(renderKpiCard), ctx.innerWidth, { minColWidth: 20 });
+  return Flex.col([
+    Flex.fixed(header),
+    Flex.fixed(kpis),
+    Flex.grow(mainContent)
+  ], ctx.innerHeight);
 });
+const output = Box.renderPrettySync(dashboard);
+return output;
+
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outDashboard} />
+
+```typescript check preview=outDashboard result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { Flex, Container, Grid } from "effect-boxes/Layout";
+import { pipe } from "effect";
+
+const heading = (text: string): Box.Box<Ansi.AnsiStyle> =>
+  Box.text(text).pipe(Box.annotate(Ansi.bold));
+const label = (text: string): Box.Box<Ansi.AnsiStyle> =>
+  Box.text(text).pipe(Box.annotate(Ansi.dim));
+const kpiData = [
+  { name: "Requests", value: "1,204" },
+  { name: "Errors", value: "0" },
+  { name: "Latency", value: "24 ms" },
+];
+const renderKpiCard = (kpi: {
+  readonly name: string;
+  readonly value: string;
+}): Box.Box<Ansi.AnsiStyle> =>
+  Box.vcat([label(kpi.name), heading(kpi.value)], Box.left);
+const mainContent = Box.text(
+  "Recent activity\nDeployment completed\nAll checks passed"
+);
+const dashboard = Container.make(
+  { width: 65, height: 12, padding: 1 },
+  (ctx) => {
+    const header = Flex.row(
+      [
+        Flex.fixed(heading("Dashboard")),
+        Flex.spacer(),
+        Flex.fixed(label("v1.0")),
+      ],
+      ctx.innerWidth
+    );
+    const kpis = Grid.auto(kpiData.map(renderKpiCard), ctx.innerWidth, {
+      minColWidth: 20,
+    });
+    return Flex.col(
+      [Flex.fixed(header), Flex.fixed(kpis), Flex.grow(mainContent)],
+      ctx.innerHeight
+    );
+  }
+);
+const output = Box.renderPrettySync(dashboard);
+console.log(output);
 ```
 
-### Conditional Styling
+</CodeExample>
 
-```typescript
-const statusColor = (status: string) => {
-  switch (status) {
-    case "ok":
-      return Ansi.green;
-    case "warn":
-      return Ansi.yellow;
-    case "error":
-      return Ansi.red;
-    default:
-      return Ansi.dim;
-  }
-};
+## Choose a style from status data
 
-const renderStatus = (name: string, status: string) =>
+Use `Match` to handle every supported status. The `Status` union restricts this helper to known values. Decode external input before passing it to the helper.
+
+export const outConditional = (() => {
+const statusColor = (status) => Match.value(status).pipe(Match.when("ok", () => Ansi.green), Match.when("warn", () => Ansi.yellow), Match.when("error", () => Ansi.red), Match.exhaustive);
+const renderStatus = (name, status) => Flex.row([
+  Flex.fixed(Box.text(name)),
+  Flex.spacer(),
+  Flex.fixed(Box.text(status).pipe(Box.annotate(statusColor(status))))
+], 40);
+const output = Box.renderPrettySync(Box.vcat([
+  renderStatus("Database", "ok"),
+  renderStatus("Cache", "warn"),
+  renderStatus("Queue", "error")
+], Box.left));
+return output;
+
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outConditional} />
+
+```typescript check preview=outConditional result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import { Flex } from "effect-boxes/Layout";
+import { pipe, Match } from "effect";
+
+type Status = "ok" | "warn" | "error";
+const statusColor = (status: Status): Ansi.AnsiAnnotation =>
+  Match.value(status).pipe(
+    Match.when("ok", () => Ansi.green),
+    Match.when("warn", () => Ansi.yellow),
+    Match.when("error", () => Ansi.red),
+    Match.exhaustive
+  );
+const renderStatus = (name: string, status: Status): Box.Box<Ansi.AnsiStyle> =>
   Flex.row(
     [
       Flex.fixed(Box.text(name)),
       Flex.spacer(),
-      Flex.fixed(pipe(Box.text(status), Box.annotate(statusColor(status)))),
+      Flex.fixed(Box.text(status).pipe(Box.annotate(statusColor(status)))),
     ],
     40
   );
+const output = Box.renderPrettySync(
+  Box.vcat(
+    [
+      renderStatus("Database", "ok"),
+      renderStatus("Cache", "warn"),
+      renderStatus("Queue", "error"),
+    ],
+    Box.left
+  )
+);
+console.log(output);
 ```
+
+</CodeExample>

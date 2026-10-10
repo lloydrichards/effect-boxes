@@ -1,428 +1,482 @@
 import * as Box from "effect-boxes/Box";
 import { Flex, Container, Grid, Place } from "effect-boxes/Layout";
-import { pipe } from "effect";
 
 # Using Layout
 
-The `Layout` module provides higher-level layout combinators built on top of
-Box, inspired by CSS Flexbox and Grid. Flex, Container, Grid, and Place return
-standard Box values, composable with borders, annotations, padding,
-and all other Box primitives. Layer and Stack describe overlapping content for
-[frame rendering](./stacking-boxes).
+Use `Layout` to arrange Boxes within an available width or height. Each example below is standalone and matches its terminal preview. Start with [Using Box](/guides/using-box) for text, borders, and alignment.
+
+| Goal                                           | Use                        |
+| ---------------------------------------------- | -------------------------- |
+| Divide one row or column among children        | `Flex.row` or `Flex.col`   |
+| Pass dimensions after padding to a builder     | `Container.make`           |
+| Arrange repeated items in equal-width columns  | `Grid.make` or `Grid.auto` |
+| Position and clip content inside an exact area | `Place.make`               |
+
+For overlapping layers, use [frame rendering](/guides/stacking-boxes).
 
 ## Flex
 
-Flex distributes space among children using a flexbox-style algorithm. Children
-can be fixed-size, growable, or dynamically built from allocated space.
+Flex subtracts fixed children and gaps before distributing remaining space. `Flex.row` allocates columns, and `Flex.col` allocates rows.
 
-### Child Types
+- `Flex.fixed(box)` keeps the Box's dimensions.
+- `Flex.grow(box, factor)` aligns or crops the Box to its allocated size. The default factor is `1`.
+- `Flex.fill(builder, factor)` passes an allocated size to your builder. Your builder must return a Box of that size. Flex does not resize its result.
+- `Flex.spacer(factor)` consumes allocated space without visible content.
 
-- **`Flex.fixed(box)`** — keeps its intrinsic size
-- **`Flex.grow(box, factor?)`** — stretches to fill remaining space
-- **`Flex.fill(builder, factor?)`** — receives allocated size and builds content to fit
-- **`Flex.spacer(factor?)`** — invisible child that pushes siblings apart
+If fixed children and gaps exceed the requested size, Flex keeps them. Use `Place` when the final dimensions must be exact.
 
-### Horizontal Layout (Flex.row)
+### Push items apart
 
-Use `Flex.spacer()` to push children apart, like CSS `justify-content: space-between`:
+The row below is 63 columns wide. Its outer border adds two columns, so the complete navbar is 65 columns wide.
 
-export const outRow1 = Box.renderPrettySync(
-  pipe(
-    Flex.row(
-      [
-        Flex.fixed(Box.text("◆ App Logo").pipe(Box.pad(0, 1))),
-        Flex.spacer(),
-        Flex.fixed(Box.text("Home  Reports  Settings").pipe(Box.pad(0, 1))),
-        Flex.spacer(),
-        Flex.fixed(Box.text("▸ Admin").pipe(Box.pad(0, 1))),
-      ],
-      65
-    ),
-    Box.border("rounded")
-  )
-);
+export const outRow1 = (() => {
+  const navbar = Flex.row(
+    [
+      Flex.fixed(Box.text("◆ App Logo").pipe(Box.pad(0, 1))),
+      Flex.spacer(),
+      Flex.fixed(Box.text("Home  Reports  Settings").pipe(Box.pad(0, 1))),
+      Flex.spacer(),
+      Flex.fixed(Box.text("▸ Admin").pipe(Box.pad(0, 1))),
+    ],
+    63
+  ).pipe(Box.border("rounded"));
+  const output = Box.renderPrettySync(navbar);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outRow1} />
+
+```typescript check preview=outRow1 result=output showLineNumbers
 import * as Box from "effect-boxes/Box";
 import { Flex } from "effect-boxes/Layout";
-import { pipe } from "effect";
 
 const navbar = Flex.row(
   [
     Flex.fixed(Box.text("◆ App Logo").pipe(Box.pad(0, 1))),
     Flex.spacer(),
-    Flex.fixed(Box.text("Home Reports Settings").pipe(Box.pad(0, 1))),
+    Flex.fixed(Box.text("Home  Reports  Settings").pipe(Box.pad(0, 1))),
     Flex.spacer(),
     Flex.fixed(Box.text("▸ Admin").pipe(Box.pad(0, 1))),
   ],
-  65
-);
+  63
+).pipe(Box.border("rounded"));
+const output = Box.renderPrettySync(navbar);
+console.log(output);
 ```
 
-<AnsiTerminal input={outRow1} />
 </CodeExample>
 
-### Proportional Splits
+### Split width by factor
 
-Grow and fill children share remaining space by factor. A factor of 2 gets
-twice the space of a factor of 1:
+After reserving the one-column gap, the row allocates 21 and 41 columns to the two panels. Each builder reserves two columns for its border before sizing the content. The outer border brings the final width to 65 columns.
 
-export const outRow2 = Box.renderPrettySync(
-  pipe(
-    Flex.row(
-      [
-        Flex.fill(
-          (w) =>
-            Box.text("1/3 width").pipe(
-              Box.pad(0, 1),
-              Box.minWidth(w),
-              Box.border("rounded")
-            ),
-          1
-        ),
-        Flex.fill(
-          (w) =>
-            Box.text("2/3 width").pipe(
-              Box.pad(0, 1),
-              Box.minWidth(w),
-              Box.border("rounded")
-            ),
-          2
-        ),
-      ],
-      65,
-      { gap: 1 }
-    ),
-    Box.border()
-  )
-);
+export const outRow2 = (() => {
+  const split = Flex.row(
+    [
+      Flex.fill(
+        (width) =>
+          Box.text("1/3 width").pipe(
+            Box.pad(0, 1),
+            Place.horizontal(width - 2, "left"),
+            Box.border("rounded")
+          ),
+        1
+      ),
+      Flex.fill(
+        (width) =>
+          Box.text("2/3 width").pipe(
+            Box.pad(0, 1),
+            Place.horizontal(width - 2, "left"),
+            Box.border("rounded")
+          ),
+        2
+      ),
+    ],
+    63,
+    { gap: 1 }
+  ).pipe(Box.border());
+  const output = Box.renderPrettySync(split);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outRow2} />
+
+```typescript check preview=outRow2 result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { Flex, Place } from "effect-boxes/Layout";
+
 const split = Flex.row(
   [
     Flex.fill(
-      (w) =>
+      (width) =>
         Box.text("1/3 width").pipe(
           Box.pad(0, 1),
-          Box.minWidth(w),
+          Place.horizontal(width - 2, "left"),
           Box.border("rounded")
         ),
       1
     ),
     Flex.fill(
-      (w) =>
+      (width) =>
         Box.text("2/3 width").pipe(
           Box.pad(0, 1),
-          Box.minWidth(w),
+          Place.horizontal(width - 2, "left"),
           Box.border("rounded")
         ),
       2
     ),
   ],
-  65,
+  63,
   { gap: 1 }
-);
+).pipe(Box.border());
+const output = Box.renderPrettySync(split);
+console.log(output);
 ```
 
-<AnsiTerminal input={outRow2} />
 </CodeExample>
 
-### Fill Children
+### Build content from allocated width
 
-Fill children receive their allocated width and build content to fit exactly.
-This is useful for dynamic content like progress bars or separators:
+The progress builder returns exactly the allocated number of columns. It also handles a zero-width allocation without adding a marker.
 
-export const outFill = Box.renderPrettySync(
-  pipe(
-    Flex.row(
-      [
-        Flex.fixed(Box.text(" Progress ").pipe(Box.pad(0, 1))),
-        Flex.fill((w) =>
-          Box.text(
-            "━".repeat(Math.floor(w * 0.7)) +
-              "╸" +
-              "─".repeat(Math.max(0, w - Math.floor(w * 0.7) - 1))
-          )
-        ),
-        Flex.fixed(Box.text(" 70% ").pipe(Box.pad(0, 1))),
-      ],
-      65
-    ),
-    Box.border("rounded")
-  )
-);
+export const outFill = (() => {
+  const progress = Flex.row(
+    [
+      Flex.fixed(Box.text(" Progress ")),
+      Flex.fill((width) => {
+        const complete = Math.floor(width * 0.7);
+        const marker = complete < width ? "╸" : "";
+        return Box.text(
+          "━".repeat(complete) +
+            marker +
+            "─".repeat(width - complete - marker.length)
+        );
+      }),
+      Flex.fixed(Box.text(" 70% ")),
+    ],
+    63
+  ).pipe(Box.border("rounded"));
+  const output = Box.renderPrettySync(progress);
+  return output;
+})();
 
 <CodeExample>
-
-```typescript
-const progress = Flex.row(
-  [
-    Flex.fixed(Box.text(" Progress ").pipe(Box.pad(0, 1))),
-    Flex.fill((w) =>
-      Box.text(
-        "━".repeat(Math.floor(w * 0.7)) +
-          "╸" +
-          "─".repeat(Math.max(0, w - Math.floor(w * 0.7) - 1))
-      )
-    ),
-    Flex.fixed(Box.text(" 70% ").pipe(Box.pad(0, 1))),
-  ],
-  65
-);
-```
 
 <AnsiTerminal input={outFill} />
+
+```typescript check preview=outFill result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { Flex } from "effect-boxes/Layout";
+
+const progress = Flex.row(
+  [
+    Flex.fixed(Box.text(" Progress ")),
+    Flex.fill((width) => {
+      const complete = Math.floor(width * 0.7);
+      const marker = complete < width ? "╸" : "";
+      return Box.text(
+        "━".repeat(complete) +
+          marker +
+          "─".repeat(width - complete - marker.length)
+      );
+    }),
+    Flex.fixed(Box.text(" 70% ")),
+  ],
+  63
+).pipe(Box.border("rounded"));
+const output = Box.renderPrettySync(progress);
+console.log(output);
+```
+
 </CodeExample>
 
-### Vertical Layout (Flex.col)
+### Divide vertical space
 
-export const outCol = Box.renderPrettySync(
-  pipe(
-    Flex.col(
-      [
-        Flex.fixed(
-          Box.text("┄ Header ┄").pipe(Box.alignHoriz(Box.center1, 65))
-        ),
-        Flex.grow(Box.text("Body content goes here...").pipe(Box.pad(1, 2))),
-        Flex.fixed(
-          Box.text("┄ Footer ┄").pipe(Box.alignHoriz(Box.center1, 65))
-        ),
-      ],
-      10
-    ),
-    Box.border("rounded")
-  )
-);
+The header and footer each use one row. The body receives the other eight rows. The border adds two rows and two columns to the 63-column, 10-row page.
+
+export const outCol = (() => {
+  const page = Flex.col(
+    [
+      Flex.fixed(Box.text("┄ Header ┄").pipe(Box.alignHoriz(Box.center1, 63))),
+      Flex.grow(Box.text("Body content goes here...").pipe(Box.pad(1, 2))),
+      Flex.fixed(Box.text("┄ Footer ┄").pipe(Box.alignHoriz(Box.center1, 63))),
+    ],
+    10
+  ).pipe(Box.border("rounded"));
+  const output = Box.renderPrettySync(page);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
-const page = Flex.col( [ Flex.fixed(Box.text("┄ Header
-┄").pipe(Box.alignHoriz(Box.center1, 65))), Flex.grow(Box.text("Body content
-goes here...").pipe(Box.pad(1, 2))), Flex.fixed(Box.text("┄ Footer
-┄").pipe(Box.alignHoriz(Box.center1, 65))), ], 10 )
+<AnsiTerminal input={outCol} />
+
+```typescript check preview=outCol result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { Flex } from "effect-boxes/Layout";
+
+const page = Flex.col(
+  [
+    Flex.fixed(Box.text("┄ Header ┄").pipe(Box.alignHoriz(Box.center1, 63))),
+    Flex.grow(Box.text("Body content goes here...").pipe(Box.pad(1, 2))),
+    Flex.fixed(Box.text("┄ Footer ┄").pipe(Box.alignHoriz(Box.center1, 63))),
+  ],
+  10
+).pipe(Box.border("rounded"));
+const output = Box.renderPrettySync(page);
+console.log(output);
 ```
 
-<AnsiTerminal input={outCol} />
 </CodeExample>
 
-### Options
+### Choose gaps and alignment
 
-Both `Flex.row` and `Flex.col` accept an options object:
+Both Flex functions accept `gap` and `align`. A row's gap counts columns, and its alignment controls vertical placement. A column's gap counts rows, and its alignment controls horizontal placement.
 
-- **`gap`** — space between children (in columns for row, rows for col)
-- **`align`** — cross-axis alignment (`Box.top`, `Box.center1`, `Box.bottom` for row; `Box.left`, `Box.center1`, `Box.right` for col)
+Use `Box.top`, `Box.center1`, or `Box.bottom` for a row. Use `Box.left`, `Box.center1`, or `Box.right` for a column.
 
 ## Container
 
-Container provides dimension-aware building. It computes inner dimensions
-after padding, passes them to your builder function, then enforces the
-container width on the output.
+`Container.make` calculates dimensions after padding and passes them to your builder. Padding can be a number for both axes or `[vertical, horizontal]`. The result enforces width, but it does not enforce height.
 
-export const outContainer = Box.renderPrettySync(
-  pipe(
-    Container.make({ width: 65, padding: 2 }, (ctx) =>
-      Box.vcat(
-        [
-          Box.text(`outer width:  ${ctx.width}`),
-          Box.text(`inner width:  ${ctx.innerWidth}`),
-          Box.text(`padding:      2 cols each side`),
-        ],
-        Box.left
-      )
-    ),
-    Box.border()
-  )
-);
+When you omit `height`, both `ctx.height` and `ctx.innerHeight` are `0`. The content still determines the output height. Supply a height before using `ctx.innerHeight` to allocate vertical space.
+
+export const outContainer = (() => {
+  const panel = Container.make({ width: 63, padding: 2 }, (ctx) =>
+    Box.vcat(
+      [
+        Box.text(`outer width:  ${ctx.width}`),
+        Box.text(`inner width:  ${ctx.innerWidth}`),
+        Box.text(`inner height: ${ctx.innerHeight}`),
+        Box.text("padding:      2 cells each side"),
+      ],
+      Box.left
+    )
+  ).pipe(Box.border());
+  const output = Box.renderPrettySync(panel);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outContainer} />
+
+```typescript check preview=outContainer result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
 import { Container } from "effect-boxes/Layout";
 
-const panel = Container.make({ width: 65, padding: 2 }, (ctx) =>
+const panel = Container.make({ width: 63, padding: 2 }, (ctx) =>
   Box.vcat(
     [
-      Box.text(`outer width: ${ctx.width}`),
-      Box.text(`inner width: ${ctx.innerWidth}`),
-      Box.text(`padding: 2 cols each side`),
+      Box.text(`outer width:  ${ctx.width}`),
+      Box.text(`inner width:  ${ctx.innerWidth}`),
+      Box.text(`inner height: ${ctx.innerHeight}`),
+      Box.text("padding:      2 cells each side"),
     ],
     Box.left
   )
-);
+).pipe(Box.border());
+const output = Box.renderPrettySync(panel);
+console.log(output);
 ```
 
-<AnsiTerminal input={outContainer} />
 </CodeExample>
 
-Container composes naturally with Flex — pass `ctx.innerWidth` to size
-flex layouts within the available space:
+### Fit Flex inside a container
 
-export const outContainerFlex = Box.renderPrettySync(
-  pipe(
-    Container.make({ width: 65, padding: 1 }, (ctx) =>
-      Box.vcat(
-        [
-          Flex.row(
-            [
-              Flex.fixed(Box.text("◆ Status").pipe(Box.pad(0, 1))),
-              Flex.spacer(),
-              Flex.fixed(Box.text("● Online").pipe(Box.pad(0, 1))),
-            ],
-            ctx.innerWidth
-          ),
-          Box.text("─".repeat(ctx.innerWidth)),
-          Flex.row(
-            [
-              Flex.fixed(Box.text("Users: 1,247").pipe(Box.pad(0, 1))),
-              Flex.fixed(Box.text("Uptime: 99.9%").pipe(Box.pad(0, 1))),
-              Flex.spacer(),
-              Flex.fixed(Box.text("v2.4.1").pipe(Box.pad(0, 1))),
-            ],
-            ctx.innerWidth
-          ),
-        ],
-        Box.left
-      )
-    ),
-    Box.border("rounded")
-  )
-);
+Pass `ctx.innerWidth` to each row so padding remains outside its allocation. This status panel is 65 columns wide including its border.
 
-<CodeExample>
-
-```typescript
-const statusPanel = pipe(
-  Container.make({ width: 65, padding: 1 }, (ctx) =>
+export const outContainerFlex = (() => {
+  const statusPanel = Container.make({ width: 63, padding: 1 }, (ctx) =>
     Box.vcat(
       [
         Flex.row(
           [
-            Flex.fixed(Box.text("◆ Status").pipe(Box.pad(0, 1))),
+            Flex.fixed(Box.text("◆ Status")),
             Flex.spacer(),
-            Flex.fixed(Box.text("● Online").pipe(Box.pad(0, 1))),
+            Flex.fixed(Box.text("● Online")),
           ],
           ctx.innerWidth
         ),
         Box.text("─".repeat(ctx.innerWidth)),
         Flex.row(
           [
-            Flex.fixed(Box.text("Users: 1,247").pipe(Box.pad(0, 1))),
-            Flex.fixed(Box.text("Uptime: 99.9%").pipe(Box.pad(0, 1))),
+            Flex.fixed(Box.text("Users: 1,247")),
+            Flex.fixed(Box.text("Uptime: 99.9%")),
             Flex.spacer(),
-            Flex.fixed(Box.text("v2.4.1").pipe(Box.pad(0, 1))),
+            Flex.fixed(Box.text("v2.4.1")),
           ],
-          ctx.innerWidth
+          ctx.innerWidth,
+          { gap: 1 }
         ),
       ],
       Box.left
     )
-  ),
-  Box.border("rounded")
-);
-```
+  ).pipe(Box.border("rounded"));
+  const output = Box.renderPrettySync(statusPanel);
+  return output;
+})();
+
+<CodeExample>
 
 <AnsiTerminal input={outContainerFlex} />
+
+```typescript check preview=outContainerFlex result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { Flex, Container } from "effect-boxes/Layout";
+
+const statusPanel = Container.make({ width: 63, padding: 1 }, (ctx) =>
+  Box.vcat(
+    [
+      Flex.row(
+        [
+          Flex.fixed(Box.text("◆ Status")),
+          Flex.spacer(),
+          Flex.fixed(Box.text("● Online")),
+        ],
+        ctx.innerWidth
+      ),
+      Box.text("─".repeat(ctx.innerWidth)),
+      Flex.row(
+        [
+          Flex.fixed(Box.text("Users: 1,247")),
+          Flex.fixed(Box.text("Uptime: 99.9%")),
+          Flex.spacer(),
+          Flex.fixed(Box.text("v2.4.1")),
+        ],
+        ctx.innerWidth,
+        { gap: 1 }
+      ),
+    ],
+    Box.left
+  )
+).pipe(Box.border("rounded"));
+const output = Box.renderPrettySync(statusPanel);
+console.log(output);
+```
+
 </CodeExample>
 
 ## Grid
 
-Grid arranges items in rows and columns with uniform column widths.
+`Grid.make` aligns each item inside a column of exactly `colWidth` columns. Wider items are cropped. A final incomplete row gets empty cells. Three 21-column cells and two one-column gaps occupy 65 columns before the outer border.
 
-### Fixed-column Grid
-
-export const gridCards = [
-  "Alpha",
-  "Beta",
-  "Gamma",
-  "Delta",
-  "Epsilon",
-  "Zeta",
-].map((name) =>
-  Box.vcat([Box.text(`■ ${name}`), Box.text("  Item card")], Box.left).pipe(
-    Box.pad(0, 1),
-    Box.minWidth(17),
-    Box.border("rounded")
-  )
-);
-export const outGrid = Box.renderPrettySync(
-  pipe(
-    Grid.make(gridCards, { cols: 3, colWidth: 21, gap: [1, 1] }),
+export const outGrid = (() => {
+  const cards = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"].map(
+    (name) =>
+      Box.vcat([Box.text(`■ ${name}`), Box.text("  Item card")], Box.left).pipe(
+        Box.pad(0, 1),
+        Box.minWidth(19),
+        Box.border("rounded")
+      )
+  );
+  const grid = Grid.make(cards, { cols: 3, colWidth: 21, gap: [1, 1] }).pipe(
     Box.border()
-  )
-);
+  );
+  const output = Box.renderPrettySync(grid);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outGrid} />
+
+```typescript check preview=outGrid result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
 import { Grid } from "effect-boxes/Layout";
 
 const cards = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"].map(
   (name) =>
-    Box.vcat([Box.text(`■ ${name}`), Box.text(" Item card")], Box.left).pipe(
+    Box.vcat([Box.text(`■ ${name}`), Box.text("  Item card")], Box.left).pipe(
       Box.pad(0, 1),
-      Box.minWidth(17),
+      Box.minWidth(19),
       Box.border("rounded")
     )
 );
-
-const grid = Grid.make(cards, { cols: 3, colWidth: 21, gap: [1, 1] });
+const grid = Grid.make(cards, { cols: 3, colWidth: 21, gap: [1, 1] }).pipe(
+  Box.border()
+);
+const output = Box.renderPrettySync(grid);
+console.log(output);
 ```
 
-<AnsiTerminal input={outGrid} />
 </CodeExample>
 
-### Auto-column Grid
+### Adapt the number of columns
 
-`Grid.auto` calculates the number of columns from a container width and
-minimum column width — useful for responsive layouts:
+`Grid.auto` calculates column count from the available width, `minColWidth`, and the horizontal gap. At 50 columns, these cards use two 24-column cells and one gap, leaving one unused column. The outer border adds two columns.
 
-export const outGridAuto = Box.renderPrettySync(
-  pipe(Grid.auto(gridCards, 50, { minColWidth: 20 }), Box.border())
-);
+export const outGridAuto = (() => {
+  const cards = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"].map(
+    (name) =>
+      Box.vcat([Box.text(`■ ${name}`), Box.text("  Item card")], Box.left).pipe(
+        Box.pad(0, 1),
+        Box.minWidth(19),
+        Box.border("rounded")
+      )
+  );
+  const grid = Grid.auto(cards, 50, { minColWidth: 20 }).pipe(Box.border());
+  const output = Box.renderPrettySync(grid);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
-// Same cards, but columns adapt to available width
-const grid = Grid.auto(cards, 50, { minColWidth: 20 });
+<AnsiTerminal input={outGridAuto} />
+
+```typescript check preview=outGridAuto result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { Grid } from "effect-boxes/Layout";
+
+const cards = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"].map(
+  (name) =>
+    Box.vcat([Box.text(`■ ${name}`), Box.text("  Item card")], Box.left).pipe(
+      Box.pad(0, 1),
+      Box.minWidth(19),
+      Box.border("rounded")
+    )
+);
+const grid = Grid.auto(cards, 50, { minColWidth: 20 }).pipe(Box.border());
+const output = Box.renderPrettySync(grid);
+console.log(output);
 ```
 
-<AnsiTerminal input={outGridAuto} />
 </CodeExample>
 
-### Grid Options
+### Grid options
 
-| Option        | Description                                    |
-| ------------- | ---------------------------------------------- |
-| `cols`        | Number of columns (fixed grid only)            |
-| `colWidth`    | Width of each column (fixed grid only)         |
-| `minColWidth` | Minimum column width (auto grid only)          |
-| `maxColWidth` | Maximum column width (auto grid only)          |
-| `gap`         | `[horizontal, vertical]` spacing between cells |
-| `align`       | Horizontal alignment within cells              |
-| `stretch`     | Whether to stretch items to fill column width  |
+| Option        | Meaning                                                                      |
+| ------------- | ---------------------------------------------------------------------------- |
+| `cols`        | Column count for `Grid.make`                                                 |
+| `colWidth`    | Exact cell width for `Grid.make`                                             |
+| `minColWidth` | Minimum width used to calculate `Grid.auto` column count                     |
+| `maxColWidth` | Optional cap on each automatic column's width                                |
+| `gap`         | `[horizontal, vertical]` for `Grid.make`; horizontal spacing for `Grid.auto` |
+| `align`       | Horizontal alignment inside cells, default `Box.left`                        |
+| `stretch`     | Pads items before alignment; cell widths remain exact with either setting    |
 
 ## Place content inside a fixed area
 
-`Place.make` positions content inside an area with exact `width` and `height`.
-Content outside the area is clipped. Empty cells contain spaces. The result is
-a normal `Box`, so you can add a border or compose it with other Boxes.
+`Place.make` produces exactly the requested `width` and `height`. Content outside that area is clipped, and empty cells contain spaces. The border below is outside the 20-column, five-row area.
 
-export const outPlace = Box.renderPrettySync(
-  Box.text("Ready").pipe(
+export const outPlace = (() => {
+  const panel = Box.text("Ready").pipe(
     Place.make({ width: 20, height: 5, x: "center", y: "center" }),
     Box.border("rounded")
-  )
-);
+  );
+  const output = Box.renderPrettySync(panel);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outPlace} />
+
+```typescript check preview=outPlace result=output showLineNumbers
 import * as Box from "effect-boxes/Box";
 import { Place } from "effect-boxes/Layout";
 
@@ -430,9 +484,10 @@ const panel = Box.text("Ready").pipe(
   Place.make({ width: 20, height: 5, x: "center", y: "center" }),
   Box.border("rounded")
 );
+const output = Box.renderPrettySync(panel);
+console.log(output);
 ```
 
-<AnsiTerminal input={outPlace} />
 </CodeExample>
 
 `x` counts columns from the left edge, and `y` counts rows from the top edge.
@@ -442,29 +497,37 @@ For vertical anchors, use `"top"`, `"center"`, or `"bottom"`.
 Centering uses `Math.floor((areaSize - contentSize) / 2)` on each axis,
 including when content is larger than the area.
 
-Use `Place.horizontal` to change only the width, or `Place.vertical` to change
-only the height. Each helper preserves the other dimension.
+### Clip one dimension at a time
 
-export const outPlaceClipped = Box.renderPrettySync(
-  Box.text("ABCDEF\nGHIJKL\nMNOPQR").pipe(
+`Place.horizontal` changes only width, and `Place.vertical` changes only height. Their combined result below contains `HIJK` and `NOPQ`.
+
+export const outPlaceClipped = (() => {
+  const clipped = Box.text("ABCDEF\nGHIJKL\nMNOPQR").pipe(
     Place.horizontal(4, -1),
     Place.vertical(2, "bottom"),
     Box.border()
-  )
-);
+  );
+  const output = Box.renderPrettySync(clipped);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outPlaceClipped} />
+
+```typescript check preview=outPlaceClipped result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { Place } from "effect-boxes/Layout";
+
 const clipped = Box.text("ABCDEF\nGHIJKL\nMNOPQR").pipe(
   Place.horizontal(4, -1),
   Place.vertical(2, "bottom"),
   Box.border()
 );
-// Visible content: HIJK, then NOPQ.
+const output = Box.renderPrettySync(clipped);
+console.log(output);
 ```
 
-<AnsiTerminal input={outPlaceClipped} />
 </CodeExample>
 
 Place retains nested annotations on visible source content, including styles
@@ -480,80 +543,27 @@ integers. Place throws `RangeError` for invalid numbers or any `Cmd` annotation
 inside the source Box, even if the command would be clipped. Compose terminal
 commands separately from placed content.
 
-## Composing with Box Primitives
+## Compose a dashboard
 
-Layout functions return standard `Box` values, so they compose with all
-Box operations. Here's a dashboard combining Container, Flex, and Grid:
+The container reserves two columns for padding. The three card widths account for their borders before Grid arranges them. The dashboard is 65 columns wide including its outer border.
 
-export const outComposed = Box.renderPrettySync(
-  pipe(
-    Container.make({ width: 65, padding: 1 }, (ctx) => {
-      const cols = 3;
-      const gap = 1;
-      const colWidth = Math.floor((ctx.innerWidth - (cols - 1) * gap) / cols);
-      const kpis = Grid.make(
-        [
-          Box.vcat([Box.text("Users"), Box.text("1,247")], Box.left).pipe(
-            Box.pad(0, 1),
-            Box.minWidth(colWidth - 2),
-            Box.border("rounded")
-          ),
-          Box.vcat([Box.text("Revenue"), Box.text("$48,290")], Box.left).pipe(
-            Box.pad(0, 1),
-            Box.minWidth(colWidth - 2),
-            Box.border("rounded")
-          ),
-          Box.vcat([Box.text("Errors"), Box.text("23")], Box.left).pipe(
-            Box.pad(0, 1),
-            Box.minWidth(colWidth - 2),
-            Box.border("rounded")
-          ),
-        ],
-        { cols, colWidth, gap: [gap, 0] }
-      );
-      const header = Flex.row(
-        [
-          Flex.fixed(Box.text("◆ Dashboard")),
-          Flex.spacer(),
-          Flex.fixed(Box.text("Settings ▸")),
-        ],
-        ctx.innerWidth
-      );
-      return Box.vcat(
-        [header, Box.text("─".repeat(ctx.innerWidth)), kpis],
-        Box.left
-      );
-    }),
-    Box.border("rounded")
-  )
-);
-
-<CodeExample>
-
-```typescript
-const dashboard = pipe(
-  Container.make({ width: 65, padding: 1 }, (ctx) => {
+export const outComposed = (() => {
+  const dashboard = Container.make({ width: 63, padding: 1 }, (ctx) => {
     const cols = 3;
     const gap = 1;
     const colWidth = Math.floor((ctx.innerWidth - (cols - 1) * gap) / cols);
     const kpis = Grid.make(
       [
-        Box.vcat([Box.text("Users"), Box.text("1,247")], Box.left).pipe(
+        { label: "Users", value: "1,247" },
+        { label: "Revenue", value: "$48,290" },
+        { label: "Errors", value: "23" },
+      ].map(({ label, value }) =>
+        Box.vcat([Box.text(label), Box.text(value)], Box.left).pipe(
           Box.pad(0, 1),
-          Box.minWidth(colWidth - 2),
+          Place.horizontal(colWidth - 2, "left"),
           Box.border("rounded")
-        ),
-        Box.vcat([Box.text("Revenue"), Box.text("$48,290")], Box.left).pipe(
-          Box.pad(0, 1),
-          Box.minWidth(colWidth - 2),
-          Box.border("rounded")
-        ),
-        Box.vcat([Box.text("Errors"), Box.text("23")], Box.left).pipe(
-          Box.pad(0, 1),
-          Box.minWidth(colWidth - 2),
-          Box.border("rounded")
-        ),
-      ],
+        )
+      ),
       { cols, colWidth, gap: [gap, 0] }
     );
     const header = Flex.row(
@@ -568,10 +578,52 @@ const dashboard = pipe(
       [header, Box.text("─".repeat(ctx.innerWidth)), kpis],
       Box.left
     );
-  }),
-  Box.border("rounded")
-);
-```
+  }).pipe(Box.border("rounded"));
+  const output = Box.renderPrettySync(dashboard);
+  return output;
+})();
+
+<CodeExample>
 
 <AnsiTerminal input={outComposed} />
+
+```typescript check preview=outComposed result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import { Flex, Container, Grid, Place } from "effect-boxes/Layout";
+
+const dashboard = Container.make({ width: 63, padding: 1 }, (ctx) => {
+  const cols = 3;
+  const gap = 1;
+  const colWidth = Math.floor((ctx.innerWidth - (cols - 1) * gap) / cols);
+  const kpis = Grid.make(
+    [
+      { label: "Users", value: "1,247" },
+      { label: "Revenue", value: "$48,290" },
+      { label: "Errors", value: "23" },
+    ].map(({ label, value }) =>
+      Box.vcat([Box.text(label), Box.text(value)], Box.left).pipe(
+        Box.pad(0, 1),
+        Place.horizontal(colWidth - 2, "left"),
+        Box.border("rounded")
+      )
+    ),
+    { cols, colWidth, gap: [gap, 0] }
+  );
+  const header = Flex.row(
+    [
+      Flex.fixed(Box.text("◆ Dashboard")),
+      Flex.spacer(),
+      Flex.fixed(Box.text("Settings ▸")),
+    ],
+    ctx.innerWidth
+  );
+  return Box.vcat(
+    [header, Box.text("─".repeat(ctx.innerWidth)), kpis],
+    Box.left
+  );
+}).pipe(Box.border("rounded"));
+const output = Box.renderPrettySync(dashboard);
+console.log(output);
+```
+
 </CodeExample>

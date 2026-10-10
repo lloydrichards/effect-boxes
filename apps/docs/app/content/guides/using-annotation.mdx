@@ -1,184 +1,235 @@
 import * as Box from "effect-boxes/Box";
 import * as Annotation from "effect-boxes/Annotation";
 import * as Ansi from "effect-boxes/Ansi";
-import { pipe } from "effect";
 
 # Using Annotation
 
-The `Annotation` module provides a type-safe system for attaching metadata to
-boxes. Annotations are how effect-boxes adds styling, interactivity, and
-custom data to text layouts.
+Attach metadata to a box to describe its style or application data. A renderer decides how to interpret that metadata. Start with [Using Box](/guides/using-box) if you have not composed a layout yet.
 
-## How Annotations Work
+Every example below is complete. After [installing the dependencies](/getting-started), save one as `example.ts` and run `bun run example.ts` with Bun or `npx tsx example.ts` with Node.
 
-A `Box<A>` is parameterized by its annotation type `A`. When you create a
-plain box with `Box.text("hello")`, it has type `Box<never>` — no annotations.
-When you attach an annotation, the box's type reflects what kind of metadata
-it carries.
+## Attach a style
 
-export const outBasic = Box.renderPrettySync(
-  pipe(Box.text("Hello"), Box.annotate(Ansi.red))
-);
+`Box.text` returns `Box<never>`. `Box.annotate` returns a box whose annotation type matches the attached data. Both calls preserve the text and dimensions.
+
+export const outBasic = (() => {
+  const plain = Box.text("Hello");
+  const styled = Box.annotate(plain, Ansi.red);
+  const output = Box.renderPrettySync(styled);
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
+<AnsiTerminal input={outBasic} />
+
+```typescript check preview=outBasic result=output showLineNumbers
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
-import { pipe } from "effect";
 
-// Box<never> — no annotation
 const plain = Box.text("Hello");
-
-// Box<AnsiStyle> — carries ANSI styling
-const styled = pipe(plain, Box.annotate(Ansi.red));
+const styled = Box.annotate(plain, Ansi.red);
+const output = Box.renderPrettySync(styled);
+console.log(output);
 ```
 
-<AnsiTerminal input={outBasic} />
 </CodeExample>
 
-Renderers interpret annotations at render time. The `AnsiRendererLive` knows
-how to turn `AnsiStyle` annotations into escape codes. The `PlainRendererLive`
-strips all annotations.
+`Box.renderPrettySync` interprets ANSI styles. `Box.renderPlainSync` produces text without styling. Neither renderer converts arbitrary application metadata into visible text.
 
-## Creating Annotations
+## Attach and inspect application data
 
-Use `Annotation.createAnnotation` to wrap any data as an annotation:
+Create an annotation, attach it to a box, and inspect its data. This example explicitly turns the data into a visible label.
 
-```typescript
+export const outMetadata = (() => {
+  const metadata = Annotation.createAnnotation({ id: "submit", enabled: true });
+  const button = Box.annotate(Box.text("Submit"), metadata);
+  const data = Annotation.getAnnotationData(metadata);
+  const output = Box.renderPlainSync(
+    Box.vcat(
+      [button, Box.text(`id=${data.id}, enabled=${data.enabled}`)],
+      Box.left
+    )
+  );
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outMetadata} />
+
+```typescript check preview=outMetadata result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
 import * as Annotation from "effect-boxes/Annotation";
 
-// Simple string metadata
-const tag = Annotation.createAnnotation("important");
-
-// Structured data
-const metadata = Annotation.createAnnotation({
-  id: "submit-btn",
-  action: "submit-form",
-  enabled: true,
-});
-```
-
-Annotations implement Effect's `Equal` and `Hash` interfaces, so two
-annotations with the same data are structurally equal.
-
-## Attaching Annotations to Boxes
-
-Use `Box.annotate` (dual function — works data-first or data-last):
-
-export const outAnnotated = Box.renderPrettySync(
+const metadata = Annotation.createAnnotation({ id: "submit", enabled: true });
+const button = Box.annotate(Box.text("Submit"), metadata);
+const data = Annotation.getAnnotationData(metadata);
+const output = Box.renderPlainSync(
   Box.vcat(
-    [
-      pipe(
-        Box.text("Success!"),
-        Box.annotate(Ansi.combine(Ansi.bold, Ansi.green))
-      ),
-      pipe(Box.text("Error!"), Box.annotate(Ansi.red)),
-    ],
+    [button, Box.text(`id=${data.id}, enabled=${data.enabled}`)],
     Box.left
   )
 );
+console.log(output);
+```
+
+</CodeExample>
+
+The attached value is also available through `button.annotation`. That property is optional on `Box`, so check that it exists before reading its `data`. Annotations implement Effect's `Equal` and `Hash` interfaces for structural comparison.
+
+## Replace an annotation
+
+A box has one annotation at its root. Annotating the same box again replaces that root annotation. Combine styles with `Ansi.combine` when you want both.
+
+export const outReplacement = (() => {
+  const red = Box.annotate(Box.text("Replaced"), Ansi.red);
+  const replaced = Box.annotate(red, Ansi.green);
+  const combined = Box.annotate(
+    Box.text("Combined"),
+    Ansi.combine(Ansi.bold, Ansi.green)
+  );
+  const output = Box.renderPrettySync(Box.vcat([replaced, combined], Box.left));
+  return output;
+})();
 
 <CodeExample>
 
-```typescript
-// Data-last with pipe
-const success = pipe(
-  Box.text("Success!"),
-  Box.annotate(Ansi.combine(Ansi.bold, Ansi.green))
+<AnsiTerminal input={outReplacement} />
+
+```typescript check preview=outReplacement result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const red = Box.annotate(Box.text("Replaced"), Ansi.red);
+const replaced = Box.annotate(red, Ansi.green);
+const combined = Box.annotate(
+  Box.text("Combined"),
+  Ansi.combine(Ansi.bold, Ansi.green)
 );
-
-// Data-first
-const error = Box.annotate(Box.text("Error!"), Ansi.red);
-
-Box.vcat([success, error], Box.left);
+const output = Box.renderPrettySync(Box.vcat([replaced, combined], Box.left));
+console.log(output);
 ```
 
-<AnsiTerminal input={outAnnotated} />
 </CodeExample>
 
-## Manipulating Annotations
+## Nest parent and child styles
 
-### Removing Annotations
+Compose a styled child inside a parent, then style the parent. The child inherits the parent's bold style and adds red. The surrounding text remains bold.
 
-```typescript
-// Strip all annotations from a box
-const plain = Box.unAnnotate(styledBox);
+export const outNested = (() => {
+  const child = Box.annotate(Box.text("Child"), Ansi.red);
+  const parent = Box.annotate(
+    Box.hcat([Box.text("Parent "), child, Box.text(" Parent")], Box.top),
+    Ansi.bold
+  );
+  const output = Box.renderPrettySync(parent);
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outNested} />
+
+```typescript check preview=outNested result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const child = Box.annotate(Box.text("Child"), Ansi.red);
+const parent = Box.annotate(
+  Box.hcat([Box.text("Parent "), child, Box.text(" Parent")], Box.top),
+  Ansi.bold
+);
+const output = Box.renderPrettySync(parent);
+console.log(output);
 ```
 
-### Transforming Annotation Data
+</CodeExample>
 
-```typescript
-// Transform the annotation data on a box
-const updated = Box.reAnnotate(annotatedBox, (data) => data.toUpperCase());
+A child style can override a parent style for the same attribute, such as foreground color. This is actual nesting: the parent annotation encloses the child annotation. Styling several sibling boxes does not create a parent annotation.
+
+## Transform annotation data
+
+`Box.reAnnotate` transforms the root annotation data. It throws if the root has no annotation and does not transform child annotations.
+
+export const outTransformed = (() => {
+  const tagged = Box.annotate(
+    Box.text("Task"),
+    Annotation.createAnnotation("ready")
+  );
+  const updated = Box.reAnnotate(tagged, (data) => data.toUpperCase());
+  const label = updated.annotation?.data ?? "missing";
+  const output = Box.renderPlainSync(
+    Box.vcat([updated, Box.text(`Status: ${label}`)], Box.left)
+  );
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outTransformed} />
+
+```typescript check preview=outTransformed result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Annotation from "effect-boxes/Annotation";
+
+const tagged = Box.annotate(
+  Box.text("Task"),
+  Annotation.createAnnotation("ready")
+);
+const updated = Box.reAnnotate(tagged, (data) => data.toUpperCase());
+const label = updated.annotation?.data ?? "missing";
+const output = Box.renderPlainSync(
+  Box.vcat([updated, Box.text(`Status: ${label}`)], Box.left)
+);
+console.log(output);
 ```
 
-## Nested Annotations
+</CodeExample>
 
-When boxes with different annotations are composed, each region keeps its
-own annotation. The innermost annotation takes precedence during rendering:
+## Remove annotations
 
-export const outNested = Box.renderPrettySync(
+`Box.unAnnotate` removes annotations from the root and all descendants. The text and layout remain unchanged. Compare the styled first line with the plain second line.
+
+export const outRemoved = (() => {
+  const nested = Box.annotate(
+    Box.hcat(
+      [Box.text("Parent "), Box.annotate(Box.text("Child"), Ansi.red)],
+      Box.top
+    ),
+    Ansi.bold
+  );
+  const plain = Box.unAnnotate(nested);
+  const output = Box.renderPrettySync(Box.vcat([nested, plain], Box.left));
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outRemoved} />
+
+```typescript check preview=outRemoved result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+const nested = Box.annotate(
   Box.hcat(
-    [
-      pipe(Box.text("Red "), Box.annotate(Ansi.red)),
-      pipe(Box.text("Green "), Box.annotate(Ansi.green)),
-      pipe(Box.text("Blue"), Box.annotate(Ansi.blue)),
-    ],
+    [Box.text("Parent "), Box.annotate(Box.text("Child"), Ansi.red)],
     Box.top
-  )
+  ),
+  Ansi.bold
 );
-
-<CodeExample>
-
-```typescript
-const multiColor = Box.hcat(
-  [
-    pipe(Box.text("Red "), Box.annotate(Ansi.red)),
-    pipe(Box.text("Green "), Box.annotate(Ansi.green)),
-    pipe(Box.text("Blue"), Box.annotate(Ansi.blue)),
-  ],
-  Box.top
-);
+const plain = Box.unAnnotate(nested);
+const output = Box.renderPrettySync(Box.vcat([nested, plain], Box.left));
+console.log(output);
 ```
 
-  <AnsiTerminal input={outNested} />
 </CodeExample>
 
-## Annotation Utilities
+## Choose an annotation module
 
-The `Annotation` module provides utilities for working with annotation values
-directly:
+Use [Ansi](/guides/using-ansi) for terminal styling, [Html](/guides/using-html) for HTML elements, and [Reactive](/guides/using-reactive) for position IDs.
 
-```typescript
-import * as Annotation from "effect-boxes/Annotation"
+[Cmd](/guides/using-cmd) constructs terminal control commands encoded as ANSI annotations. It uses the ANSI renderer rather than a separate Cmd renderer. Write command output directly to an ANSI terminal.
 
-// Type guards
-Annotation.isAnnotation(value)
-Annotation.isAnnotationWithData(value, (d): d is MyType => /* ... */)
-
-// Transform annotation data
-Annotation.mapAnnotationData(annotation, (d) => transform(d))
-
-// Combine two annotations with a merger function
-Annotation.combineAnnotations(a, b, (dataA, dataB) => merged)
-
-// Conditionally keep an annotation
-Annotation.filterAnnotation(annotation, (data) => data.enabled)
-
-// Batch create from array
-Annotation.createAnnotations(["a", "b", "c"])
-```
-
-## Built-in Annotation Types
-
-effect-boxes provides three annotation modules:
-
-| Module                     | Type                 | Purpose                                     |
-| -------------------------- | -------------------- | ------------------------------------------- |
-| [Ansi](/guides/using-ansi) | `AnsiStyle`          | Terminal colors and text effects            |
-| Cmd                        | `AnsiStyle`          | Terminal control sequences (cursor, screen) |
-| Html                       | `HtmlAnnotationData` | HTML elements for web rendering             |
-
-Each has a corresponding renderer that interprets its annotations at render
-time. See the [Rendering guide](/guides/rendering) for details.
+For annotation value guards, mapping, filtering, and merging, see the [Annotation API reference](/api/annotation). For renderer selection, see [Rendering](/guides/rendering).

@@ -1,136 +1,296 @@
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Renderer from "effect-boxes/Renderer";
+import * as FrameEncoder from "effect-boxes/FrameEncoder";
+
 # Architecture
 
-How effect-boxes works internally: the box tree, annotation propagation,
-and the pluggable renderer pipeline.
+A Box stores text, dimensions, and annotations. Composition builds a tree;
+a renderer turns that tree into output. Keeping these steps separate lets you
+reuse a layout with different renderers.
+
+This page explains the internal model. For the public rendering helpers, start
+with [Rendering](/guides/rendering).
 
 ## The box tree
 
-A `Box<A>` is a recursive tree. The `content` field is a discriminated union:
+A `Box<A>` has `rows`, `cols`, an optional `Annotation<A>`, and a `content` field.
+The public `Box.Content<A>` union describes five node types:
 
-```typescript
-type Content<A> =
-  | { _tag: "Blank" } // Empty space
-  | { _tag: "Text"; text: string } // A raw string line
-  | { _tag: "Row"; boxes: Box<A>[] } // Horizontal composition
-  | { _tag: "Col"; boxes: Box<A>[] } // Vertical composition
-  | { _tag: "SubBox"; hAlign: Alignment; vAlign: Alignment; box: Box<A> };
-```
+| Node     | Stored content             | Role                                         |
+| -------- | -------------------------- | -------------------------------------------- |
+| `Blank`  | No text                    | Reserve empty cells                          |
+| `Text`   | A string                   | Store a line of text                         |
+| `Row`    | Child boxes                | Join children horizontally                   |
+| `Col`    | Child boxes                | Join children vertically                     |
+| `SubBox` | A child and two alignments | Fit the child within the parent's dimensions |
 
-Every composition operation (`hcat`, `vcat`, alignment functions) builds
-deeper tree nodes. The tree is only flattened into text lines at render time.
+`hcat` and `vcat` compute the combined dimensions when you compose the layout.
+They also align their children, which can add `SubBox` wrappers. Rendering visits
+these nodes later. Some transformations, such as cropping, traverse the existing
+tree during construction too.
 
-This deferred evaluation means:
+The following example prints both a layout and its actual tree. Each node label
+shows its height and width. The empty cell above `A` comes from its
+vertical alignment beside the two-line box.
 
-- Composition is cheap (just building tree nodes)
-- Layout decisions propagate correctly through the entire tree
-- The same tree can be rendered differently by different renderers
+export const outTree = (() => {
+  const layout = Box.hcat([Box.text("A"), Box.text("B\nC")], Box.bottom);
+  const describe = (self, indent = "") => {
+    const label = `${indent}${self.content._tag} (rows=${self.rows}, cols=${self.cols})`;
+    switch (self.content._tag) {
+      case "Row":
+      case "Col":
+        return [
+          label,
+          ...self.content.boxes.map((child) => describe(child, `${indent}  `)),
+        ].join("\n");
+      case "SubBox":
+        return `${label}\n${describe(self.content.box, `${indent}  `)}`;
+      default:
+        return label;
+    }
+  };
+  const output = `${Box.renderPlainSync(layout)}\n\n${describe(layout)}`;
+  return output;
+})();
 
-## Width calculation
+<CodeExample>
 
-Terminal text is not monospaced in the way you might expect. The internal
-`Width` module handles:
+<AnsiTerminal input={outTree} />
 
-- ASCII characters: 1 column each
-- East Asian wide characters (CJK): 2 columns each
-- Emojis: 2 columns each, including multi-codepoint sequences
-- ANSI escape sequences: 0 columns (invisible)
-- Zero-width characters (combining marks, ZWJ): 0 columns
+```typescript check preview=outTree result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
 
-Every alignment and padding operation depends on knowing the true visual
-width of content. Without correct width calculation, columns misalign and
-borders break.
-
-## Annotations
-
-Annotations are a wrapper type `Annotation<A>` that attaches arbitrary data
-to a box without affecting its dimensions or layout. The generic parameter
-`A` is what makes the system extensible:
-
-- `Box<never>` has no annotations (plain text)
-- `Box<AnsiStyle>` carries terminal styling
-- `Box<HtmlAnnotationData>` carries HTML elements
-- `Box<Reactive>` carries position tracking
-- `Box<AnsiStyle | Reactive>` combines annotation types
-
-Annotations propagate through composition. When boxes are combined with
-`hcat` or `vcat`, their annotations travel with them. The renderer decides
-what to do with each annotation type.
-
-## The renderer pipeline
-
-Rendering is a three-phase process:
-
-1. **Flatten** the box tree, resolving alignments and producing a flat list
-   of positioned text spans with their annotations
-2. **Process** via the renderer's text processor (handles width-aware padding
-   and line breaking)
-3. **Post-process** by applying annotation-specific transformations (wrap in
-   ANSI codes, HTML tags, etc.)
-
-The `Renderer` service is defined as an Effect Context tag:
-
-```typescript
-class Renderer extends Context.Tag("Renderer")<
-  Renderer,
-  {
-    readonly renderContent: <A>(box: Box<A>) => Effect<string[]>;
-    readonly postProcess: <A>(
-      lines: string[],
-      annotation?: Annotation<A>
-    ) => Effect<string[]>;
-    readonly processor: TextProcessor;
+const layout = Box.hcat([Box.text("A"), Box.text("B\nC")], Box.bottom);
+const describe = (self: Box.Box<unknown>, indent = ""): string => {
+  const label = `${indent}${self.content._tag} (rows=${self.rows}, cols=${self.cols})`;
+  switch (self.content._tag) {
+    case "Row":
+    case "Col":
+      return [
+        label,
+        ...self.content.boxes.map((child) => describe(child, `${indent}  `)),
+      ].join("\n");
+    case "SubBox":
+      return `${label}\n${describe(self.content.box, `${indent}  `)}`;
+    default:
+      return label;
   }
->() {}
+};
+const output = `${Box.renderPlainSync(layout)}\n\n${describe(layout)}`;
+console.log(output);
 ```
 
-Because it's a service, you inject it via layers:
+</CodeExample>
 
-```typescript
-// Swap renderer without changing layout code
-const program = Box.render(myLayout);
+## Width in terminal cells
 
-// Terminal output
-Effect.provide(program, Renderer.AnsiRendererLive);
+JavaScript string length counts UTF-16 code units. Box dimensions count terminal
+cells. The internal width calculation strips recognized ANSI escape sequences,
+segments text into graphemes, and measures those segments.
 
-// HTML output
-Effect.provide(program, Renderer.HtmlRendererLive);
+ASCII letters occupy one cell. Wide CJK characters and recognized emoji sequences
+occupy two. A combining mark attached to a letter does not add another cell.
+The example reports the library's measurements; terminal fonts and emoji support
+can affect how a terminal displays those characters.
 
-// Tests
-Effect.provide(program, Renderer.PlainRendererLive);
-```
+export const outWidths = (() => {
+  const samples = ["A", "你好", "👩‍💻", "e\u0301"];
+  const measurements = samples.map((text) =>
+    Box.text(`${text}: JS length=${text.length}, cells=${Box.text(text).cols}`)
+  );
+  const layout = Box.vcat(measurements, Box.left).pipe(Box.border("rounded"));
+  const output = Box.renderPlainSync(layout);
+  return output;
+})();
 
-## Renderer configuration
+<CodeExample>
 
-Each renderer accepts configuration through Effect's service pattern:
+<AnsiTerminal input={outWidths} />
 
-```typescript
-// Custom HTML renderer with pretty-printing
-const CustomHtml = Layer.succeed(
-  HtmlRenderConfig,
-  HtmlRenderConfig.make({
-    indent: true,
-    indentSize: 4,
-    preserveWhitespace: true,
-  })
+```typescript check preview=outWidths result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+const samples = ["A", "你好", "👩‍💻", "e\u0301"];
+const measurements = samples.map((text) =>
+  Box.text(`${text}: JS length=${text.length}, cells=${Box.text(text).cols}`)
 );
+const layout = Box.vcat(measurements, Box.left).pipe(Box.border("rounded"));
+const output = Box.renderPlainSync(layout);
+console.log(output);
 ```
 
-This lets you create variations (compact vs. pretty HTML) without
-duplicating renderer logic.
+</CodeExample>
 
-## Design decisions
+Width measurements determine padding, alignment, and cropping. A wide glyph that
+is partly clipped becomes spaces in the surviving cells, rather than half a glyph.
+[Using Layout](/guides/using-layout) shows clipping examples.
 
-**Why a tree, not immediate string building?**
-Deferred rendering means you can compose first, render later. The same
-layout works for terminal, HTML, or plain text. Testing is straightforward:
-assert on the Box structure or render to plain text for snapshot tests.
+## Annotations belong to nodes
 
-**Why annotations instead of inline styles?**
-Separating content from presentation keeps layout code pure. A box doesn't
-know or care what color it is. You can annotate at any level and it
-propagates correctly through composition.
+An annotation attaches data without changing the box's dimensions. Composing
+boxes keeps their child annotations in the tree. `Box.annotate` replaces the
+annotation on its target node; it does not combine that annotation with a new one.
+To retain a child's style while annotating a parent, compose a wrapper first.
 
-**Why Effect layers for renderers?**
-Dependency injection makes testing simple and allows runtime renderer
-selection. A CLI tool can choose ANSI or plain based on whether stdout
-is a TTY.
+The type parameter records possible annotation data, such as ANSI styles, HTML
+annotations, or reactive IDs. `Box<never>` has no annotation data. A union such as
+`Box<AnsiStyle | Reactive>` describes a tree that can contain either kind of data,
+not two annotations stored on one node.
+
+Each renderer decides which annotations it understands. The ANSI renderer
+interprets styles; the plain renderer discards them. The two outputs below come
+from the same styled layout.
+
+export const outRenderers = (() => {
+  const layout = Box.text("Ready").pipe(
+    Box.annotate(Ansi.combine(Ansi.green, Ansi.bold))
+  );
+  const render = Renderer.render(layout);
+  const terminal = Effect.runSync(
+    render.pipe(Effect.provide(Renderer.AnsiRendererLive))
+  );
+  const plain = Effect.runSync(
+    render.pipe(Effect.provide(Renderer.PlainRendererLive))
+  );
+  const output = `ANSI:  ${terminal}\nPlain: ${plain}`;
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outRenderers} />
+
+```typescript check preview=outRenderers result=output showLineNumbers
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Renderer from "effect-boxes/Renderer";
+
+const layout = Box.text("Ready").pipe(
+  Box.annotate(Ansi.combine(Ansi.green, Ansi.bold))
+);
+const render = Renderer.render(layout);
+const terminal = Effect.runSync(
+  render.pipe(Effect.provide(Renderer.AnsiRendererLive))
+);
+const plain = Effect.runSync(
+  render.pipe(Effect.provide(Renderer.PlainRendererLive))
+);
+const output = `ANSI:  ${terminal}\nPlain: ${plain}`;
+console.log(output);
+```
+
+</CodeExample>
+
+[Using Annotation](/guides/using-annotation) covers replacement, nesting, and
+application metadata. [Using Html](/guides/using-html) explains HTML serialization.
+
+## Tree rendering and frame rendering
+
+The library has two rendering paths. Choose the tree renderer for ordinary Box
+composition, HTML annotations, or terminal command serialization. Choose frames
+for overlapping layers and queries about visible reactive regions.
+
+| Path                         | Steps                                                          | Required service |
+| ---------------------------- | -------------------------------------------------------------- | ---------------- |
+| `Renderer.render(box)`       | Visit nodes, fit lines, interpret annotations, join lines      | `Renderer`       |
+| `Renderer.frame(boxOrStack)` | Resolve geometry and visibility, encode paint runs, join lines | `FrameEncoder`   |
+
+The tree-oriented `Renderer` service uses Effect's `Context.Service`. Its
+`renderContent` visits children and combines their lines. A `TextProcessor` fits
+text to node dimensions, and `postProcess` interprets each node's annotation.
+Providing a renderer layer selects this behavior.
+
+Frame rendering separates geometry from encoding. `Renderer.resolve` requires
+no renderer service and produces an immutable snapshot with reactive regions.
+`Renderer.encode` sends the snapshot's paint runs to a `FrameEncoder`. The encoder
+receives text and effective styles at resolved positions; it does not decide
+which layer is visible.
+
+This example resolves once, then encodes the same snapshot as ANSI and plain text:
+
+export const outFrames = (() => {
+  const layout = Box.text("Ready").pipe(
+    Box.annotate(Ansi.green),
+    Box.border("rounded")
+  );
+  const resolved = Effect.runSync(Renderer.resolve(layout));
+  const terminal = Effect.runSync(
+    Renderer.encode(resolved).pipe(
+      Effect.provide(FrameEncoder.AnsiFrameEncoderLive)
+    )
+  );
+  const plain = Effect.runSync(
+    Renderer.encode(resolved).pipe(
+      Effect.provide(FrameEncoder.PlainFrameEncoderLive)
+    )
+  );
+  const output = `ANSI frame\n${terminal.output}\n\nPlain frame\n${plain.output}`;
+  return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outFrames} />
+
+```typescript check preview=outFrames result=output showLineNumbers
+import { Effect } from "effect";
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Renderer from "effect-boxes/Renderer";
+import * as FrameEncoder from "effect-boxes/FrameEncoder";
+
+const layout = Box.text("Ready").pipe(
+  Box.annotate(Ansi.green),
+  Box.border("rounded")
+);
+const resolved = Effect.runSync(Renderer.resolve(layout));
+const terminal = Effect.runSync(
+  Renderer.encode(resolved).pipe(
+    Effect.provide(FrameEncoder.AnsiFrameEncoderLive)
+  )
+);
+const plain = Effect.runSync(
+  Renderer.encode(resolved).pipe(
+    Effect.provide(FrameEncoder.PlainFrameEncoderLive)
+  )
+);
+const output = `ANSI frame\n${terminal.output}\n\nPlain frame\n${plain.output}`;
+console.log(output);
+```
+
+</CodeExample>
+
+Keep the original resolved object for encoding and hit testing. Copying its public
+fields loses the private data associated with the snapshot. Frame resolution
+supports ANSI styles and reactive IDs. Commands and arbitrary annotation data
+fail with `FrameResolutionError`; encoding failures use `FrameEncodingError`.
+
+The built-in plain and ANSI renderer layers also provide their corresponding
+frame encoders. A custom tree renderer needs a separate `FrameEncoder` layer to
+support frames. The HTML renderer has no frame encoder.
+
+[Render overlapping boxes](/guides/stacking-boxes) shows layer ordering, clipping,
+and region queries. [Using Reactive](/guides/using-reactive) distinguishes layout
+coordinates from absolute terminal coordinates.
+
+## Why keep composition separate from output?
+
+A tree preserves child structure and metadata until rendering. The same layout
+can produce styled terminal output or plain text without changing its content.
+Composition is pure, so constructing a layout does not write to a terminal.
+
+Annotations keep renderer-specific data beside the content it describes.
+Renderers can interpret that data differently. HTML serialization produces
+markup, while ANSI serialization produces text and escape sequences; browser
+layout still follows HTML and CSS rules rather than terminal-cell geometry.
+
+Effect layers make renderer selection an explicit dependency. A caller can choose
+plain output for redirected logs and ANSI output for an interactive terminal.
+The renderer does not automatically detect stdout capabilities.
+
+[Renderer API](/api/renderer) and [FrameEncoder API](/api/frameencoder) describe
+the two service contracts.

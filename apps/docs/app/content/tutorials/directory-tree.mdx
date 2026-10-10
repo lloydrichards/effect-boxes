@@ -1,446 +1,267 @@
 import * as Box from "effect-boxes/Box";
 import * as Ansi from "effect-boxes/Ansi";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "~/components/ui/collapsible";
-import { ChevronRight } from "lucide-react";
-import { pipe, Array as Arr } from "effect";
 
-# Tutorial: Directory tree
+# Directory tree
 
-In this tutorial you'll build a function that renders a directory tree
-from a nested data structure. The final result looks like this:
-
-export const finalTree = Box.renderPrettySync(
-  (() => {
-    const renderEntries = (entries, prefix = Box.nullBox) => {
-      if (entries.length === 0) return Box.nullBox;
-      return Box.vcat(
-        entries.flatMap((entry, i) => {
-          const isLast = i === entries.length - 1;
-          const connector = Box.text(isLast ? "└──" : "├──");
-          const childPrefix = Box.hsep(
-            [prefix, Box.text(isLast ? "   " : "│  ")].filter(
-              (b) => b.cols > 0
-            ),
-            1,
-            Box.left
-          );
-          const isDir = !!entry.children;
-          const icon = Box.text(isDir ? "📁" : "📄");
-          const name = Box.text(entry.name).pipe(
-            Box.annotate(isDir ? Ansi.bold : Ansi.dim)
-          );
-          const parts =
-            prefix.cols > 0
-              ? [prefix, connector, icon, name]
-              : [connector, icon, name];
-          const label = Box.hsep(parts, 1, Box.left);
-          const children = entry.children
-            ? renderEntries(entry.children, childPrefix)
-            : Box.nullBox;
-          return children.rows > 0 ? [label, children] : [label];
-        }),
-        Box.left
-      );
-    };
-    const fs = [
-      {
-        name: "src",
-        children: [
-          { name: "Box.ts" },
-          { name: "Annotation.ts" },
-          { name: "Ansi.ts" },
-        ],
-      },
-      { name: "tests", children: [{ name: "box.test.ts" }] },
-      { name: "package.json" },
-    ];
-    return Box.vcat([Box.text("."), renderEntries(fs)], Box.left);
-  })()
-);
+Build a directory tree from nested data, then style directory and file names.
+The finished tree looks like this:
 
 <AnsiTerminal input={finalTree} />
 
-You'll get there step by step, starting from a flat list and composing
-boxes with `Box.hsep` to keep each part independently styled.
+Each step below is a complete example. After
+[installing effect-boxes](/getting-started), copy a step into `tree.ts`
+and run `bun tree.ts` or `npx tsx tree.ts` with Node. Replace the previous example when moving to the next step.
+This tutorial uses supplied data; it does not read your filesystem.
 
-## Step 1: Define the data
+## Step 1: Render the top-level names
 
-A tree is a list of entries where each entry may have children:
+Represent each entry with a name and optional children. An entry with
+`children: []` is an empty directory; an entry without `children` is a file.
+Use `Box.vcat` to put one name on each row:
 
-```typescript
+export const outFlat = (() => {
+  const filesystem = [
+    {
+      name: "src",
+      children: [
+        { name: "Box.ts" },
+        { name: "utils", children: [{ name: "format.ts" }] },
+      ],
+    },
+    { name: "tests", children: [{ name: "box.test.ts" }] },
+    { name: "assets", children: [] },
+    { name: "package.json" },
+  ];
+
+const tree = Box.vcat(
+filesystem.map((entry) => Box.text(entry.name)),
+Box.left
+);
+const output = Box.renderPlainSync(tree);
+return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outFlat} />
+
+```typescript check preview=outFlat result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
 type Entry = {
-  name: string;
-  children?: Entry[];
+  readonly name: string;
+  readonly children?: ReadonlyArray<Entry>;
 };
 
-const filesystem: Entry[] = [
+const filesystem: ReadonlyArray<Entry> = [
   {
     name: "src",
     children: [
       { name: "Box.ts" },
-      { name: "Annotation.ts" },
-      { name: "Ansi.ts" },
+      { name: "utils", children: [{ name: "format.ts" }] },
     ],
   },
-  {
-    name: "tests",
-    children: [{ name: "box.test.ts" }],
-  },
+  { name: "tests", children: [{ name: "box.test.ts" }] },
+  { name: "assets", children: [] },
   { name: "package.json" },
 ];
-```
 
-## Step 2: Render a flat list
-
-Start simple. Render each entry as a line of text:
-
-export const outFlat = Box.renderPrettySync(
-  Box.vcat(
-    [
-      { name: "src", children: [] },
-      { name: "tests", children: [] },
-      { name: "package.json" },
-    ].map((e) => Box.text(e.name)),
-    Box.left
-  )
-);
-
-<CodeExample>
-
-```typescript
 const tree = Box.vcat(
   filesystem.map((entry) => Box.text(entry.name)),
   Box.left
 );
-console.log(Box.renderPrettySync(tree));
+const output = Box.renderPlainSync(tree);
+console.log(output);
 ```
 
-<AnsiTerminal input={outFlat} />
 </CodeExample>
 
-This gives you a flat list. Now add tree connectors.
+The output lists only the four top-level entries. It preserves their order
+in `filesystem`; this renderer does not sort entries.
 
-## Step 3: Add connectors
+## Step 2: Add connectors
 
-Tree connectors use `├──` for middle items and `└──` for the last item.
-Instead of concatenating strings, compose each part as a separate box
-using `Box.hsep`:
+Use `├──` when another sibling follows and `└──` for the last sibling.
+Join the connector and name with `Box.hsep` and a one-column gap.
+Add `.` on its own row to represent the root:
 
-export const outConnectors = Box.renderPrettySync(
-  Box.vcat(
-    ["src", "tests", "package.json"].map((name, i, arr) => {
-      const isLast = i === arr.length - 1;
-      const connector = Box.text(isLast ? "└──" : "├──");
-      return Box.hsep([connector, Box.text(name)], 1, Box.left);
-    }),
-    Box.left
-  )
+export const outConnectors = (() => {
+  const filesystem = [
+    {
+      name: "src",
+      children: [
+        { name: "Box.ts" },
+        { name: "utils", children: [{ name: "format.ts" }] },
+      ],
+    },
+    { name: "tests", children: [{ name: "box.test.ts" }] },
+    { name: "assets", children: [] },
+    { name: "package.json" },
+  ];
+
+const renderEntries = (entries) =>
+Box.vcat(
+entries.map((entry, index) => {
+const isLast = index === entries.length - 1;
+const connector = Box.text(isLast ? "└──" : "├──");
+return Box.hsep([connector, Box.text(entry.name)], 1, Box.top);
+}),
+Box.left
 );
-
-<CodeExample>
-
-```typescript
-const renderEntries = (entries: Entry[]) =>
-  Box.vcat(
-    entries.map((entry, i) => {
-      const isLast = i === entries.length - 1;
-      const connector = Box.text(isLast ? "└──" : "├──"); // [!code highlight]
-      return Box.hsep([connector, Box.text(entry.name)], 1, Box.left); // [!code highlight]
-    }),
-    Box.left
-  );
-```
-
-<AnsiTerminal input={outConnectors} />
-</CodeExample>
-
-Each row is now two independent boxes joined with a 1-character gap.
-The connector and name can be styled or replaced independently.
-
-## Step 4: Recurse into children
-
-To render children, call the function recursively with an updated prefix.
-The prefix is itself a `Box` that grows at each level. For middle items
-the prefix continues with `│`, for last items it continues with spaces:
-
-export const outRecursive = Box.renderPrettySync(
-  (() => {
-    const renderEntries = (entries, prefix = Box.nullBox) => {
-      if (entries.length === 0) return Box.nullBox;
-      return Box.vcat(
-        entries.flatMap((entry, i) => {
-          const isLast = i === entries.length - 1;
-          const connector = Box.text(isLast ? "└──" : "├──");
-          const childPrefix = Box.hsep(
-            [prefix, Box.text(isLast ? "   " : "│  ")].filter(
-              (b) => b.cols > 0
-            ),
-            1,
-            Box.left
-          );
-          const label =
-            prefix.cols > 0
-              ? Box.hsep([prefix, connector, Box.text(entry.name)], 1, Box.left)
-              : Box.hsep([connector, Box.text(entry.name)], 1, Box.left);
-          const children = entry.children
-            ? renderEntries(entry.children, childPrefix)
-            : Box.nullBox;
-          return children.rows > 0 ? [label, children] : [label];
-        }),
-        Box.left
-      );
-    };
-    const fs = [
-      {
-        name: "src",
-        children: [
-          { name: "Box.ts" },
-          { name: "Annotation.ts" },
-          { name: "Ansi.ts" },
-        ],
-      },
-      { name: "tests", children: [{ name: "box.test.ts" }] },
-      { name: "package.json" },
-    ];
-    return Box.vcat([Box.text("."), renderEntries(fs)], Box.left);
-  })()
-);
-
-<CodeExample>
-
-```typescript
-const renderEntries = (
-  entries: Entry[],
-  prefix: Box.Box<never> = Box.nullBox // [!code highlight]
-): Box.Box<never> => {
-  if (entries.length === 0) return Box.nullBox;
-
-  return Box.vcat(
-    entries.flatMap((entry, i) => {
-      const isLast = i === entries.length - 1;
-      const connector = Box.text(isLast ? "└──" : "├──");
-      const childPrefix = Box.hsep(
-        // [!code highlight]
-        [prefix, Box.text(isLast ? " " : "│ ")].filter((b) => b.cols > 0), // [!code highlight]
-        1,
-        Box.left // [!code highlight]
-      ); // [!code highlight]
-
-      const label =
-        prefix.cols > 0 // [!code highlight]
-          ? Box.hsep([prefix, connector, Box.text(entry.name)], 1, Box.left) // [!code highlight]
-          : Box.hsep([connector, Box.text(entry.name)], 1, Box.left); // [!code highlight]
-
-      const children = entry.children
-        ? renderEntries(entry.children, childPrefix) // [!code highlight]
-        : Box.nullBox;
-
-      return children.rows > 0 ? [label, children] : [label];
-    }),
-    Box.left
-  );
-};
 
 const tree = Box.vcat([Box.text("."), renderEntries(filesystem)], Box.left);
-```
-
-<AnsiTerminal input={outRecursive} />
-</CodeExample>
-
-The key insight: the prefix is a box that accumulates continuation characters
-at each level. Since it's a separate box, it stays visually consistent
-regardless of how deeply nested the tree gets.
-
-## Step 5: Add styling with annotations
-
-Because each part is its own box, you can annotate them independently.
-Style the name based on whether it's a directory or file, add an icon,
-and leave the connector unstyled:
-
-export const outStyled = Box.renderPrettySync(
-  (() => {
-    const renderEntries = (entries, prefix = Box.nullBox) => {
-      if (entries.length === 0) return Box.nullBox;
-      return Box.vcat(
-        entries.flatMap((entry, i) => {
-          const isLast = i === entries.length - 1;
-          const connector = Box.text(isLast ? "└──" : "├──");
-          const childPrefix = Box.hsep(
-            [prefix, Box.text(isLast ? "   " : "│  ")].filter(
-              (b) => b.cols > 0
-            ),
-            1,
-            Box.left
-          );
-          const isDir = !!entry.children;
-          const icon = Box.text(isDir ? "📁" : "📄");
-          const name = Box.text(entry.name).pipe(
-            Box.annotate(isDir ? Ansi.bold : Ansi.dim)
-          );
-          const parts =
-            prefix.cols > 0
-              ? [prefix, connector, icon, name]
-              : [connector, icon, name];
-          const label = Box.hsep(parts, 1, Box.left);
-          const children = entry.children
-            ? renderEntries(entry.children, childPrefix)
-            : Box.nullBox;
-          return children.rows > 0 ? [label, children] : [label];
-        }),
-        Box.left
-      );
-    };
-    const fs = [
-      {
-        name: "src",
-        children: [
-          { name: "Box.ts" },
-          { name: "Annotation.ts" },
-          { name: "Ansi.ts" },
-        ],
-      },
-      { name: "tests", children: [{ name: "box.test.ts" }] },
-      { name: "package.json" },
-    ];
-    return Box.vcat([Box.text("."), renderEntries(fs)], Box.left);
-  })()
-);
+const output = Box.renderPlainSync(tree);
+return output;
+})();
 
 <CodeExample>
 
-```typescript
-import * as Ansi from "effect-boxes/Ansi";
+<AnsiTerminal input={outConnectors} />
 
-const renderEntries = (
-  entries: Entry[],
-  prefix: Box.Box<Ansi.AnsiStyle> = Box.nullBox as Box.Box<Ansi.AnsiStyle>
-): Box.Box<Ansi.AnsiStyle> => {
-  if (entries.length === 0) return Box.nullBox as Box.Box<Ansi.AnsiStyle>;
-
-  return Box.vcat(
-    entries.flatMap((entry, i) => {
-      const isLast = i === entries.length - 1;
-      const connector = Box.text(isLast ? "└──" : "├──");
-      const childPrefix = Box.hsep(
-        [prefix, Box.text(isLast ? "   " : "│  ")].filter((b) => b.cols > 0),
-        1,
-        Box.left
-      );
-
-      const isDir = !!entry.children;
-      const icon = Box.text(isDir ? "📁" : "📄"); // [!code highlight]
-      const name = Box.text(entry.name).pipe(
-        // [!code highlight]
-        Box.annotate(isDir ? Ansi.bold : Ansi.dim) // [!code highlight]
-      ); // [!code highlight]
-
-      const parts =
-        prefix.cols > 0 // [!code highlight]
-          ? [prefix, connector, icon, name] // [!code highlight]
-          : [connector, icon, name]; // [!code highlight]
-      const label = Box.hsep(parts, 1, Box.left); // [!code highlight]
-
-      const children = entry.children
-        ? renderEntries(entry.children, childPrefix)
-        : (Box.nullBox as Box.Box<Ansi.AnsiStyle>);
-
-      return children.rows > 0 ? [label, children] : [label];
-    }),
-    Box.left
-  );
-};
-```
-
-<AnsiTerminal input={outStyled} />
-</CodeExample>
-
-The annotation on `name` only affects that box. The connector and prefix
-render without any styling, keeping the tree lines clean.
-
-## What you've learned
-
-- `Box.hsep` composes boxes horizontally with consistent spacing
-- Treating each part (prefix, connector, icon, name) as a separate box
-  lets you style them independently
-- The prefix accumulates as a box through recursive calls
-- `Box.annotate` targets only the box it wraps, not its neighbors
-- `Box.nullBox` has zero width, so filtering it out of the parts array
-  avoids empty gaps at the root level
-
-The same pattern works for any tree-shaped data: dependency graphs, org
-charts, AST dumps, or nested menu structures. Change the `Entry` type and
-the connector characters to suit your domain.
-
-## Full example
-
-<Collapsible>
-<CollapsibleTrigger className="inline-flex w-full items-center gap-2 text-sm font-semibold cursor-pointer py-2 hover:text-primary transition-colors [&>svg]:shrink-0 [&>svg]:transition-transform [&[data-panel-open]>svg]:rotate-90">
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-<span>Complete code for this tutorial</span>
-</CollapsibleTrigger>
-<CollapsibleContent>
-
-```typescript
+```typescript check preview=outConnectors result=output showLineNumbers
 import * as Box from "effect-boxes/Box";
-import * as Ansi from "effect-boxes/Ansi";
 
 type Entry = {
-  name: string;
-  children?: Entry[];
+  readonly name: string;
+  readonly children?: ReadonlyArray<Entry>;
 };
 
-const filesystem: Entry[] = [
+const filesystem: ReadonlyArray<Entry> = [
   {
     name: "src",
     children: [
       { name: "Box.ts" },
-      { name: "Annotation.ts" },
-      { name: "Ansi.ts" },
+      { name: "utils", children: [{ name: "format.ts" }] },
     ],
   },
+  { name: "tests", children: [{ name: "box.test.ts" }] },
+  { name: "assets", children: [] },
+  { name: "package.json" },
+];
+
+const renderEntries = (entries: ReadonlyArray<Entry>): Box.Box<never> =>
+  Box.vcat(
+    entries.map((entry, index) => {
+      const isLast = index === entries.length - 1;
+      const connector = Box.text(isLast ? "└──" : "├──");
+      return Box.hsep([connector, Box.text(entry.name)], 1, Box.top);
+    }),
+    Box.left
+  );
+
+const tree = Box.vcat([Box.text("."), renderEntries(filesystem)], Box.left);
+const output = Box.renderPlainSync(tree);
+console.log(output);
+```
+
+</CodeExample>
+
+You should see `└── package.json` on the final row. Children are still hidden.
+
+## Step 3: Render child entries
+
+Pass a prefix box into each recursive call. `│  ` continues a parent branch;
+a three-column blank box ends it. Keep the prefix separate from the label
+so each level adds exactly four columns, including the one-column gap:
+
+export const outRecursive = (() => {
+  const filesystem = [
+    {
+      name: "src",
+      children: [
+        { name: "Box.ts" },
+        { name: "utils", children: [{ name: "format.ts" }] },
+      ],
+    },
+    { name: "tests", children: [{ name: "box.test.ts" }] },
+    { name: "assets", children: [] },
+    { name: "package.json" },
+  ];
+
+const renderEntries = (
+entries,
+prefix = Box.nullBox
+) => {
+if (entries.length === 0) return Box.nullBox;
+
+    return Box.vcat(
+      entries.flatMap((entry, index) => {
+        const isLast = index === entries.length - 1;
+        const connector = Box.text(isLast ? "└──" : "├──");
+        const continuation = isLast ? Box.emptyBox(1, 3) : Box.text("│  ");
+        const childPrefix = prefix.cols > 0
+          ? Box.hsep([prefix, continuation], 1, Box.top)
+          : continuation;
+
+        const parts = prefix.cols > 0
+          ? [prefix, connector, Box.text(entry.name)]
+          : [connector, Box.text(entry.name)];
+        const label = Box.hsep(parts, 1, Box.top);
+        const children = entry.children === undefined
+          ? Box.nullBox
+          : renderEntries(entry.children, childPrefix);
+        return children.rows > 0 ? [label, children] : [label];
+      }),
+      Box.left
+    );
+
+};
+
+const tree = Box.vcat([Box.text("."), renderEntries(filesystem)], Box.left);
+const output = Box.renderPlainSync(tree);
+return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={outRecursive} />
+
+```typescript check preview=outRecursive result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+
+type Entry = {
+  readonly name: string;
+  readonly children?: ReadonlyArray<Entry>;
+};
+
+const filesystem: ReadonlyArray<Entry> = [
   {
-    name: "tests",
-    children: [{ name: "box.test.ts" }],
+    name: "src",
+    children: [
+      { name: "Box.ts" },
+      { name: "utils", children: [{ name: "format.ts" }] },
+    ],
   },
+  { name: "tests", children: [{ name: "box.test.ts" }] },
+  { name: "assets", children: [] },
   { name: "package.json" },
 ];
 
 const renderEntries = (
-  entries: Entry[],
-  prefix: Box.Box<Ansi.AnsiStyle> = Box.nullBox as Box.Box<Ansi.AnsiStyle>
-): Box.Box<Ansi.AnsiStyle> => {
-  if (entries.length === 0) return Box.nullBox as Box.Box<Ansi.AnsiStyle>;
+  entries: ReadonlyArray<Entry>,
+  prefix: Box.Box<never> = Box.nullBox
+): Box.Box<never> => {
+  if (entries.length === 0) return Box.nullBox;
 
   return Box.vcat(
-    entries.flatMap((entry, i) => {
-      const isLast = i === entries.length - 1;
+    entries.flatMap((entry, index) => {
+      const isLast = index === entries.length - 1;
       const connector = Box.text(isLast ? "└──" : "├──");
-      const childPrefix = Box.hsep(
-        [prefix, Box.text(isLast ? "   " : "│  ")].filter((b) => b.cols > 0),
-        1,
-        Box.left
-      );
-
-      const isDir = !!entry.children;
-      const icon = Box.text(isDir ? "📁" : "📄");
-      const name = Box.text(entry.name).pipe(
-        Box.annotate(isDir ? Ansi.bold : Ansi.dim)
-      );
+      const continuation = isLast ? Box.emptyBox(1, 3) : Box.text("│  ");
+      const childPrefix =
+        prefix.cols > 0
+          ? Box.hsep([prefix, continuation], 1, Box.top)
+          : continuation;
 
       const parts =
         prefix.cols > 0
-          ? [prefix, connector, icon, name]
-          : [connector, icon, name];
-      const label = Box.hsep(parts, 1, Box.left);
-
-      const children = entry.children
-        ? renderEntries(entry.children, childPrefix)
-        : (Box.nullBox as Box.Box<Ansi.AnsiStyle>);
-
+          ? [prefix, connector, Box.text(entry.name)]
+          : [connector, Box.text(entry.name)];
+      const label = Box.hsep(parts, 1, Box.top);
+      const children =
+        entry.children === undefined
+          ? Box.nullBox
+          : renderEntries(entry.children, childPrefix);
       return children.rows > 0 ? [label, children] : [label];
     }),
     Box.left
@@ -448,8 +269,149 @@ const renderEntries = (
 };
 
 const tree = Box.vcat([Box.text("."), renderEntries(filesystem)], Box.left);
-console.log(Box.renderPrettySync(tree));
+const output = Box.renderPlainSync(tree);
+console.log(output);
 ```
 
-</CollapsibleContent>
-</Collapsible>
+</CodeExample>
+
+The vertical line under `src` continues alongside `utils/format.ts` because
+more top-level entries follow `src`. Under the last child, spaces replace
+the child's vertical line. The empty `assets` directory adds no child rows.
+
+## Step 4: Style names independently
+
+Add `d` for directories and `f` for files. These one-column markers keep
+branch spacing predictable. Annotate only the name box with `Ansi.bold`
+or `Ansi.dim`, then use `Box.renderPrettySync` to include those styles:
+
+export const finalTree = (() => {
+  const filesystem = [
+    {
+      name: "src",
+      children: [
+        { name: "Box.ts" },
+        { name: "utils", children: [{ name: "format.ts" }] },
+      ],
+    },
+    { name: "tests", children: [{ name: "box.test.ts" }] },
+    { name: "assets", children: [] },
+    { name: "package.json" },
+  ];
+
+const renderEntries = (
+entries,
+prefix = Box.nullBox
+) => {
+if (entries.length === 0) return Box.nullBox;
+
+    return Box.vcat(
+      entries.flatMap((entry, index) => {
+        const isLast = index === entries.length - 1;
+        const connector = Box.text(isLast ? "└──" : "├──");
+        const continuation = isLast ? Box.emptyBox(1, 3) : Box.text("│  ");
+        const childPrefix = prefix.cols > 0
+          ? Box.hsep([prefix, continuation], 1, Box.top)
+          : continuation;
+
+        const isDirectory = entry.children !== undefined;
+        const marker = Box.text(isDirectory ? "d" : "f");
+        const name = Box.text(entry.name).pipe(
+          Box.annotate(isDirectory ? Ansi.bold : Ansi.dim)
+        );
+        const parts = prefix.cols > 0
+          ? [prefix, connector, marker, name]
+          : [connector, marker, name];
+        const label = Box.hsep(parts, 1, Box.top);
+        const children = entry.children === undefined
+          ? Box.nullBox
+          : renderEntries(entry.children, childPrefix);
+        return children.rows > 0 ? [label, children] : [label];
+      }),
+      Box.left
+    );
+
+};
+
+const tree = Box.vcat([Box.text("."), renderEntries(filesystem)], Box.left);
+const output = Box.renderPrettySync(tree);
+return output;
+})();
+
+<CodeExample>
+
+<AnsiTerminal input={finalTree} />
+
+```typescript check preview=finalTree result=output showLineNumbers
+import * as Box from "effect-boxes/Box";
+import * as Ansi from "effect-boxes/Ansi";
+
+type Entry = {
+  readonly name: string;
+  readonly children?: ReadonlyArray<Entry>;
+};
+
+const filesystem: ReadonlyArray<Entry> = [
+  {
+    name: "src",
+    children: [
+      { name: "Box.ts" },
+      { name: "utils", children: [{ name: "format.ts" }] },
+    ],
+  },
+  { name: "tests", children: [{ name: "box.test.ts" }] },
+  { name: "assets", children: [] },
+  { name: "package.json" },
+];
+
+const renderEntries = (
+  entries: ReadonlyArray<Entry>,
+  prefix: Box.Box<never> = Box.nullBox
+): Box.Box<Ansi.AnsiStyle> => {
+  if (entries.length === 0) return Box.nullBox;
+
+  return Box.vcat(
+    entries.flatMap((entry, index) => {
+      const isLast = index === entries.length - 1;
+      const connector = Box.text(isLast ? "└──" : "├──");
+      const continuation = isLast ? Box.emptyBox(1, 3) : Box.text("│  ");
+      const childPrefix =
+        prefix.cols > 0
+          ? Box.hsep([prefix, continuation], 1, Box.top)
+          : continuation;
+
+      const isDirectory = entry.children !== undefined;
+      const marker = Box.text(isDirectory ? "d" : "f");
+      const name = Box.text(entry.name).pipe(
+        Box.annotate(isDirectory ? Ansi.bold : Ansi.dim)
+      );
+      const parts =
+        prefix.cols > 0
+          ? [prefix, connector, marker, name]
+          : [connector, marker, name];
+      const label = Box.hsep(parts, 1, Box.top);
+      const children =
+        entry.children === undefined
+          ? Box.nullBox
+          : renderEntries(entry.children, childPrefix);
+      return children.rows > 0 ? [label, children] : [label];
+    }),
+    Box.left
+  );
+};
+
+const tree = Box.vcat([Box.text("."), renderEntries(filesystem)], Box.left);
+const output = Box.renderPrettySync(tree);
+console.log(output);
+```
+
+</CodeExample>
+
+Directory names are bold and file names are dim. The connectors and markers
+keep their default style because they are separate boxes.
+
+To use your own data, replace `filesystem` in the final example. Keep names
+on one line so each label occupies one row. For entries from a real filesystem,
+read the directories separately, then pass that nested data to `renderEntries`.
+See [Using Box](/guides/using-box) for composition operations and
+[Using Ansi](/guides/using-ansi) for other name styles.

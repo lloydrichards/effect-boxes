@@ -1,78 +1,453 @@
-# Render overlapping Boxes
+import { Effect, Option } from "effect";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Box from "effect-boxes/Box";
+import { Layer, Place, Stack } from "effect-boxes/Layout";
+import * as Reactive from "effect-boxes/Reactive";
+import * as Renderer from "effect-boxes/Renderer";
 
-Use `Stack` to render a popup over a background. Compose each layer with normal
-Box helpers, then give the layers to `Renderer.frame`.
+# Render overlapping boxes
 
-```typescript
+Use `Stack` to place boxes over one another in a fixed-size viewport. Compose
+ordinary Boxes first, describe their positions with `Layer.make`, then render
+with `Renderer.frame`.
+
+Every example below is complete. After [installing the dependencies](/getting-started),
+save an example as `stack.ts` and run `bun stack.ts` or `npx tsx stack.ts` with Node.
+Each terminal preview shows the output of its accompanying code.
+
+## Three bordered boxes
+
+A and B start side by side. C moves one row down and one column right from B,
+covering B's lower-right corner and its label. The dots make the uncovered viewport visible.
+
+`x` counts columns from the left; `y` counts rows from the top. Both start at
+zero. Borders are part of each box's dimensions: these boxes are 5 columns
+wide and 3 rows high. C is at `(7, 2)` with `z: 1`; A and B use `z: 0`.
+
+export const outThreeBoxes = (() => {
+const a = Box.text("A").pipe(Box.pad(0, 1), Box.border("rounded"));
+const b = Box.text("B").pipe(Box.pad(0, 1), Box.border("rounded"));
+const c = Box.text("C").pipe(Box.pad(0, 1), Box.border("rounded"));
+const background = Box.text(Array(6).fill("·".repeat(13)).join("\n"));
+const stack = Stack.make(
+  [
+    Layer.make(background, { z: -1 }),
+    Layer.make(a, { x: 1, y: 1 }),
+    Layer.make(b, { x: 6, y: 1 }),
+    Layer.make(c, { x: 7, y: 2, z: 1 }),
+  ],
+  { width: 13, height: 6 }
+);
+const rendered = Effect.runSync(
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.PlainRendererLive)
+  )
+);
+const before = Box.renderPlainSync(Box.hcat([a, b, c], Box.top));
+const output = `Side by side\n${before}\n\nOverlapping\n${rendered.output}`;
+return output;
+})();
+
+<CodeExample>
+<AnsiTerminal input={outThreeBoxes} title="A and B side by side; C covers B" />
+
+```typescript check preview=outThreeBoxes result=output showLineNumbers
 import { Effect } from "effect";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
 import { Layer, Place, Stack } from "effect-boxes/Layout";
 import * as Renderer from "effect-boxes/Renderer";
 
-const background = Box.text("Dashboard").pipe(
-  Place.make({ width: 40, height: 8 }),
-  Box.annotate(Ansi.blue)
-);
-const popup = Box.vcat(
-  [Box.text("Save changes?"), Box.text("Enter to confirm")],
-  Box.left
-).pipe(Box.pad(1, 2), Box.border("rounded"), Box.annotate(Ansi.yellow));
-
+const a = Box.text("A").pipe(Box.pad(0, 1), Box.border("rounded"));
+const b = Box.text("B").pipe(Box.pad(0, 1), Box.border("rounded"));
+const c = Box.text("C").pipe(Box.pad(0, 1), Box.border("rounded"));
+const background = Box.text(Array(6).fill("·".repeat(13)).join("\n"));
 const stack = Stack.make(
-  [Layer.make(background), Layer.make(popup, { x: 8, y: 2, z: 1 })],
-  { width: 40, height: 8 }
+  [
+    Layer.make(background, { z: -1 }),
+    Layer.make(a, { x: 1, y: 1 }),
+    Layer.make(b, { x: 6, y: 1 }),
+    Layer.make(c, { x: 7, y: 2, z: 1 }),
+  ],
+  { width: 13, height: 6 }
+);
+const rendered = Effect.runSync(
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.PlainRendererLive)
+  )
+);
+const before = Box.renderPlainSync(Box.hcat([a, b, c], Box.top));
+const output = `Side by side\n${before}\n\nOverlapping\n${rendered.output}`;
+console.log(output);
+```
+
+</CodeExample>
+
+## Change which box is in front
+
+Background colors show each box's full rectangle, including blank cells.
+A is blue and B is amber. Their positions and dimensions stay the same in both
+frames; only A's `z` changes. Labels and borders identify the boxes without
+relying on color.
+
+The first frame puts B in front. The second raises A above B, so A's right edge
+cuts through B. Higher `z` wins, regardless of the layer's position in the array.
+
+`Layer.make` defaults `x`, `y`, and `z` to zero. When two layers have the same
+`z`, the later layer covers the earlier layer. Rebuild the layers and Stack
+with the new depth values when your application updates.
+
+export const outDepth = (() => {
+const a = Box.text("A: blue").pipe(
+  Place.make({ width: 12, height: 3 }),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.colorHex("#FFFFFF"), Ansi.bgColorHex("#174A78")))
+);
+const b = Box.text("B").pipe(
+  Box.alignHoriz(Box.right, 12),
+  Place.make({ width: 12, height: 3 }),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.colorHex("#171717"), Ansi.bgColorHex("#F2C166")))
+);
+const render = (aDepth) => Effect.runSync(
+  Renderer.frame(
+    Stack.make(
+      [Layer.make(a, { z: aDepth }), Layer.make(b, { x: 6, y: 2, z: 1 })],
+      { width: 20, height: 7 }
+    ),
+    { preserveWhitespace: true }
+  ).pipe(Effect.provide(Renderer.AnsiRendererLive))
+).output;
+const output = `B in front (A z=0, B z=1)\n${render(0)}\n\nA in front (A z=2, B z=1)\n${render(2)}`;
+return output;
+})();
+
+<CodeExample>
+<AnsiTerminal input={outDepth} title="Same positions, different depth order" />
+
+```typescript check preview=outDepth result=output showLineNumbers
+import { Effect } from "effect";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Box from "effect-boxes/Box";
+import { Layer, Place, Stack } from "effect-boxes/Layout";
+import * as Renderer from "effect-boxes/Renderer";
+
+const a = Box.text("A: blue").pipe(
+  Place.make({ width: 12, height: 3 }),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.colorHex("#FFFFFF"), Ansi.bgColorHex("#174A78")))
+);
+const b = Box.text("B").pipe(
+  Box.alignHoriz(Box.right, 12),
+  Place.make({ width: 12, height: 3 }),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.colorHex("#171717"), Ansi.bgColorHex("#F2C166")))
+);
+const render = (aDepth: number) => Effect.runSync(
+  Renderer.frame(
+    Stack.make(
+      [Layer.make(a, { z: aDepth }), Layer.make(b, { x: 6, y: 2, z: 1 })],
+      { width: 20, height: 7 }
+    ),
+    { preserveWhitespace: true }
+  ).pipe(Effect.provide(Renderer.AnsiRendererLive))
+).output;
+const output = `B in front (A z=0, B z=1)\n${render(0)}\n\nA in front (A z=2, B z=1)\n${render(2)}`;
+console.log(output);
+```
+
+</CodeExample>
+
+## Center a popup without covering the whole viewport
+
+Build the popup, including its padding and border, before calculating its
+position. This popup is 19 columns wide and 5 rows high. In a 30-by-9 viewport,
+its top-left corner is `(5, 2)`. The odd horizontal gap leaves 5 columns on the
+left and 6 on the right.
+
+Use offsets on `Layer.make` to keep the layer the size of the popup. Centering
+with `Place.make({ width: 30, height: 9, x: "center", y: "center" })` would
+create a viewport-sized opaque Box; its surrounding blank cells would hide
+the entire dashboard. These offset formulas assume the popup fits the viewport.
+
+export const outCentered = (() => {
+const width = 30;
+const height = 9;
+const background = Box.text(Array(height).fill("·:".repeat(width / 2)).join("\n")).pipe(
+  Box.annotate(Ansi.combine(Ansi.white, Ansi.bgColorHex("#174A78")))
+);
+const popup = Box.text("Save changes?").pipe(
+  Box.pad(1, 2),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.black, Ansi.bgColorHex("#F2C166")))
+);
+const x = Math.floor((width - popup.cols) / 2);
+const y = Math.floor((height - popup.rows) / 2);
+const stack = Stack.make(
+  [Layer.make(background), Layer.make(popup, { x, y, z: 1 })],
+  { width, height }
 );
 const rendered = Effect.runSync(
   Renderer.frame(stack, { preserveWhitespace: true }).pipe(
     Effect.provide(Renderer.AnsiRendererLive)
   )
 );
-console.log(rendered.output);
+const output = rendered.output;
+return output;
+})();
+
+<CodeExample>
+<AnsiTerminal input={outCentered} title="Centered popup; dashboard remains visible" />
+
+```typescript check preview=outCentered result=output showLineNumbers
+import { Effect } from "effect";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Box from "effect-boxes/Box";
+import { Layer, Place, Stack } from "effect-boxes/Layout";
+import * as Renderer from "effect-boxes/Renderer";
+
+const width = 30;
+const height = 9;
+const background = Box.text(Array(height).fill("·:".repeat(width / 2)).join("\n")).pipe(
+  Box.annotate(Ansi.combine(Ansi.white, Ansi.bgColorHex("#174A78")))
+);
+const popup = Box.text("Save changes?").pipe(
+  Box.pad(1, 2),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.black, Ansi.bgColorHex("#F2C166")))
+);
+const x = Math.floor((width - popup.cols) / 2);
+const y = Math.floor((height - popup.rows) / 2);
+const stack = Stack.make(
+  [Layer.make(background), Layer.make(popup, { x, y, z: 1 })],
+  { width, height }
+);
+const rendered = Effect.runSync(
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  )
+);
+const output = rendered.output;
+console.log(output);
 ```
 
-`Layer.make` defaults `x`, `y`, and `z` to zero. Negative offsets clip content at
-the viewport edge. Higher `z` values cover lower values. When two layers have
-the same `z`, the later layer covers the earlier layer.
+</CodeExample>
 
-Each layer covers its entire rectangle, including spaces and padding. For
-example, padding around the popup hides the background beneath that padding.
+## Spaces cover the layer underneath
+
+This blue background contains dots on every row. The teal box has one line
+of text and two empty interior rows. Those empty rows still hide the dots.
+Spaces, padding, and borders all belong to an opaque rectangle; a layer does
+not become transparent where it has no text.
+
+Style the completed rectangle after placing and bordering it, so its blank
+cells receive the background color too.
+
+export const outOpaque = (() => {
+const background = Box.text(Array(7).fill("·".repeat(24)).join("\n")).pipe(
+  Box.annotate(Ansi.combine(Ansi.colorHex("#FFFFFF"), Ansi.bgColorHex("#174A78")))
+);
+const cover = Box.text("Blank rows").pipe(
+  Place.make({ width: 12, height: 3 }),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.colorHex("#FFFFFF"), Ansi.bgColorHex("#155E55")))
+);
+const stack = Stack.make(
+  [Layer.make(background), Layer.make(cover, { x: 5, y: 1, z: 1 })],
+  { width: 24, height: 7 }
+);
+const rendered = Effect.runSync(
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  )
+);
+const output = rendered.output;
+return output;
+})();
+
+<CodeExample>
+<AnsiTerminal input={outOpaque} title="Teal blank rows hide the blue dots" />
+
+```typescript check preview=outOpaque result=output showLineNumbers
+import { Effect } from "effect";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Box from "effect-boxes/Box";
+import { Layer, Place, Stack } from "effect-boxes/Layout";
+import * as Renderer from "effect-boxes/Renderer";
+
+const background = Box.text(Array(7).fill("·".repeat(24)).join("\n")).pipe(
+  Box.annotate(Ansi.combine(Ansi.colorHex("#FFFFFF"), Ansi.bgColorHex("#174A78")))
+);
+const cover = Box.text("Blank rows").pipe(
+  Place.make({ width: 12, height: 3 }),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.colorHex("#FFFFFF"), Ansi.bgColorHex("#155E55")))
+);
+const stack = Stack.make(
+  [Layer.make(background), Layer.make(cover, { x: 5, y: 1, z: 1 })],
+  { width: 24, height: 7 }
+);
+const rendered = Effect.runSync(
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  )
+);
+const output = rendered.output;
+console.log(output);
+```
+
+</CodeExample>
+
+## Clip a box at the viewport edge
+
+The amber box starts at `x: 14` in a 24-column viewport. Its full width,
+including its border, is 16 columns, so the rightmost 6 columns are clipped.
+Its right border disappears at the viewport edge; the box is not resized or
+wrapped. Negative `x` or `y` values clip the left or top edge in the same way.
+
+export const outClipped = (() => {
+const background = Box.text(Array(7).fill("·".repeat(24)).join("\n")).pipe(
+  Box.annotate(Ansi.combine(Ansi.colorHex("#FFFFFF"), Ansi.bgColorHex("#174A78")))
+);
+const panel = Box.text("Right edge").pipe(
+  Place.make({ width: 14, height: 3 }),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.colorHex("#171717"), Ansi.bgColorHex("#F2C166")))
+);
+const stack = Stack.make(
+  [Layer.make(background), Layer.make(panel, { x: 14, y: 1, z: 1 })],
+  { width: 24, height: 7 }
+);
+const rendered = Effect.runSync(
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  )
+);
+const output = rendered.output;
+return output;
+})();
+
+<CodeExample>
+<AnsiTerminal input={outClipped} title="Amber panel continues beyond the right edge" />
+
+```typescript check preview=outClipped result=output showLineNumbers
+import { Effect } from "effect";
+import * as Ansi from "effect-boxes/Ansi";
+import * as Box from "effect-boxes/Box";
+import { Layer, Place, Stack } from "effect-boxes/Layout";
+import * as Renderer from "effect-boxes/Renderer";
+
+const background = Box.text(Array(7).fill("·".repeat(24)).join("\n")).pipe(
+  Box.annotate(Ansi.combine(Ansi.colorHex("#FFFFFF"), Ansi.bgColorHex("#174A78")))
+);
+const panel = Box.text("Right edge").pipe(
+  Place.make({ width: 14, height: 3 }),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.colorHex("#171717"), Ansi.bgColorHex("#F2C166")))
+);
+const stack = Stack.make(
+  [Layer.make(background), Layer.make(panel, { x: 14, y: 1, z: 1 })],
+  { width: 24, height: 7 }
+);
+const rendered = Effect.runSync(
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  )
+);
+const output = rendered.output;
+console.log(output);
+```
+
+</CodeExample>
+
 A partially clipped or covered wide glyph becomes spaces in its surviving cells.
 
 `Stack.make` returns a layer description. Add borders and compose Boxes before
-creating each layer. Place returns a Box and can be used inside a layer.
+creating each layer. `Place.make` returns a Box and can be used inside a layer.
 
 ## Query the frame you rendered
 
 To preserve a styled Box when adding a reactive ID, wrap the styled Box in a
 Row first. `Box.annotate` replaces the annotation on its target Box.
 
-```typescript
+The blue panel has a reactive ID. The amber cover has no ID and splits the
+panel into two visible fragments. The uncovered cell at `(col: 3, row: 2)` hits
+`panel`; the covered cell at `(col: 8, row: 2)` returns no hit. Coordinates use
+the viewport origin, including borders and layer offsets.
+
+export const outConfirm = (() => {
+const styled = Box.text("ABCDEFGHIJKL\nmnopqrstuvwx\n123456789012").pipe(
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.white, Ansi.bgColorHex("#174A78")))
+);
+const panel = Box.hcat([styled], Box.top).pipe(Reactive.makeReactive("panel"));
+const cover = Box.emptyBox(5, 2).pipe(
+  Box.annotate(Ansi.bgColorHex("#F2C166"))
+);
+const stack = Stack.make(
+  [Layer.make(panel, { x: 2, y: 1 }), Layer.make(cover, { x: 8, y: 1, z: 1 })],
+  { width: 20, height: 7 }
+);
+const rendered = Effect.runSync(
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  )
+);
+const region = Reactive.getRegion(rendered.resolved.regions, "panel");
+const fragments = Option.match(region, {
+  onNone: () => "Panel not found",
+  onSome: (value) => value.visible.map((fragment) =>
+    `row ${fragment.row}, col ${fragment.col}: ${fragment.rows} rows x ${fragment.cols} cols`
+  ).join("\n"),
+});
+const uncovered = Reactive.hitTest(rendered.resolved, { row: 2, col: 3 });
+const covered = Reactive.hitTest(rendered.resolved, { row: 2, col: 8 });
+const output = `${rendered.output}\nVisible fragments:\n${fragments}\nUncovered hit: ${JSON.stringify(uncovered)}\nCovered hit: ${JSON.stringify(covered)}`;
+return output;
+})();
+
+<CodeExample>
+<AnsiTerminal input={outConfirm} title="Untracked amber cover blocks panel hits" />
+
+```typescript check preview=outConfirm result=output showLineNumbers
 import { Effect, Option } from "effect";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
-import { Layer, Stack } from "effect-boxes/Layout";
-import * as Reactive from "effect-boxes/Reactive";
+import { Layer, Place, Stack } from "effect-boxes/Layout";
 import * as Renderer from "effect-boxes/Renderer";
+import * as Reactive from "effect-boxes/Reactive";
 
-const styled = Box.text("Confirm").pipe(Box.annotate(Ansi.green));
-const button = Box.hcat([styled], Box.top).pipe(
-  Reactive.makeReactive("confirm")
+const styled = Box.text("ABCDEFGHIJKL\nmnopqrstuvwx\n123456789012").pipe(
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.white, Ansi.bgColorHex("#174A78")))
 );
-const stack = Stack.make([Layer.make(button, { x: 2, y: 1 })], {
-  width: 20,
-  height: 4,
-});
+const panel = Box.hcat([styled], Box.top).pipe(Reactive.makeReactive("panel"));
+const cover = Box.emptyBox(5, 2).pipe(
+  Box.annotate(Ansi.bgColorHex("#F2C166"))
+);
+const stack = Stack.make(
+  [Layer.make(panel, { x: 2, y: 1 }), Layer.make(cover, { x: 8, y: 1, z: 1 })],
+  { width: 20, height: 7 }
+);
 const rendered = Effect.runSync(
-  Renderer.frame(stack).pipe(Effect.provide(Renderer.AnsiRendererLive))
+  Renderer.frame(stack, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  )
 );
-const region = Reactive.getRegion(rendered.resolved.regions, "confirm");
-if (Option.isSome(region)) {
-  console.log(region.value.visible);
-}
-console.log(Reactive.hitTest(rendered.resolved, { row: 1, col: 3 }));
-// ["confirm"]
+const region = Reactive.getRegion(rendered.resolved.regions, "panel");
+const fragments = Option.match(region, {
+  onNone: () => "Panel not found",
+  onSome: (value) => value.visible.map((fragment) =>
+    `row ${fragment.row}, col ${fragment.col}: ${fragment.rows} rows x ${fragment.cols} cols`
+  ).join("\n"),
+});
+const uncovered = Reactive.hitTest(rendered.resolved, { row: 2, col: 3 });
+const covered = Reactive.hitTest(rendered.resolved, { row: 2, col: 8 });
+const output = `${rendered.output}\nVisible fragments:\n${fragments}\nUncovered hit: ${JSON.stringify(uncovered)}\nCovered hit: ${JSON.stringify(covered)}`;
+console.log(output);
 ```
+
+</CodeExample>
 
 A region retains each occurrence of an ID, its original bounds, its bounds
 inside the viewport, and its visible fragments. An opaque layer can split one
@@ -92,47 +467,75 @@ Keep the original resolved object for encoding and hit testing. Do not copy it
 with object spread or reconstruct it from its public fields; the private frame
 data belongs to the original snapshot.
 
-```typescript
-import { Effect } from "effect";
-import * as Box from "effect-boxes/Box";
-import * as FrameEncoder from "effect-boxes/FrameEncoder";
-import * as Renderer from "effect-boxes/Renderer";
+The two encodings below reuse one resolved Stack. They have identical text
+and geometry; only the ANSI encoding retains the blue and amber backgrounds.
+The built-in renderer layers supply the frame encoder required by
+`Renderer.encode`. Neither encoding resolves the layers again.
 
+export const outResolved = (() => {
+const background = Box.text(Array(5).fill("·".repeat(20)).join("\n")).pipe(
+  Box.annotate(Ansi.combine(Ansi.white, Ansi.bgColorHex("#174A78")))
+);
+const popup = Box.text("Ready").pipe(
+  Box.pad(0, 1),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.black, Ansi.bgColorHex("#F2C166")))
+);
+const stack = Stack.make(
+  [Layer.make(background), Layer.make(popup, { x: 4, y: 1, z: 1 })],
+  { width: 20, height: 5 }
+);
 const program = Effect.gen(function* () {
-  const resolved = yield* Renderer.resolve(Box.text("Ready"));
-  const rendered = yield* Renderer.encode(resolved);
-  return rendered.output;
+  const resolved = yield* Renderer.resolve(stack);
+  const plain = yield* Renderer.encode(resolved, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.PlainRendererLive)
+  );
+  const ansi = yield* Renderer.encode(resolved, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  );
+  return `Plain output\n${plain.output}\n\nANSI output\n${ansi.output}`;
 });
-const output = Effect.runSync(
-  program.pipe(Effect.provide(FrameEncoder.PlainFrameEncoderLive))
-);
-```
+const output = Effect.runSync(program);
+return output;
+})();
 
-Both `PlainRendererLive` and `AnsiRendererLive` provide their legacy renderer
-and their frame encoder. Existing custom renderers keep their current contract.
-For frame support, provide a companion `FrameEncoder` layer whose
-`encodeResolved` function accepts full-width rows of paint runs. Each run
-contains its column, width, text, and effective ANSI style. The encoder does not
-need to resolve geometry or determine which layer owns a cell.
+<CodeExample>
+<AnsiTerminal input={outResolved} title="One snapshot, plain and ANSI output" />
 
-Use `FrameEncoder.layer` to register a custom encoder explicitly. This example
-writes plain text from the resolved paint runs:
-
-```typescript
+```typescript check preview=outResolved result=output showLineNumbers
 import { Effect } from "effect";
+import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
-import * as FrameEncoder from "effect-boxes/FrameEncoder";
+import { Layer, Place, Stack } from "effect-boxes/Layout";
 import * as Renderer from "effect-boxes/Renderer";
 
-const customFrames = FrameEncoder.layer({
-  encodeResolved: Effect.fn("customFrames.encodeResolved")(function* (view) {
-    return view.lines.map((line) => line.map((run) => run.text).join(""));
-  }),
-});
-const rendered = Effect.runSync(
-  Renderer.frame(Box.text("Custom output")).pipe(Effect.provide(customFrames))
+const background = Box.text(Array(5).fill("·".repeat(20)).join("\n")).pipe(
+  Box.annotate(Ansi.combine(Ansi.white, Ansi.bgColorHex("#174A78")))
 );
+const popup = Box.text("Ready").pipe(
+  Box.pad(0, 1),
+  Box.border("single"),
+  Box.annotate(Ansi.combine(Ansi.black, Ansi.bgColorHex("#F2C166")))
+);
+const stack = Stack.make(
+  [Layer.make(background), Layer.make(popup, { x: 4, y: 1, z: 1 })],
+  { width: 20, height: 5 }
+);
+const program = Effect.gen(function* () {
+  const resolved = yield* Renderer.resolve(stack);
+  const plain = yield* Renderer.encode(resolved, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.PlainRendererLive)
+  );
+  const ansi = yield* Renderer.encode(resolved, { preserveWhitespace: true }).pipe(
+    Effect.provide(Renderer.AnsiRendererLive)
+  );
+  return `Plain output\n${plain.output}\n\nANSI output\n${ansi.output}`;
+});
+const output = Effect.runSync(program);
+console.log(output);
 ```
+
+</CodeExample>
 
 `rendered.lines` contains all viewport rows, including padding. The
 `preserveWhitespace` option controls how those rows become `rendered.output`.
