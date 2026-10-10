@@ -12,6 +12,7 @@
  *
  * @module
  */
+import type { Result } from "effect";
 import type * as Box from "./Box.js";
 import * as internalContainer from "./internal/container.js";
 import * as internalFlex from "./internal/flex.js";
@@ -581,7 +582,32 @@ export const Layer: {
     (options?: Layer.Options): <A>(self: Box.Box<A>) => Layer<A>;
     <A>(self: Box.Box<A>, options?: Layer.Options): Layer<A>;
   };
-} = { make: internalStack.makeLayer };
+  /**
+   * Positions a Box, returning invalid coordinates as a validation failure.
+   *
+   * @example
+   * ```typescript
+   * import { Result } from "effect"
+   * import * as Box from "effect-boxes/Box"
+   * import { Layer } from "effect-boxes/Layout"
+   * const result = Layer.makeResult(Box.text("A"), { x: 0.5 })
+   * console.log(Result.isFailure(result)) // true
+   * ```
+   * @category constructors
+   */
+  readonly makeResult: {
+    (
+      options?: Layer.Options
+    ): <A>(self: Box.Box<A>) => Result.Result<Layer<A>, LayoutValidationError>;
+    <A>(
+      self: Box.Box<A>,
+      options?: Layer.Options
+    ): Result.Result<Layer<A>, LayoutValidationError>;
+  };
+} = {
+  make: internalStack.makeLayer,
+  makeResult: internalStack.makeLayerResult,
+};
 
 /** @category models */
 export namespace Layer {
@@ -642,7 +668,29 @@ export const Stack: {
     layers: T,
     options: Stack.Options
   ) => Stack<T[number] extends Layer<infer A> ? A : never>;
-} = { make: internalStack.makeStack };
+  /**
+   * Copies layers into a viewport, returning invalid dimensions as a failure.
+   *
+   * @example
+   * ```typescript
+   * import { Result } from "effect"
+   * import { Stack } from "effect-boxes/Layout"
+   * const result = Stack.makeResult([], { width: 8, height: 2 })
+   * console.log(Result.isSuccess(result)) // true
+   * ```
+   * @category constructors
+   */
+  readonly makeResult: <const T extends ReadonlyArray<Layer<unknown>>>(
+    layers: T,
+    options: Stack.Options
+  ) => Result.Result<
+    Stack<T[number] extends Layer<infer A> ? A : never>,
+    LayoutValidationError
+  >;
+} = {
+  make: internalStack.makeStack,
+  makeResult: internalStack.makeStackResult,
+};
 
 /** @category models */
 export namespace Stack {

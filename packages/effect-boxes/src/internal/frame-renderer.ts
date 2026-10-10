@@ -1,11 +1,15 @@
 /** @internal */
-import { Effect } from "effect";
+import { Effect, Predicate, Schema } from "effect";
 import { dual } from "effect/Function";
 import * as Box from "../Box.js";
 import type { Stack } from "../Layout.js";
 import type { RenderConfig } from "../Renderer.js";
 import type { ResolvedFrame } from "./frame.js";
-import { encodingView, FrameResolutionError, resolveLayers } from "./frame.js";
+import {
+  encodingView,
+  type FrameResolutionError,
+  resolveLayers,
+} from "./frame.js";
 import { FrameEncoder, FrameEncodingError } from "./frame-encoder.js";
 import { renderLinesToString } from "./renderer.js";
 
@@ -15,22 +19,18 @@ export interface FrameOutput {
   readonly resolved: ResolvedFrame;
 }
 
-export const resolve = <A>(
+export const resolve: <A>(
   self: Box.Box<A> | Stack<A>
-): Effect.Effect<ResolvedFrame, FrameResolutionError> =>
-  Effect.try({
-    try: () =>
-      Box.isBox(self)
-        ? resolveLayers([{ box: self, x: 0, y: 0, z: 0 }], self.cols, self.rows)
-        : resolveLayers(self.layers, self.width, self.height),
-    catch: (cause) =>
-      cause instanceof FrameResolutionError
-        ? cause
-        : new FrameResolutionError({
-            message: "Unable to resolve frame",
-            cause,
-          }),
-  });
+) => Effect.Effect<ResolvedFrame, FrameResolutionError> = Effect.fn(
+  "Renderer.resolve"
+)(function* <A>(self: Box.Box<A> | Stack<A>) {
+  return yield* Effect.fromResult(
+    Box.isBox(self)
+      ? resolveLayers([{ box: self, x: 0, y: 0, z: 0 }], self.cols, self.rows)
+      : resolveLayers(self.layers, self.width, self.height)
+  );
+});
+const decodeLines = Schema.decodeUnknownEffect(Schema.Array(Schema.String));
 
 export const encode = dual<
   (
@@ -45,29 +45,38 @@ export const encode = dual<
 >(
   (args) =>
     typeof args[0] === "object" && args[0] !== null && "regions" in args[0],
-  (self: ResolvedFrame, config?: RenderConfig) =>
-    Effect.gen(function* () {
-      const encoder = yield* FrameEncoder;
-      const view = yield* Effect.try({
-        try: () => encodingView(self),
-        catch: (cause) =>
-          new FrameEncodingError({ message: "Invalid resolved frame", cause }),
-      });
-      const encoded = yield* encoder.encodeResolved(view);
-      if (
-        encoded.length !== self.rows ||
-        encoded.some((line) => typeof line !== "string")
+  Effect.fn("Renderer.encode")(function* (
+    self: ResolvedFrame,
+    config?: RenderConfig
+  ) {
+    const encoder = yield* FrameEncoder;
+    const view = yield* Effect.fromOption(encodingView(self)).pipe(
+      Effect.mapError(
+        () => new FrameEncodingError({ message: "Invalid resolved frame" })
       )
-        return yield* new FrameEncodingError({
-          message: "Frame encoder must return one string per viewport row",
-        });
-      const lines = Object.freeze([...encoded]);
-      return Object.freeze({
-        lines,
-        output: renderLinesToString([...lines], config),
-        resolved: self,
+    );
+    const encoded = yield* encoder.encodeResolved(view).pipe(
+      Effect.flatMap(decodeLines),
+      Effect.mapError((cause) =>
+        cause instanceof FrameEncodingError
+          ? cause
+          : new FrameEncodingError({
+              message: "Frame encoder must return one string per viewport row",
+              cause,
+            })
+      )
+    );
+    if (encoded.length !== self.rows)
+      return yield* new FrameEncodingError({
+        message: "Frame encoder must return one string per viewport row",
       });
-    })
+    const lines = Object.freeze([...encoded]);
+    return Object.freeze({
+      lines,
+      output: renderLinesToString([...lines], config),
+      resolved: self,
+    });
+  })
 );
 
 export const frame = dual<
@@ -93,8 +102,12 @@ export const frame = dual<
     Box.isBox(args[0]) ||
     (typeof args[0] === "object" &&
       args[0] !== null &&
-      "_tag" in args[0] &&
-      args[0]._tag === "Stack"),
-  <A>(self: Box.Box<A> | Stack<A>, config?: RenderConfig) =>
-    Effect.flatMap(resolve(self), (resolved) => encode(resolved, config))
+      Predicate.isTagged(args[0], "Stack")),
+  Effect.fn("Renderer.frame")(function* <A>(
+    self: Box.Box<A> | Stack<A>,
+    config?: RenderConfig
+  ) {
+    const resolved = yield* resolve(self);
+    return yield* encode(resolved, config);
+  })
 );
