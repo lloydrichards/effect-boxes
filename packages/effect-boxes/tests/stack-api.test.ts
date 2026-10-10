@@ -20,6 +20,50 @@ describe("Stack public API", () => {
     ["plain", Renderer.PlainRendererLive],
     ["ANSI", Renderer.AnsiRendererLive],
   ])(
+    "retains zero-width separators with surviving %s glyphs",
+    (_, renderer) => {
+      for (const text of [
+        "A\u200bB",
+        "\u1100\u200b\u1161X",
+        "\u1100\u2060\u1161X",
+        "\u200bA\u2060",
+      ]) {
+        const source = Box.text(text);
+        for (const input of [
+          source,
+          Stack.make([Layer.make(source)], {
+            width: source.cols,
+            height: source.rows,
+          }),
+        ]) {
+          const rendered = Effect.runSync(
+            Renderer.frame(input, { preserveWhitespace: true }).pipe(
+              Effect.provide(renderer)
+            )
+          );
+          expect(rendered.lines).toEqual([text]);
+          expect(Width.ofString(rendered.lines[0] ?? "")).toBe(source.cols);
+        }
+      }
+      const source = Box.text("A\u200bB\u2060");
+      for (const layers of [
+        [Layer.make(source, { x: 1 })],
+        [Layer.make(source), Layer.make(Box.text("X"), { x: 1 })],
+      ]) {
+        const rendered = Effect.runSync(
+          Renderer.frame(Stack.make(layers, { width: 2, height: 1 }), {
+            preserveWhitespace: true,
+          }).pipe(Effect.provide(renderer))
+        );
+        expect(rendered.lines).toEqual([layers.length === 1 ? " A" : "AX"]);
+      }
+    }
+  );
+
+  it.each([
+    ["plain", Renderer.PlainRendererLive],
+    ["ANSI", Renderer.AnsiRendererLive],
+  ])(
     "rejects cross-layer grapheme joining before %s encoding",
     (_, renderer) => {
       for (const styled of [false, true]) {

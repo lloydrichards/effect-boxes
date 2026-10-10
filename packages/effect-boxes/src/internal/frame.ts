@@ -290,9 +290,24 @@ export const resolveLayers = (
           ) {
             fail("Frame text cannot contain terminal controls");
           }
-          let offset = 0;
+          const glyphs: { text: string; cols: number }[] = [];
+          let separators = "";
           for (const segment of Width.segments(text)) {
             const size = Width.ofString(segment);
+            if (size === 0) {
+              separators += segment;
+            } else {
+              glyphs.push({ text: separators + segment, cols: size });
+              separators = "";
+            }
+          }
+          // Separators travel with the next glyph, or the last glyph when
+          // trailing, so clipping and occlusion remove their source text too.
+          const lastGlyph = glyphs.at(-1);
+          if (lastGlyph) lastGlyph.text += separators;
+          let offset = 0;
+          for (const segment of glyphs) {
+            const size = segment.cols;
             const start = add(col, offset);
             const end = add(start, size);
             if (
@@ -305,7 +320,7 @@ export const resolveLayers = (
               const glyph = Object.freeze({
                 col: start,
                 cols: size,
-                text: segment,
+                text: segment.text,
               });
               fill(bounds(row, start, 1, size), { glyph, style, owners });
             }
@@ -435,7 +450,7 @@ export const resolveLayers = (
         if (whole && col !== glyph.col) continue;
         const text = whole ? glyph.text : " ";
         const cols = whole ? glyph.cols : 1;
-        glyphTexts.push(text);
+        for (const segment of Width.segments(text)) glyphTexts.push(segment);
         const previous = runs.at(-1);
         if (previous && sameStyle(previous.style, cell.style)) {
           runs[runs.length - 1] = {
