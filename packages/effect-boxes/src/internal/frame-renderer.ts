@@ -12,6 +12,7 @@ import {
 } from "./frame.js";
 import { FrameEncoder, FrameEncodingError } from "./frame-encoder.js";
 import { renderLinesToString } from "./renderer.js";
+import * as Width from "./width.js";
 
 export interface FrameOutput {
   readonly lines: ReadonlyArray<string>;
@@ -31,6 +32,11 @@ export const resolve: <A>(
   );
 });
 const decodeLines = Schema.decodeUnknownEffect(Schema.Array(Schema.String));
+
+const decodeRow = Schema.decodeUnknownEffect(
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: Reject row-changing terminal controls after removing SGR.
+  Schema.String.check(Schema.isPattern(/^[^\u0000-\u001f\u007f-\u009f]*$/u))
+);
 
 export const encode = dual<
   (
@@ -70,6 +76,26 @@ export const encode = dual<
       return yield* new FrameEncodingError({
         message: "Frame encoder must return one string per viewport row",
       });
+    for (const line of encoded) {
+      // SGR changes style without moving the cursor. Other controls can
+      // invalidate ownership even when a width calculator strips them.
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: Accept only geometry-neutral SGR escapes.
+      const visible = line.replace(/(?:\u001b\[|\u009b)[0-9;:]*m/g, "");
+      const row = yield* decodeRow(visible).pipe(
+        Effect.mapError(
+          (cause) =>
+            new FrameEncodingError({
+              message:
+                "Frame encoder rows must contain text and ANSI SGR formatting only",
+              cause,
+            })
+        )
+      );
+      if (Width.ofString(row) !== self.cols)
+        return yield* new FrameEncodingError({
+          message: "Frame encoder row width must match the resolved viewport",
+        });
+    }
     const lines = Object.freeze([...encoded]);
     return Object.freeze({
       lines,

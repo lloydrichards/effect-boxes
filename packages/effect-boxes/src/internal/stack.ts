@@ -52,7 +52,13 @@ export function makeStackResult<const T extends ReadonlyArray<Layer<unknown>>>(
   layers: T,
   options: Stack.Options
 ): Result.Result<
-  Stack<T[number] extends Layer<infer A> ? A : never>,
+  Stack<
+    [T[number]] extends [never]
+      ? never
+      : T[number] extends Layer<infer A>
+        ? A
+        : never
+  >,
   Validation.LayoutValidationError
 >;
 export function makeStackResult(
@@ -83,5 +89,10 @@ export function makeStackResult(
 export const makeStack = <const T extends ReadonlyArray<Layer<unknown>>>(
   layers: T,
   options: Stack.Options
-): Stack<T[number] extends Layer<infer A> ? A : never> =>
-  Validation.orThrow(makeStackResult(layers, options));
+): Stack<
+  [T[number]] extends [never]
+    ? never
+    : T[number] extends Layer<infer A>
+      ? A
+      : never
+> => Validation.orThrow(makeStackResult(layers, options));

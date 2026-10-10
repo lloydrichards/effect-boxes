@@ -6,7 +6,7 @@ import * as Box from "../src/Box.js";
 import * as Cmd from "../src/Cmd.js";
 import * as FrameEncoder from "../src/FrameEncoder.js";
 import * as Width from "../src/internal/width.js";
-import { Layer, Stack } from "../src/Layout.js";
+import { Layer, type LayoutValidationError, Stack } from "../src/Layout.js";
 import * as Reactive from "../src/Reactive.js";
 import * as Renderer from "../src/Renderer.js";
 
@@ -385,4 +385,41 @@ describe("Stack public API", () => {
     if (Result.isFailure(result))
       expect(result.failure).toBeInstanceOf(FrameEncoder.FrameEncodingError);
   });
+});
+
+it("preserves the annotation type of empty Stack constructors", () => {
+  const empty: Stack<never> = Stack.make([], { width: 0, height: 0 });
+  const result: Result.Result<
+    Stack<never>,
+    LayoutValidationError
+  > = Stack.makeResult([], { width: 0, height: 0 });
+  expect(empty.layers).toEqual([]);
+  expect(Result.getOrThrow(result).layers).toEqual([]);
+});
+
+it.each(["", "AB", "A\nB", "A\r", "A\t", "\u001b[1CA", "\u001b[2JA"])(
+  "rejects custom encoder rows that change geometry: %j",
+  (row) => {
+    const custom = FrameEncoder.layer({
+      encodeResolved: () => Effect.succeed([row]),
+    });
+    const result = Effect.runSync(
+      Effect.result(Renderer.frame(Box.text("A")).pipe(Effect.provide(custom)))
+    );
+    expect(result).toMatchObject({
+      _tag: "Failure",
+      failure: { _tag: "FrameEncodingError" },
+    });
+  }
+);
+
+it("accepts custom ANSI SGR formatting without changing row geometry", () => {
+  const row = "\u001b[38:2:255:0:0mA\u001b[0m";
+  const custom = FrameEncoder.layer({
+    encodeResolved: () => Effect.succeed([row]),
+  });
+  const frame = Effect.runSync(
+    Renderer.frame(Box.text("A")).pipe(Effect.provide(custom))
+  );
+  expect(frame.lines).toEqual([row]);
 });

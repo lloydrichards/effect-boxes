@@ -31,6 +31,8 @@ export type FrameEncodingView = internalFrame.FrameEncodingView;
 /**
  * Defines an effectful frame encoder. Acquire dependencies when building its layer.
  * Return one string per viewport row, preserving display widths and row boundaries.
+ * Output rows may contain printable text and ANSI SGR formatting. Other terminal
+ * controls and rows with a different display width fail with FrameEncodingError.
  * Unsupported backend content fails with FrameEncodingError.
  *
  * @category models

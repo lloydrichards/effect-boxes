@@ -667,7 +667,13 @@ export const Stack: {
   readonly make: <const T extends ReadonlyArray<Layer<unknown>>>(
     layers: T,
     options: Stack.Options
-  ) => Stack<T[number] extends Layer<infer A> ? A : never>;
+  ) => Stack<
+    [T[number]] extends [never]
+      ? never
+      : T[number] extends Layer<infer A>
+        ? A
+        : never
+  >;
   /**
    * Copies layers into a viewport, returning invalid dimensions as a failure.
    *
@@ -684,7 +690,13 @@ export const Stack: {
     layers: T,
     options: Stack.Options
   ) => Result.Result<
-    Stack<T[number] extends Layer<infer A> ? A : never>,
+    Stack<
+      [T[number]] extends [never]
+        ? never
+        : T[number] extends Layer<infer A>
+          ? A
+          : never
+    >,
     LayoutValidationError
   >;
 } = {
