@@ -19,6 +19,16 @@ describe("Unicode display widths", () => {
     expect(Box.renderPlainSync(box)).toBe("你好");
   });
 
+  it.each(["𠮷", "𰀀"])(
+    "should measure supplementary CJK character %s as two columns",
+    (character) => {
+      const box = Box.line(character);
+
+      expect(box.cols).toBe(2);
+      expect(Box.renderPlainSync(Box.maxWidth(box, 1))).toBe(" ");
+    }
+  );
+
   it("should keep a joined emoji intact at a width boundary", () => {
     const box = Box.maxWidth(Box.line("👩‍💻x"), 2);
 

@@ -97,6 +97,9 @@ const WIDE_CHAR_RANGES = [
   [0x01_f9_00, 0x01_f9_ff],
   [0x01_fa_00, 0x01_fa_6f],
   [0x01_fa_70, 0x01_fa_ff],
+  // CJK ideographs in Planes 2 and 3
+  [0x02_00_00, 0x02_ff_fd],
+  [0x03_00_00, 0x03_ff_fd],
 ] as const;
 
 const isFullWidth = (codePoint: number): boolean =>
