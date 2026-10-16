@@ -7,6 +7,7 @@ import type * as Reactive from "../Reactive.js";
 import { createAnnotation } from "./annotation.js";
 import { annotate, merge, resizeBox, resizeBoxAligned } from "./box.js";
 import { cursorTo } from "./cmd.js";
+import * as Width from "./width.js";
 
 /*
  *  --------------------------------------------------------------------------------
@@ -145,8 +146,8 @@ export const getPositions = <A>(self: Box.Box<A>): Reactive.PositionMap => {
         Match.tag("SubBox", ({ box: subBox, xAlign, yAlign }) => {
           const result = renderBoxWithTracking(
             subBox,
-            offsetRow + calculateAlignmentOffset(yAlign, rows - subBox.rows),
-            offsetCol + calculateAlignmentOffset(xAlign, cols - subBox.cols)
+            offsetRow + Width.alignmentOffset(yAlign, subBox.rows, rows),
+            offsetCol + Width.alignmentOffset(xAlign, subBox.cols, cols)
           );
 
           return [
@@ -158,18 +159,6 @@ export const getPositions = <A>(self: Box.Box<A>): Reactive.PositionMap => {
       )
     );
   };
-
-  const calculateAlignmentOffset = (
-    alignment: Box.Alignment,
-    space: number
-  ): number =>
-    Match.value(alignment).pipe(
-      Match.when("AlignFirst", () => 0),
-      Match.when("AlignLast", () => space),
-      Match.when("AlignCenter1", () => Math.floor(space / 2)),
-      Match.when("AlignCenter2", () => Math.ceil(space / 2)),
-      Match.exhaustive
-    );
 
   return renderBoxWithTracking(self, 0, 0)[1];
 };

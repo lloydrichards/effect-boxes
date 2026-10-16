@@ -166,9 +166,95 @@ describe("Reactive Annotations", () => {
 
       const innerPos = Option.getOrUndefined(HashMap.get(positions, "inner"));
       expect(innerPos?.row).toBe(0);
-      expect(innerPos?.col).toBe(2); // (10 - 5) / 2 = 2.5, floor = 2 for center1
+      expect(innerPos?.col).toBe(2);
       expect(innerPos?.rows).toBe(1);
       expect(innerPos?.cols).toBe(5);
+    });
+
+    describe.each([Box.center1, Box.center2])("%s coordinates", (alignment) => {
+      it.each([
+        [2, 2, 0, 0],
+        [2, 3, 1, 0],
+        [2, 4, 1, 1],
+        [2, 5, 2, 1],
+        [3, 2, -1, 0],
+        [3, 3, 0, 0],
+        [3, 4, 0, 1],
+        [3, 5, 1, 1],
+        [4, 2, -1, -1],
+        [4, 3, 0, -1],
+        [5, 2, -2, -1],
+        [5, 3, -1, -1],
+      ])(
+        "matches rendering for input %i and target %i on both axes",
+        (input, target, center1Offset, center2Offset) => {
+          const offset =
+            alignment === Box.center1 ? center1Offset : center2Offset;
+          const letters = "ABCDE".slice(0, input);
+          const expected =
+            offset >= 0 ? " ".repeat(offset) + letters : letters.slice(-offset);
+          const visible = expected.padEnd(target).slice(0, target);
+
+          const horizontal = Box.alignHoriz(
+            Reactive.makeReactive(Box.text(letters), "label"),
+            alignment,
+            target
+          );
+          expect(Box.renderPlainSync(horizontal)).toBe(visible);
+          expect(
+            Option.getOrThrow(
+              HashMap.get(Reactive.getPositions(horizontal), "label")
+            )
+          ).toEqual({ row: 0, col: offset, rows: 1, cols: input });
+
+          const vertical = Box.alignVert(
+            Reactive.makeReactive(Box.text([...letters].join("\n")), "label"),
+            alignment,
+            target
+          );
+          expect(Box.renderPlainSync(vertical)).toBe([...visible].join("\n"));
+          expect(
+            Option.getOrThrow(
+              HashMap.get(Reactive.getPositions(vertical), "label")
+            )
+          ).toEqual({ row: offset, col: 0, rows: input, cols: 1 });
+        }
+      );
+    });
+
+    it("adds nested SubBox offsets to row and column layout positions", () => {
+      const label = Reactive.makeReactive(Box.text("AB\nCD"), "label");
+      const inner = Reactive.makeReactive(
+        label.pipe(
+          Box.alignHoriz(Box.center1, 3),
+          Box.alignVert(Box.center1, 3)
+        ),
+        "inner"
+      );
+      const nested = inner.pipe(
+        Box.alignHoriz(Box.center2, 4),
+        Box.alignVert(Box.center2, 4)
+      );
+      const layout = Box.vcat(
+        [Box.text("heading"), Box.hcat([Box.text(">"), nested], Box.top)],
+        Box.left
+      );
+      const positions = Reactive.getPositions(layout);
+      expect(Option.getOrThrow(HashMap.get(positions, "inner"))).toEqual({
+        row: 2,
+        col: 2,
+        rows: 3,
+        cols: 3,
+      });
+      expect(Option.getOrThrow(HashMap.get(positions, "label"))).toEqual({
+        row: 3,
+        col: 3,
+        rows: 2,
+        cols: 2,
+      });
+      const lines = Box.renderPlainSync(layout).split("\n");
+      expect(lines[3]).toBe("   AB  ");
+      expect(lines[4]).toBe("   CD  ");
     });
 
     it("handles boxes without reactive annotations", () => {
