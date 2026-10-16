@@ -1,0 +1,27 @@
+{
+  "runtime": "v26.11.1",
+  "mode": "changing",
+  "samples": [
+    {
+      "strings": 0,
+      "heapUsed": 27898928
+    },
+    {
+      "strings": 25000,
+      "heapUsed": 28819848
+    },
+    {
+      "strings": 50000,
+      "heapUsed": 29568832
+    },
+    {
+      "strings": 75000,
+      "heapUsed": 29551752
+    },
+    {
+      "strings": 100000,
+      "heapUsed": 29533832
+    }
+  ]
+}
+width sanity check: 8

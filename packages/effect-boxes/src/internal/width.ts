@@ -1,5 +1,6 @@
 import { Array, Match, pipe } from "effect";
 import type * as Box from "../Box.js";
+import * as TextCache from "./textCache.js";
 
 const ST = "(?:\\u0007|\\u001B\\u005C|\\u009C)"; // Valid string terminator sequences are BEL, ESC\, and 0x9c
 const osc = `(?:\\u001B\\][\\s\\S]*?${ST})`; // ESC ] ... ST (non-greedy until first ST)
@@ -18,9 +19,8 @@ const ANSI_REGEX = new RegExp(`${osc}|${csi}`, "g");
  */
 const stripAnsi = (str: string): string => str.replace(ANSI_REGEX, "");
 
-// Simple caches using native Map for performance in hot paths
-const widthCache = new Map<string, number>();
-const segmentCache = new Map<string, readonly string[]>();
+const widthCache = TextCache.make<number>();
+const segmentCache = TextCache.make<readonly string[]>();
 
 const segmenter = new Intl.Segmenter();
 
@@ -37,10 +37,7 @@ export const segments = (str: string): readonly string[] => {
     Array.map((d) => d.segment)
   );
 
-  // Cache the result for future use (only for reasonably sized strings to prevent memory bloat)
-  if (str.length <= 1000) {
-    segmentCache.set(str, result);
-  }
+  segmentCache.set(str, result);
 
   return result;
 };
@@ -195,10 +192,7 @@ export const ofString = (input: string): number => {
     })
   );
 
-  // Cache result for future use (only for reasonably sized strings to prevent memory bloat)
-  if (input.length <= 1000) {
-    widthCache.set(input, result);
-  }
+  widthCache.set(input, result);
 
   return result;
 };
