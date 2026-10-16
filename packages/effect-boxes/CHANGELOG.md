@@ -1,5 +1,16 @@
 # effect-boxes
 
+## 0.18.1
+
+### Patch Changes
+
+- [#145](https://github.com/lloydrichards/effect-boxes/pull/145) [`cfe0ec6`](https://github.com/lloydrichards/effect-boxes/commit/cfe0ec63f47aa85dc0f1ddb687c0878971a3edfe) Thanks [@Marve10s](https://github.com/Marve10s)! - Measure supplementary CJK characters as two terminal columns so one-column
+  clipping replaces them with a blank.
+
+- [#147](https://github.com/lloydrichards/effect-boxes/pull/147) [`2aec34d`](https://github.com/lloydrichards/effect-boxes/commit/2aec34d3dba051ccdea71627e8db434a7517c2f2) Thanks [@lloydrichards](https://github.com/lloydrichards)! - `Reactive.getPositions` now matches rendered coordinates for centered content, including oversized and nested boxes ([#132](https://github.com/lloydrichards/effect-boxes/issues/132)).
+
+- [#148](https://github.com/lloydrichards/effect-boxes/pull/148) [`63ab26e`](https://github.com/lloydrichards/effect-boxes/commit/63ab26e54482384df3545e8a65d122f101fba7c5) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Bound retained text memory during changing-content rendering ([#108](https://github.com/lloydrichards/effect-boxes/issues/108)).
+
 ## 0.18.0
 
 ### Minor Changes
