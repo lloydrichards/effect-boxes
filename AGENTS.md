@@ -320,6 +320,14 @@ Run commands from the repository root unless stated otherwise. Tests use
 Vitest through the package scripts; do not substitute Bun's native `bun test`.
 This project uses **Bun** as the runtime and **Biome** for linting/formatting:
 
+The package manager and CI use Bun 1.4.4. The library workspace resolves
+`typescript` to the TypeScript 6 compatibility package for docgen's compiler API
+and peer requirements; root and docs CLI tooling retain TypeScript 7. Custom
+documentation scripts continue to import the explicit `typescript-6` alias.
+The shared Effect plugin configuration permits only the specific unstable
+platform services and Bun entry points intentionally used by examples, tests,
+and documentation scripts; other unstable APIs still produce diagnostics.
+
 ```bash
 # Install dependencies
 bun install

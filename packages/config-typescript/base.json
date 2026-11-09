@@ -22,6 +22,15 @@
       {
         "name": "@effect/language-service",
         "barrelImportPackages": ["effect"],
+        "allowedUnstableApis": [
+          "effect/Terminal#Terminal",
+          "effect/FileSystem#FileSystem",
+          "effect/PlatformError#PlatformError",
+          "effect/Path#Path",
+          "@effect/platform-bun/BunServices#layer",
+          "@effect/platform-bun/BunRuntime#runMain",
+          "@effect/platform-bun/BunFileSystem#layer"
+        ],
         "includeSuggestionsInTsc": true,
         "quickinfoMaximumLength": 1200,
         "diagnosticSeverity": {
