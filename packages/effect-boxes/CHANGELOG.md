@@ -1,5 +1,27 @@
 # effect-boxes
 
+## 0.18.2
+
+### Patch Changes
+
+- [#164](https://github.com/lloydrichards/effect-boxes/pull/164) [`82b2065`](https://github.com/lloydrichards/effect-boxes/commit/82b20657c7657d66a043509dce7c2ffc66459eb6) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Render borders around zero-height boxes without adding an interior row.
+
+- [#159](https://github.com/lloydrichards/effect-boxes/pull/159) [`8f4e94b`](https://github.com/lloydrichards/effect-boxes/commit/8f4e94b312b47a618ef125982f1b8e144dc46749) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Honor the requested ellipsis position when truncating horizontally composed rows.
+
+- [#167](https://github.com/lloydrichards/effect-boxes/pull/167) [`dbd9e24`](https://github.com/lloydrichards/effect-boxes/commit/dbd9e24f60e5ae39b1f389bd4727d2aee512f579) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Return an empty line when truncating text to zero columns.
+
+- [#161](https://github.com/lloydrichards/effect-boxes/pull/161) [`da3b938`](https://github.com/lloydrichards/effect-boxes/commit/da3b9383e9616f3927cc9f7613b7e7e95cddb187) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Measure Katakana Phonetic Extensions, Hangul Jamo Extended-A, and vertical punctuation as two columns so adjacent cells align.
+
+- [#163](https://github.com/lloydrichards/effect-boxes/pull/163) [`291c79e`](https://github.com/lloydrichards/effect-boxes/commit/291c79e731bf4bb4dfaf780ad47d2ca60c978a3c) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Preserve child annotation types when combining arrays of boxes, including through curried layout functions.
+
+- [#160](https://github.com/lloydrichards/effect-boxes/pull/160) [`03c92ec`](https://github.com/lloydrichards/effect-boxes/commit/03c92ecc1d4e8ea3437fc3956de6f0844d8fc051) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Emit portable Effect type imports when building declarations with an isolated Bun install.
+
+- [#158](https://github.com/lloydrichards/effect-boxes/pull/158) [`ad8f802`](https://github.com/lloydrichards/effect-boxes/commit/ad8f8023af1fe558a4259ccdd8a2f074b8dd6c4b) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Preserve descendant annotation types when annotating a box or marking it reactive.
+
+- [#162](https://github.com/lloydrichards/effect-boxes/pull/162) [`15c1fef`](https://github.com/lloydrichards/effect-boxes/commit/15c1fefc938cf63b596121f9c3209784a4fb2da8) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Collect reactive positions from box dimensions without rendering text.
+
+- [#165](https://github.com/lloydrichards/effect-boxes/pull/165) [`224c0a6`](https://github.com/lloydrichards/effect-boxes/commit/224c0a62dbbb03f26b5dd10a790d8b33e3288d0c) Thanks [@lloydrichards](https://github.com/lloydrichards)! - Reduce paragraph and column construction time by measuring each word once while wrapping.
+
 ## 0.18.1
 
 ### Patch Changes
