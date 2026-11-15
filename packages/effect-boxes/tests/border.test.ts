@@ -1,9 +1,17 @@
 import { pipe, String } from "effect";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import * as Ansi from "../src/Ansi";
 import * as Box from "../src/Box";
 
 describe("Box.border", () => {
+  it("preserves the annotation type when the border has no annotation", () => {
+    const styled = Box.annotate(Box.line("x"), Ansi.red);
+    const direct = Box.border(styled, "rounded");
+    const piped = styled.pipe(Box.border("rounded"));
+    expectTypeOf(direct).toEqualTypeOf<Box.Box<Ansi.AnsiStyle>>();
+    expectTypeOf(piped).toEqualTypeOf<Box.Box<Ansi.AnsiStyle>>();
+  });
+
   it("wraps a single-line text with default (single) border", () => {
     const result = pipe(Box.text("Hi"), Box.border());
     expect(Box.renderPlainSync(result)).toBe(
