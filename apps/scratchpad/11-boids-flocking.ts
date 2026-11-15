@@ -1,6 +1,6 @@
 /** @effect-diagnostics unstableApiUsage:skip-file */
 import { BunServices } from "@effect/platform-bun";
-import { Clock, Data, Effect, Match, Queue, Schedule, Terminal } from "effect";
+import { Clock, Data, Effect, Option, Queue, Schedule, Terminal } from "effect";
 import { Prompt } from "effect/cli";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
@@ -140,11 +140,40 @@ const headingToChar = (vel: Vec2): string => {
   return dirChars[idx] ?? "•";
 };
 
+type Arena = { width: number; height: number };
+
+const arenaFor = ({ columns, rows }: Terminal.Size): Arena | undefined =>
+  columns >= 14 && rows >= 6
+    ? { width: columns - 3, height: rows - 3 }
+    : undefined;
+
 type FlockState = {
+  size: Terminal.Size;
+  arena: Arena;
   boids: Boid[];
   fps: number;
   lastFrameTime: number;
 };
+
+function resizeFlock(state: FlockState, size: Terminal.Size): FlockState {
+  const next = arenaFor(size);
+  if (!next) return { ...state, size };
+  if (next.width === state.arena.width && next.height === state.arena.height) {
+    return { ...state, size };
+  }
+  return {
+    ...state,
+    size,
+    arena: next,
+    boids: state.boids.map((boid) => ({
+      ...boid,
+      pos: v(
+        (boid.pos.x * next.width) / state.arena.width,
+        (boid.pos.y * (next.height - 1)) / (state.arena.height - 1)
+      ),
+    })),
+  };
+}
 
 const colors = [
   Ansi.cyan,
@@ -163,25 +192,23 @@ const Action = Data.taggedEnum<Prompt.ActionDefinition>();
 
 export const main = Effect.gen(function* () {
   const terminal = yield* Terminal.Terminal;
-  const termWidth = yield* terminal.columns;
-  const termHeight = process.stdout.rows ?? 24;
-
-  const displayW = termWidth - 2;
-  const innerW = displayW;
-  const innerH = termHeight - 3;
+  const sizes = yield* terminal.size;
+  const size = yield* Queue.take(sizes);
+  const arena = arenaFor(size) ?? { width: 60, height: 20 };
 
   const boidCount = Math.min(
     80,
-    Math.max(15, Math.floor((innerW * innerH) / 40))
+    Math.max(15, Math.floor((arena.width * arena.height) / 40))
   );
 
   const initialBoids: Boid[] = Array.from({ length: boidCount }, (_, i) => ({
-    pos: v(Math.random() * innerW, Math.random() * innerH),
+    pos: v(Math.random() * arena.width, Math.random() * (arena.height - 1)),
     vel: v((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2),
     color: colors[i % colors.length] ?? Ansi.cyan,
   }));
 
   const stepFlock = (state: FlockState): FlockState => {
+    const { width: innerW, height: innerH } = state.arena;
     const newBoids = state.boids.map((boid) => {
       const others = state.boids.filter((b) => b !== boid);
       const sep = scale(separation(boid, others, innerW), SeparationWeight);
@@ -199,7 +226,6 @@ export const main = Effect.gen(function* () {
     return { ...state, boids: newBoids };
   };
 
-  const blankLine = " ".repeat(displayW);
   const dimStyle = Ansi.getAnsiEscapeSequence(Ansi.combine(Ansi.dim).data);
   const resetCode = "\x1b[0m";
 
@@ -213,8 +239,35 @@ export const main = Effect.gen(function* () {
 
   const moveTo = (col: number, row: number): string => `\x1b[${row};${col}H`;
 
+  let lastSize: Terminal.Size | undefined;
   const renderFrame = (state: FlockState): string => {
-    let out = "\x1b[H";
+    const resized = state.size !== lastSize;
+    lastSize = state.size;
+    const { width: displayW, height: innerH } = state.arena;
+    let out = resized ? "\x1b[H\x1b[2J" : "";
+    if (!arenaFor(state.size)) {
+      return resized
+        ? out +
+            "Resize · any key exits".slice(
+              0,
+              Math.max(0, state.size.columns - 1)
+            )
+        : "";
+    }
+    if (resized) {
+      const label = `${boidCount} boids · any key exits`;
+      const fullLabel = `Boids Flocking · ${label} · separation + alignment + cohesion`;
+      out +=
+        Box.emptyBox(innerH, displayW).pipe(
+          Box.border("single"),
+          Box.renderPrettySync
+        ) +
+        moveTo(1, innerH + 3) +
+        (fullLabel.length <= displayW + 2
+          ? fullLabel
+          : label.slice(0, displayW + 2));
+    }
+    const blankLine = " ".repeat(displayW);
 
     for (let row = 0; row < innerH; row++) {
       out += moveTo(2, row + 2) + blankLine;
@@ -238,97 +291,52 @@ export const main = Effect.gen(function* () {
     return out;
   };
 
-  const tickQueue = yield* Queue.make<number>();
+  yield* Effect.acquireRelease(
+    terminal.display(
+      Box.renderPrettySync(Box.combine(Cmd.altScreenEnter, Cmd.cursorHide))
+    ),
+    () =>
+      terminal
+        .display(
+          Box.renderPrettySync(Box.combine(Cmd.altScreenLeave, Cmd.cursorShow))
+        )
+        .pipe(Effect.orDie)
+  );
+
+  const tickQueue = yield* Queue.sliding<number>(1);
   yield* Clock.currentTimeMillis.pipe(
     Effect.flatMap((now) => Queue.offer(tickQueue, now)),
     Effect.repeat(Schedule.spaced("16 millis")),
     Effect.forkScoped
   );
 
-  let entered = false;
-
   const prompt = Prompt.Custom<FlockState, void, number>(
-    { boids: initialBoids, fps: 0, lastFrameTime: 0 },
+    { boids: initialBoids, arena, size, fps: 0, lastFrameTime: 0 },
     Queue.asDequeue(tickQueue),
     {
-      render: (_state, action) =>
-        Effect.succeed(
-          Action.$match(action, {
-            Beep: () => "",
-
-            NextFrame: ({ state: nextState }) => {
-              const frame = renderFrame(nextState);
-              if (!entered) {
-                entered = true;
-                const border = Box.emptyBox(innerH, displayW).pipe(
-                  Box.border("single"),
-                  Box.vAppend(
-                    Box.hsep(
-                      [
-                        Box.text("Boids Flocking").pipe(
-                          Box.annotate(Ansi.bold)
-                        ),
-                        Box.text(`${boidCount} boids`).pipe(
-                          Box.annotate(Ansi.dim)
-                        ),
-                        Box.text("separation + alignment + cohesion").pipe(
-                          Box.annotate(Ansi.dim)
-                        ),
-                        Box.text("any key to exit").pipe(
-                          Box.annotate(Ansi.dim)
-                        ),
-                      ],
-                      1,
-                      Box.top
-                    )
-                  ),
-                  Box.renderPrettySync
-                );
-                return (
-                  Box.renderPrettySync(
-                    Box.combineAll([Cmd.altScreenEnter, Cmd.cursorHide])
-                  ) +
-                  border +
-                  frame
-                );
-              }
-              return frame;
-            },
-
-            Submit: () =>
-              Box.renderPrettySync(
-                Box.combineAll([Cmd.altScreenLeave, Cmd.cursorShow])
-              ),
-          })
+      render: (_, action) =>
+        Effect.sync(() =>
+          action._tag === "NextFrame" ? renderFrame(action.state) : ""
         ),
-
       process: (input, state) =>
-        Match.value(input).pipe(
-          Match.tag("Input", () =>
-            Effect.succeed(Action.Submit({ value: undefined }))
-          ),
-          Match.tag("Event", () =>
-            Clock.currentTimeMillis.pipe(
-              Effect.map((now) => {
-                const delta =
-                  state.lastFrameTime > 0 ? now - state.lastFrameTime : 16;
-                const instantFps = delta > 0 ? 1000 / delta : 0;
-                const fps =
-                  state.fps === 0
-                    ? instantFps
-                    : state.fps * 0.9 + instantFps * 0.1;
-                const newState = stepFlock({
-                  ...state,
-                  fps,
-                  lastFrameTime: now,
-                });
-                return Action.NextFrame({ state: newState });
-              })
-            )
-          ),
-          Match.exhaustive
-        ),
-
+        Effect.gen(function* () {
+          if (input._tag === "Input")
+            return Action.Submit({ value: undefined });
+          const latest = yield* Queue.poll(sizes);
+          const current = Option.isSome(latest)
+            ? resizeFlock(state, latest.value)
+            : state;
+          const now = input.value;
+          const delta = now - state.lastFrameTime;
+          const instantFps =
+            state.lastFrameTime && delta > 0 ? 1000 / delta : 0;
+          const fps = state.fps
+            ? state.fps * 0.9 + instantFps * 0.1
+            : instantFps;
+          return Action.NextFrame({
+            state: stepFlock({ ...current, fps, lastFrameTime: now }),
+          });
+        }),
       clear: () => Effect.succeed(""),
     }
   );
