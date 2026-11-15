@@ -1,15 +1,6 @@
 /** @effect-diagnostics unstableApiUsage:skip-file */
 import { BunServices } from "@effect/platform-bun";
-import {
-  Clock,
-  Data,
-  Effect,
-  Match,
-  pipe,
-  Queue,
-  Schedule,
-  Terminal,
-} from "effect";
+import { Clock, Data, Effect, Option, Queue, Schedule, Terminal } from "effect";
 import { Prompt } from "effect/cli";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
@@ -136,22 +127,38 @@ type Walker = {
   pos: Vec2;
   vel: Vec2;
   trail: TrailPoint[];
-  color: Ansi.AnsiAnnotation;
+  ink: ReturnType<typeof walkerInk>;
 };
 
+type Field = { width: number; height: number };
 type FlowFieldState = {
+  size: Terminal.Size;
+  field: Field;
   walkers: Walker[];
 };
 
-const colors = [
-  Ansi.cyan,
-  Ansi.green,
-  Ansi.magenta,
-  Ansi.yellow,
-  Ansi.blue,
-  Ansi.red,
-  Ansi.white,
-];
+function walkerInk(color: Ansi.AnsiAnnotation) {
+  const bright = Ansi.getAnsiEscapeSequence(
+    Ansi.combine(color, Ansi.bold).data
+  );
+  const normal = Ansi.getAnsiEscapeSequence(color.data);
+  const dim = Ansi.getAnsiEscapeSequence(Ansi.combine(color, Ansi.dim).data);
+  return {
+    head: `${bright ?? ""}██\x1b[0m`,
+    trail: trailChars.map(
+      (ch, age) => `${(age >= 6 ? dim : normal) ?? ""}${ch}${ch}\x1b[0m`
+    ),
+  };
+}
+const palette = [
+  walkerInk(Ansi.cyan),
+  walkerInk(Ansi.green),
+  walkerInk(Ansi.magenta),
+  walkerInk(Ansi.yellow),
+  walkerInk(Ansi.blue),
+  walkerInk(Ansi.red),
+  walkerInk(Ansi.white),
+] as const;
 
 // Flow field config
 const noiseScale = 0.08;
@@ -164,171 +171,152 @@ const Action = Data.taggedEnum<Prompt.ActionDefinition>();
 // --------------------------
 // Main
 // --------------------------
+const fieldFor = ({ columns, rows }: Terminal.Size): Field | undefined =>
+  columns >= 4 && rows >= 4
+    ? { width: (columns - 2) / 2, height: rows - 3 }
+    : undefined;
+
+const walkerCount = (field: Field) =>
+  Math.max(10, Math.floor((field.width * field.height) / 60));
+
+const newWalker = (field: Field, index: number): Walker => ({
+  pos: v(Math.random() * field.width, Math.random() * field.height),
+  vel: v(),
+  trail: [],
+  ink: palette[index % palette.length] ?? palette[0],
+});
+
+function resize(state: FlowFieldState, size: Terminal.Size): FlowFieldState {
+  const field = fieldFor(size);
+  if (!field) return { ...state, size };
+  if (field.width === state.field.width && field.height === state.field.height)
+    return { ...state, size };
+  const project = (pos: Vec2) =>
+    v(
+      (pos.x * field.width) / state.field.width,
+      (pos.y * field.height) / state.field.height
+    );
+  const walkers = Array.from({ length: walkerCount(field) }, (_, i) => {
+    const walker = state.walkers[i];
+    return walker
+      ? {
+          ...walker,
+          pos: project(walker.pos),
+          trail: walker.trail.map((point) => ({
+            ...point,
+            pos: project(point.pos),
+          })),
+        }
+      : newWalker(field, i);
+  });
+  return { size, field, walkers };
+}
+
+const stepWalkers = (ms: number, state: FlowFieldState): FlowFieldState => {
+  const t = ms * timeSpeed;
+  const newWalkers = state.walkers.map((walker) => {
+    const nx = walker.pos.x * noiseScale;
+    const ny = walker.pos.y * noiseScale;
+    const angle = perlinNoise(nx + t, ny + t) * Math.PI * 2;
+
+    const force = v(Math.cos(angle) * strength, Math.sin(angle) * strength);
+    const newVel = limit(add(walker.vel, force), MaxSpeed);
+    const newPos = wrap(
+      add(walker.pos, newVel),
+      state.field.width,
+      state.field.height
+    );
+
+    const newTrail = [
+      { pos: walker.pos, age: 0 },
+      ...walker.trail.map((tp) => ({ ...tp, age: tp.age + 1 })),
+    ].filter((tp) => tp.age < TrailLength);
+
+    return { ...walker, pos: newPos, vel: newVel, trail: newTrail };
+  });
+  return { ...state, walkers: newWalkers };
+};
+
+const renderFrame = (state: FlowFieldState, redrawBorder: boolean): string => {
+  const { columns, rows } = state.size;
+  let out = redrawBorder ? Box.renderPrettySync(Cmd.clearScreen) : "";
+  if (columns < 4 || rows < 4)
+    return redrawBorder
+      ? out + "Resize · any key exits".slice(0, Math.max(0, columns - 1))
+      : "";
+  if (redrawBorder) {
+    const footer = `Flow Field · ${state.walkers.length} walkers · any key to exit`;
+    out +=
+      Box.emptyBox(rows - 3, columns - 2).pipe(
+        Box.border("single"),
+        Box.renderPrettySync
+      ) +
+      `\x1b[${rows};1H` +
+      footer.slice(0, columns);
+  }
+  const moveTo = (pos: Vec2) =>
+    `\x1b[${Math.floor(pos.y) + 2};${Math.min(Math.floor(pos.x) * 2, columns - 4) + 2}H`;
+  for (const walker of state.walkers) {
+    for (let i = walker.trail.length - 1; i >= 0; i--) {
+      const point = walker.trail[i];
+      if (point) out += moveTo(point.pos) + walker.ink.trail[point.age];
+    }
+    out += moveTo(walker.pos) + walker.ink.head;
+  }
+  return out;
+};
+
 export const main = Effect.gen(function* () {
   const terminal = yield* Terminal.Terminal;
-  const termWidth = yield* terminal.columns;
-  const termHeight = process.stdout.rows ?? 24;
-
-  // Reserve space for border (2) and title line (1)
-  const displayW = termWidth - 2;
-  const innerW = Math.floor(displayW / 2);
-  const innerH = termHeight - 3;
-
-  // Scale walker count to grid area (roughly 1 per 60 cells, min 10)
-  const walkerCount = Math.max(10, Math.floor((innerW * innerH) / 60));
-
-  // Initialize walkers with empty trails
-  const initialWalkers: Walker[] = Array.from(
-    { length: walkerCount },
-    (_, i) => ({
-      pos: v(Math.random() * innerW, Math.random() * innerH),
-      vel: v(0, 0),
-      trail: [],
-      color: colors[i % colors.length] ?? Ansi.cyan,
-    })
+  const sizes = yield* terminal.size;
+  const size = yield* Queue.take(sizes);
+  const field = fieldFor(size) ?? { width: 1, height: 1 };
+  const walkers = Array.from({ length: walkerCount(field) }, (_, i) =>
+    newWalker(field, i)
   );
-
-  // Pure simulation step — closed over grid dimensions
-  const stepWalkers = (ms: number, state: FlowFieldState): FlowFieldState => {
-    const t = ms * timeSpeed;
-    const newWalkers = state.walkers.map((walker) => {
-      const nx = walker.pos.x * noiseScale;
-      const ny = walker.pos.y * noiseScale;
-      const angle = perlinNoise(nx + t, ny + t) * Math.PI * 2;
-
-      const force = v(Math.cos(angle) * strength, Math.sin(angle) * strength);
-      const newVel = limit(add(walker.vel, force), MaxSpeed);
-      const newPos = wrap(add(walker.pos, newVel), innerW, innerH);
-
-      const newTrail = [
-        { pos: walker.pos, age: 0 },
-        ...walker.trail.map((tp) => ({ ...tp, age: tp.age + 1 })),
-      ].filter((tp) => tp.age < TrailLength);
-
-      return { ...walker, pos: newPos, vel: newVel, trail: newTrail };
-    });
-    return { walkers: newWalkers };
-  };
-
-  // Pure frame renderer — closed over displayW
-  const renderFrame = (state: FlowFieldState): string => {
-    const renderCmds: Box.Box<Ansi.AnsiStyle>[] = [];
-
-    for (const w of state.walkers) {
-      for (const tp of [...w.trail].reverse()) {
-        const ch = trailChars[tp.age] ?? " ";
-        const style =
-          tp.age >= 6 ? Ansi.combine(w.color, Ansi.dim) : Ansi.combine(w.color);
-        renderCmds.push(
-          pipe(
-            Cmd.cursorTo(
-              Math.min(Math.floor(tp.pos.x) * 2, displayW - 2) + 1,
-              Math.floor(tp.pos.y) + 1
-            ),
-            Box.combine<Ansi.AnsiStyle>(
-              Box.text(ch + ch).pipe(Box.annotate(style))
-            )
-          )
-        );
-      }
-
-      renderCmds.push(
-        pipe(
-          Cmd.cursorTo(
-            Math.min(Math.floor(w.pos.x) * 2, displayW - 2) + 1,
-            Math.floor(w.pos.y) + 1
-          ),
-          Box.combine<Ansi.AnsiStyle>(
-            Box.text("\u2588\u2588").pipe(
-              Box.annotate(Ansi.combine(w.color, Ansi.bold))
-            )
-          )
+  yield* Effect.acquireRelease(
+    terminal.display(
+      Box.renderPrettySync(Box.combine(Cmd.altScreenEnter, Cmd.cursorHide))
+    ),
+    () =>
+      terminal
+        .display(
+          Box.renderPrettySync(Box.combine(Cmd.altScreenLeave, Cmd.cursorShow))
         )
-      );
-    }
-
-    return pipe(
-      Cmd.home,
-      Box.combine<Ansi.AnsiStyle>(Box.combineAll(renderCmds)),
-      Box.renderPrettySync
-    );
-  };
-
-  // Create tick queue and spawn a producer fiber that emits timestamps at ~60fps
-  const tickQueue = yield* Queue.make<number>();
+        .pipe(Effect.orDie)
+  );
+  const ticks = yield* Queue.sliding<number>(1);
   yield* Clock.currentTimeMillis.pipe(
-    Effect.flatMap((now) => Queue.offer(tickQueue, now)),
+    Effect.flatMap((now) => Queue.offer(ticks, now)),
     Effect.repeat(Schedule.spaced("16 millis")),
     Effect.forkScoped
   );
-
-  // Build the prompt
-  let entered = false;
-
-  const prompt = Prompt.Custom<FlowFieldState, void, number>(
-    { walkers: initialWalkers },
-    Queue.asDequeue(tickQueue),
+  let lastSize: Terminal.Size | undefined;
+  yield* Prompt.Custom<FlowFieldState, void, number>(
+    { size, field, walkers },
+    ticks,
     {
-      render: (_state, action) =>
-        Effect.succeed(
-          Action.$match(action, {
-            Beep: () => "",
-
-            NextFrame: ({ state: nextState }) => {
-              const frame = renderFrame(nextState);
-              if (!entered) {
-                entered = true;
-                const border = Box.emptyBox(innerH, displayW).pipe(
-                  Box.border("single"),
-                  Box.vAppend(
-                    Box.hsep(
-                      [
-                        Box.text("Flow Field").pipe(Box.annotate(Ansi.bold)),
-                        Box.text(`${walkerCount} walkers`).pipe(
-                          Box.annotate(Ansi.dim)
-                        ),
-                        Box.text("any key to exit").pipe(
-                          Box.annotate(Ansi.dim)
-                        ),
-                      ],
-                      1,
-                      Box.top
-                    )
-                  ),
-                  Box.renderPrettySync
-                );
-                return (
-                  Box.renderPrettySync(
-                    Box.combineAll([Cmd.altScreenEnter, Cmd.cursorHide])
-                  ) +
-                  border +
-                  frame
-                );
-              }
-              return frame;
-            },
-
-            Submit: () =>
-              Box.renderPrettySync(
-                Box.combineAll([Cmd.altScreenLeave, Cmd.cursorShow])
-              ),
-          })
-        ),
-
+      render: (_, action) =>
+        Effect.sync(() => {
+          if (action._tag !== "NextFrame") return "";
+          const output = renderFrame(
+            action.state,
+            action.state.size !== lastSize
+          );
+          lastSize = action.state.size;
+          return output;
+        }),
       process: (input, state) =>
-        Effect.succeed(
-          Match.value(input).pipe(
-            Match.tag("Input", () => Action.Submit({ value: undefined })),
-            Match.tag("Event", ({ value: timestamp }) =>
-              Action.NextFrame({ state: stepWalkers(timestamp, state) })
-            ),
-            Match.exhaustive
-          )
-        ),
-
+        Effect.gen(function* () {
+          if (input._tag === "Input")
+            return Action.Submit({ value: undefined });
+          const latest = yield* Queue.poll(sizes);
+          const current = Option.isSome(latest)
+            ? resize(state, latest.value)
+            : state;
+          return Action.NextFrame({ state: stepWalkers(input.value, current) });
+        }),
       clear: () => Effect.succeed(""),
     }
   );
-
-  yield* Prompt.run(prompt);
 }).pipe(Effect.scoped, Effect.provide(BunServices.layer));
