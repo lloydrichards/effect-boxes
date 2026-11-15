@@ -1,9 +1,17 @@
 import { pipe, String } from "effect";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import * as Ansi from "../src/Ansi";
 import * as Box from "../src/Box";
 
 describe("Box.border", () => {
+  it("preserves the annotation type when the border has no annotation", () => {
+    const styled = Box.annotate(Box.line("x"), Ansi.red);
+    const direct = Box.border(styled, "rounded");
+    const piped = styled.pipe(Box.border("rounded"));
+    expectTypeOf(direct).toEqualTypeOf<Box.Box<Ansi.AnsiStyle>>();
+    expectTypeOf(piped).toEqualTypeOf<Box.Box<Ansi.AnsiStyle>>();
+  });
+
   it("wraps a single-line text with default (single) border", () => {
     const result = pipe(Box.text("Hi"), Box.border());
     expect(Box.renderPlainSync(result)).toBe(
@@ -101,6 +109,21 @@ describe("Box.border", () => {
   it("handles empty box", () => {
     const result = pipe(Box.emptyBox(0, 0), Box.border());
     expect(result.cols).toBe(2);
+  });
+
+  it("renders only the top and bottom edges around a zero-height box", () => {
+    const result = Box.border(Box.emptyBox(0, 3));
+    expect(Box.renderPlainSync(result)).toBe("┌───┐\n└───┘");
+    expect(result.rows).toBe(2);
+  });
+
+  it("retains side widths around zero-height content without horizontal edges", () => {
+    const result = Box.border(Box.emptyBox(0, 3), "single", {
+      sides: { top: false, bottom: false },
+    });
+    expect(result.rows).toBe(0);
+    expect(result.cols).toBe(5);
+    expect(Box.renderPlainSync(result)).toBe("");
   });
 
   describe("per-side border toggles", () => {

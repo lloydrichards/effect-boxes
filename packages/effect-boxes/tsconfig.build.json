@@ -2,6 +2,7 @@
   "extends": "@repo/config-typescript/library.json",
   "compilerOptions": {
     "rootDir": "./src",
+    "preserveSymlinks": true,
     "outDir": "./dist"
   },
   "include": ["src/**/*.ts"],
