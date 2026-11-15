@@ -29,6 +29,18 @@ describe("Unicode display widths", () => {
     }
   );
 
+  it.each(["ㇰ", "ㇿ", "ꥠ", "ꥼ", "︐", "︙"])(
+    "keeps the separator adjacent to the two-column character %s",
+    (character) => {
+      const glyph = Box.line(character);
+      const cell = Box.alignHoriz(glyph, Box.left, 2);
+      const row = Box.hcat([cell, Box.line("|")], Box.top);
+
+      expect(Box.renderPlainSync(row)).toBe(`${character}|`);
+      expect(glyph.cols).toBe(2);
+    }
+  );
+
   it("should keep a joined emoji intact at a width boundary", () => {
     const box = Box.maxWidth(Box.line("👩‍💻x"), 2);
 
