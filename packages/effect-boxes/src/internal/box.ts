@@ -863,23 +863,23 @@ export const match = dual<
 
 /** @internal */
 export const annotate = dual<
-  <A>(
-    annotation: import("../Annotation.js").Annotation<A>
-  ) => <B>(self: Box.Box<B>) => Box.Box<A>,
-  <B, A>(
-    self: Box.Box<B>,
-    annotation: import("../Annotation.js").Annotation<A>
-  ) => Box.Box<A>
+  <B>(
+    annotation: Annotation.Annotation<B>
+  ) => <A>(self: Box.Box<A>) => Box.Box<A | B>,
+  <A, B>(
+    self: Box.Box<A>,
+    annotation: Annotation.Annotation<B>
+  ) => Box.Box<A | B>
 >(
   2,
-  <B, A>(
-    self: Box.Box<B>,
-    annotation: import("../Annotation.js").Annotation<A>
-  ): Box.Box<A> =>
-    make({
+  <A, B>(
+    self: Box.Box<A>,
+    annotation: Annotation.Annotation<B>
+  ): Box.Box<A | B> =>
+    make<A | B>({
       rows: self.rows,
       cols: self.cols,
-      content: self.content as Box.Content<A>, // Cast is safe - content structure is preserved
+      content: self.content,
       annotation,
     })
 );

@@ -43,11 +43,11 @@ export const reactive = (
 
 /** @internal */
 export const makeReactive = dual<
-  (id: string) => <A>(self: Box.Box<A>) => Box.Box<Reactive.Reactive>,
-  <A>(self: Box.Box<A>, id: string) => Box.Box<Reactive.Reactive>
+  (id: string) => <A>(self: Box.Box<A>) => Box.Box<A | Reactive.Reactive>,
+  <A>(self: Box.Box<A>, id: string) => Box.Box<A | Reactive.Reactive>
 >(
   2,
-  <A>(self: Box.Box<A>, id: string): Box.Box<Reactive.Reactive> =>
+  <A>(self: Box.Box<A>, id: string): Box.Box<A | Reactive.Reactive> =>
     annotate(self, reactive(id))
 );
 
