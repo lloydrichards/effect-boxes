@@ -80,7 +80,7 @@ const demos = [
   {
     title: "12. Frogger and Layer Diagram",
     value: "frogger",
-    description: "Dodge cars on a 2D board and inspect a live layer diagram",
+    description: "Dodge cars, resize the board view, and inspect how layers cover the frog",
   },
   {
     title: "13. Wire-Service Reader",
