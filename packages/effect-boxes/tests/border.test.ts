@@ -103,6 +103,21 @@ describe("Box.border", () => {
     expect(result.cols).toBe(2);
   });
 
+  it("renders only the top and bottom edges around a zero-height box", () => {
+    const result = Box.border(Box.emptyBox(0, 3));
+    expect(Box.renderPlainSync(result)).toBe("┌───┐\n└───┘");
+    expect(result.rows).toBe(2);
+  });
+
+  it("retains side widths around zero-height content without horizontal edges", () => {
+    const result = Box.border(Box.emptyBox(0, 3), "single", {
+      sides: { top: false, bottom: false },
+    });
+    expect(result.rows).toBe(0);
+    expect(result.cols).toBe(5);
+    expect(Box.renderPlainSync(result)).toBe("");
+  });
+
   describe("per-side border toggles", () => {
     it("no bottom border", () => {
       const result = pipe(
