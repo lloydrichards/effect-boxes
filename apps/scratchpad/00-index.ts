@@ -32,7 +32,8 @@ const demos = [
   {
     title: "3. Static Layout",
     value: "static-demo",
-    description: "Tables, color palette, and nested borders (no animation)",
+    description:
+      "Resize and scroll through tables, text columns, and nested boxes",
   },
   {
     title: "4. ANSI Styles",
