@@ -271,7 +271,7 @@ export const combineMany = dual<
 export const combineAll = <T extends readonly Box.Box<unknown>[]>(
   collection: T
 ): Box.Box<Box.BoxAnnotations<T>> => {
-  const boxes = Array.fromIterable(collection);
+  const boxes = Array.fromIterable<T[number]>(collection);
   return boxes.length === 0 ? nullBox : hcat(boxes, top);
 };
 
@@ -298,9 +298,9 @@ const sumMax = <A>(
 
 /** @internal */
 export const hcat = dual<
-  <T extends readonly Box.Box<unknown>[]>(
+  <Boxes extends readonly Box.Box<unknown>[]>(
     a: Box.Alignment
-  ) => (self: T) => Box.Box<Box.BoxAnnotations<T>>,
+  ) => <T extends Boxes>(self: T) => Box.Box<Box.BoxAnnotations<T>>,
   <T extends readonly Box.Box<unknown>[]>(
     self: T,
     a: Box.Alignment
@@ -326,9 +326,9 @@ export const hcat = dual<
 
 /** @internal */
 export const vcat = dual<
-  <T extends readonly Box.Box<unknown>[]>(
+  <Boxes extends readonly Box.Box<unknown>[]>(
     a: Box.Alignment
-  ) => (self: T) => Box.Box<Box.BoxAnnotations<T>>,
+  ) => <T extends Boxes>(self: T) => Box.Box<Box.BoxAnnotations<T>>,
   <T extends readonly Box.Box<unknown>[]>(
     self: T,
     a: Box.Alignment
@@ -394,10 +394,10 @@ export const vcatWithSpace = dual<
 
 /** @internal */
 export const punctuateH = dual<
-  <A, T extends readonly Box.Box<unknown>[]>(
+  <A, Boxes extends readonly Box.Box<unknown>[]>(
     a: Box.Alignment,
     p: Box.Box<A>
-  ) => (self: T) => Box.Box<A | Box.BoxAnnotations<T>>,
+  ) => <T extends Boxes>(self: T) => Box.Box<A | Box.BoxAnnotations<T>>,
   <A, T extends readonly Box.Box<unknown>[]>(
     self: T,
     a: Box.Alignment,
@@ -413,16 +413,16 @@ export const punctuateH = dual<
     if (self.length === 0) {
       return nullBox;
     }
-    return hcat(Array.intersperse(self, p), a);
+    return hcat(Array.intersperse<T[number], Box.Box<A>>(self, p), a);
   }
 );
 
 /** @internal */
 export const punctuateV = dual<
-  <A, T extends readonly Box.Box<unknown>[]>(
+  <A, Boxes extends readonly Box.Box<unknown>[]>(
     a: Box.Alignment,
     p: Box.Box<A>
-  ) => (self: T) => Box.Box<A | Box.BoxAnnotations<T>>,
+  ) => <T extends Boxes>(self: T) => Box.Box<A | Box.BoxAnnotations<T>>,
   <A, T extends readonly Box.Box<unknown>[]>(
     self: T,
     a: Box.Alignment,
@@ -438,7 +438,7 @@ export const punctuateV = dual<
     if (self.length === 0) {
       return nullBox;
     }
-    return vcat(Array.intersperse(self, p), a);
+    return vcat(Array.intersperse<T[number], Box.Box<A>>(self, p), a);
   }
 );
 
