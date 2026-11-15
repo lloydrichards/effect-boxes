@@ -1122,10 +1122,10 @@ export const border = dual<
     const when = (cond: boolean, box: Box.Box<A | B>): Box.Box<A | B> =>
       cond ? box : nullBox;
 
-    const sideCol = vcat(
-      Array.makeBy(self.rows, () => borderChar(chars.vertical)),
-      left
-    );
+    const sideCol =
+      self.rows === 0
+        ? emptyBox(0, 1)
+        : vcat(Array.makeBy(self.rows, () => borderChar(chars.vertical)), left);
 
     const {
       top: wTop = true,
