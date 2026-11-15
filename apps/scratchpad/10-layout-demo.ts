@@ -2,20 +2,19 @@
 /**
  * Interactive layout demo showcasing Flex, Grid, and Container combinators.
  *
- * Use ←/→ arrow keys to resize the container width and watch layouts reflow.
+ * Resize the terminal to reflow the active section, or use ←/→ to preview a narrower layout.
  * Press Enter or q to exit.
  */
 import { BunServices } from "@effect/platform-bun";
-import { Data, Effect, Match, Terminal } from "effect";
+import { Data, Effect, Queue, Stream, Terminal } from "effect";
 import { Prompt } from "effect/cli";
-import { Ansi, Box, Cmd, Container, Flex, Grid } from "effect-boxes";
+import { Ansi, Box, Cmd, Container, Flex, Grid, Place } from "effect-boxes";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const MIN_WIDTH = 40;
-const MAX_WIDTH = 400;
+const MIN_WIDTH = 24;
 const STEP = 2;
 
 const sectionLabel = (text: string, w: number) =>
@@ -293,7 +292,7 @@ const gridAutoSection = (w: number) => {
     );
   };
 
-  // Show at current width and two smaller breakpoints
+  // Compare the current width with a narrower container.
   const w2 = Math.max(MIN_WIDTH, Math.floor(w * 0.6));
 
   return Box.vcat(
@@ -532,7 +531,8 @@ const dashboardSection = (w: number) =>
     const mainArea = (mw: number) =>
       Box.vcat([makeKpiCards(mw), makeActivityTable(mw)], Box.left);
 
-    const mainWidth = ctx.width - sidebarWidth - 1;
+    const stacked = ctx.width < 64;
+    const mainWidth = stacked ? ctx.width : ctx.width - sidebarWidth - 1;
     const main = mainArea(mainWidth);
     const mainHeight = Box.rows(main);
     const sidebar = sidebarInner.pipe(
@@ -540,9 +540,11 @@ const dashboardSection = (w: number) =>
       Box.border("single")
     );
 
-    const body = Flex.row([Flex.fixed(sidebar), Flex.fixed(main)], ctx.width, {
-      gap: 1,
-    });
+    const body = stacked
+      ? Box.vcat([sidebarInner.pipe(Box.border("single")), main], Box.left)
+      : Flex.row([Flex.fixed(sidebar), Flex.fixed(main)], ctx.width, {
+          gap: 1,
+        });
 
     // ── Footer ──
     const footer = Flex.row(
@@ -586,9 +588,11 @@ const sections: ReadonlyArray<{
 ];
 
 const buildFrame = (w: number, h: number, sectionIndex: number): string => {
+  if (w < MIN_WIDTH || h < 5)
+    return "Resize window · q quits".slice(0, Math.max(0, w));
   const section = sections[sectionIndex]!;
 
-  // Navigation dots
+  // Replace the tab row with the active section when the labels no longer fit.
   const items = sections.map((s, i) =>
     Box.text(s.name).pipe(
       Box.pad(0, 2),
@@ -599,33 +603,22 @@ const buildFrame = (w: number, h: number, sectionIndex: number): string => {
   );
 
   const titleBox = Box.text("Layout").pipe(
-    Box.moveLeft(2),
     Box.annotate(Ansi.combine(Ansi.bold, Ansi.colorRGB(255, 165, 0)))
   );
 
-  const titleNav = Flex.row(
-    [
-      Flex.spacer(),
-      Flex.fixed(Box.hcat([titleBox, ...items], Box.top)),
-      Flex.spacer(),
-    ],
-    w,
-    { align: Box.center1 }
-  );
-
-  const controls = Box.hsep(
-    [
-      Box.text("←/→ resize").pipe(Box.annotate(Ansi.dim)),
-      Box.text("space next").pipe(Box.annotate(Ansi.dim)),
-      Box.text(`${sectionIndex + 1}/${sections.length}`).pipe(
-        Box.annotate(Ansi.dim)
-      ),
-      Box.text("q quit").pipe(Box.annotate(Ansi.dim)),
-    ],
-    2,
-    Box.top
-  ).pipe(Box.alignHoriz(Box.center1, Box.cols(titleNav)));
-
+  const tabs = Box.hcat([titleBox, ...items], Box.top);
+  const titleNav = (
+    tabs.cols <= w
+      ? tabs
+      : Box.text(
+          `Layout · ${section.name} (${sectionIndex + 1}/${sections.length})`
+        )
+  ).pipe(Box.alignHoriz(Box.center1, w));
+  const controls = Box.text(
+    w >= 40
+      ? "←/→ preview width   Space next   q quit"
+      : "←/→ width  Space next  q"
+  ).pipe(Box.alignHoriz(Box.center1, w), Box.annotate(Ansi.dim));
   const chrome = Box.vcat(
     [Box.emptyBox(1, 1), ruler(w, `width: ${w}`), titleNav, controls],
     Box.left
@@ -635,7 +628,7 @@ const buildFrame = (w: number, h: number, sectionIndex: number): string => {
     align: Box.left,
   });
 
-  return Box.renderPrettySync(Box.combine(Cmd.clearScreen, frame));
+  return Box.renderPrettySync(frame.pipe(Place.horizontal(w, "left")));
 };
 
 // ---------------------------------------------------------------------------
@@ -643,112 +636,97 @@ const buildFrame = (w: number, h: number, sectionIndex: number): string => {
 // ---------------------------------------------------------------------------
 
 type LayoutState = {
+  readonly size: Terminal.Size;
   readonly width: number;
   readonly sectionIndex: number;
 };
 
 const Action = Data.taggedEnum<Prompt.ActionDefinition>();
 
-const LayoutPrompt = (initialWidth: number): Prompt.Prompt<string> => {
-  let entered = false;
-
-  const initialState: LayoutState = {
-    width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, initialWidth)),
-    sectionIndex: 0,
-  };
-
-  return Prompt.Custom<LayoutState, string>(initialState, {
-    render: Effect.fnUntraced(function* (
-      _state: LayoutState,
-      action: Prompt.Action<LayoutState, string>
-    ) {
-      return Action.$match(action, {
-        Beep: () => "",
-
-        NextFrame: ({ state: nextState }) => {
-          const termH = process.stdout.rows ?? 24;
-          const frame = buildFrame(
-            nextState.width,
-            termH,
-            nextState.sectionIndex
-          );
-          if (!entered) {
-            entered = true;
-            return (
-              Box.renderPrettySync(
-                Box.combineAll([Cmd.altScreenEnter, Cmd.cursorHide])
-              ) + frame
-            );
-          }
-          return frame;
-        },
-
-        Submit: () =>
-          Box.renderPrettySync(
-            Box.combineAll([
-              Cmd.altScreenLeave,
-              Cmd.cursorShow,
-              Box.hsep(
-                [
-                  Box.text("✔").pipe(Box.annotate(Ansi.green)),
-                  Box.text("Layout demo").pipe(Box.annotate(Ansi.bold)),
-                ],
-                1,
-                Box.top
-              ),
-              Box.text("") as Box.Box<Ansi.AnsiStyle>,
-            ])
-          ),
-      });
-    }),
-
-    process: Effect.fnUntraced(function* (input, state) {
-      const lastIndex = sections.length - 1;
-
-      return Match.value(input.key.name).pipe(
-        Match.when("left", () =>
-          Action.NextFrame({
-            state: {
-              ...state,
-              width: Math.max(MIN_WIDTH, state.width - STEP),
-            },
-          })
-        ),
-        Match.when("right", () =>
-          Action.NextFrame({
-            state: {
-              ...state,
-              width: Math.min(MAX_WIDTH, state.width + STEP),
-            },
-          })
-        ),
-        Match.when("space", () =>
-          Action.NextFrame({
-            state: {
-              ...state,
-              sectionIndex:
-                state.sectionIndex < lastIndex ? state.sectionIndex + 1 : 0,
-            },
-          })
-        ),
-        Match.whenOr("enter", "return", () => Action.Submit({ value: "done" })),
-        Match.when("q", () => Action.Submit({ value: "done" })),
-        Match.orElse(() => Action.Beep())
-      );
-    }),
-
-    clear: Effect.fnUntraced(function* () {
-      return "";
-    }),
-  });
-};
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
 export const main = Effect.gen(function* () {
   const terminal = yield* Terminal.Terminal;
-  const termWidth = yield* terminal.columns;
-  yield* LayoutPrompt(Math.min(termWidth, 80));
+  yield* Effect.gen(function* () {
+    const sizes = yield* terminal.size;
+    const size = yield* Queue.take(sizes);
+    const changes = yield* Queue.sliding<Terminal.Size>(1);
+    yield* Stream.fromQueue(sizes).pipe(
+      Stream.runForEach((next) => Queue.offer(changes, next)),
+      Effect.forkScoped
+    );
+    yield* Effect.acquireRelease(
+      terminal.display(
+        Box.renderPrettySync(Box.combine(Cmd.altScreenEnter, Cmd.cursorHide))
+      ),
+      () =>
+        terminal
+          .display(
+            Box.renderPrettySync(
+              Box.combine(Cmd.altScreenLeave, Cmd.cursorShow)
+            )
+          )
+          .pipe(Effect.orDie)
+    );
+    const initial: LayoutState = { size, width: size.columns, sectionIndex: 0 };
+    yield* Prompt.Custom<LayoutState, void, Terminal.Size>(initial, changes, {
+      render: (_, action) =>
+        Effect.sync(() => {
+          if (action._tag !== "NextFrame") return "";
+          const { width, size, sectionIndex } = action.state;
+          return (
+            Box.renderPrettySync(Cmd.clearScreen) +
+            buildFrame(width, size.rows, sectionIndex).replaceAll("\n", "\r\n")
+          );
+        }),
+      process: (input, state) =>
+        Effect.sync(() => {
+          if (input._tag === "Event") {
+            const size = input.value;
+            return Action.NextFrame({
+              state: {
+                ...state,
+                size,
+                width:
+                  size.columns === state.size.columns
+                    ? state.width
+                    : size.columns,
+              },
+            });
+          }
+          switch (input.input.key.name) {
+            case "left":
+              return Action.NextFrame({
+                state: {
+                  ...state,
+                  width: Math.min(
+                    state.size.columns,
+                    Math.max(MIN_WIDTH, state.width - STEP)
+                  ),
+                },
+              });
+            case "right":
+              return Action.NextFrame({
+                state: {
+                  ...state,
+                  width: Math.min(state.size.columns, state.width + STEP),
+                },
+              });
+            case "space":
+              return Action.NextFrame({
+                state: {
+                  ...state,
+                  sectionIndex: (state.sectionIndex + 1) % sections.length,
+                },
+              });
+            case "enter":
+            case "return":
+            case "q":
+              return Action.Submit({ value: undefined });
+            default:
+              return Action.Beep();
+          }
+        }),
+      clear: () => Effect.succeed(""),
+    });
+  }).pipe(Effect.scoped);
+  yield* terminal.display("✔ Layout demo\n");
 }).pipe(Effect.provide(BunServices.layer));
