@@ -271,7 +271,7 @@ export const combineMany = dual<
 export const combineAll = <T extends readonly Box.Box<unknown>[]>(
   collection: T
 ): Box.Box<Box.BoxAnnotations<T>> => {
-  const boxes = Array.fromIterable(collection);
+  const boxes = Array.fromIterable<T[number]>(collection);
   return boxes.length === 0 ? nullBox : hcat(boxes, top);
 };
 
@@ -298,9 +298,9 @@ const sumMax = <A>(
 
 /** @internal */
 export const hcat = dual<
-  <T extends readonly Box.Box<unknown>[]>(
+  <Boxes extends readonly Box.Box<unknown>[]>(
     a: Box.Alignment
-  ) => (self: T) => Box.Box<Box.BoxAnnotations<T>>,
+  ) => <T extends Boxes>(self: T) => Box.Box<Box.BoxAnnotations<T>>,
   <T extends readonly Box.Box<unknown>[]>(
     self: T,
     a: Box.Alignment
@@ -326,9 +326,9 @@ export const hcat = dual<
 
 /** @internal */
 export const vcat = dual<
-  <T extends readonly Box.Box<unknown>[]>(
+  <Boxes extends readonly Box.Box<unknown>[]>(
     a: Box.Alignment
-  ) => (self: T) => Box.Box<Box.BoxAnnotations<T>>,
+  ) => <T extends Boxes>(self: T) => Box.Box<Box.BoxAnnotations<T>>,
   <T extends readonly Box.Box<unknown>[]>(
     self: T,
     a: Box.Alignment
@@ -394,10 +394,10 @@ export const vcatWithSpace = dual<
 
 /** @internal */
 export const punctuateH = dual<
-  <A, T extends readonly Box.Box<unknown>[]>(
+  <A, Boxes extends readonly Box.Box<unknown>[]>(
     a: Box.Alignment,
     p: Box.Box<A>
-  ) => (self: T) => Box.Box<A | Box.BoxAnnotations<T>>,
+  ) => <T extends Boxes>(self: T) => Box.Box<A | Box.BoxAnnotations<T>>,
   <A, T extends readonly Box.Box<unknown>[]>(
     self: T,
     a: Box.Alignment,
@@ -413,16 +413,16 @@ export const punctuateH = dual<
     if (self.length === 0) {
       return nullBox;
     }
-    return hcat(Array.intersperse(self, p), a);
+    return hcat(Array.intersperse<T[number], Box.Box<A>>(self, p), a);
   }
 );
 
 /** @internal */
 export const punctuateV = dual<
-  <A, T extends readonly Box.Box<unknown>[]>(
+  <A, Boxes extends readonly Box.Box<unknown>[]>(
     a: Box.Alignment,
     p: Box.Box<A>
-  ) => (self: T) => Box.Box<A | Box.BoxAnnotations<T>>,
+  ) => <T extends Boxes>(self: T) => Box.Box<A | Box.BoxAnnotations<T>>,
   <A, T extends readonly Box.Box<unknown>[]>(
     self: T,
     a: Box.Alignment,
@@ -438,7 +438,7 @@ export const punctuateV = dual<
     if (self.length === 0) {
       return nullBox;
     }
-    return vcat(Array.intersperse(self, p), a);
+    return vcat(Array.intersperse<T[number], Box.Box<A>>(self, p), a);
   }
 );
 
@@ -808,23 +808,23 @@ export const match = dual<
 
 /** @internal */
 export const annotate = dual<
-  <A>(
-    annotation: import("../Annotation.js").Annotation<A>
-  ) => <B>(self: Box.Box<B>) => Box.Box<A>,
-  <B, A>(
-    self: Box.Box<B>,
-    annotation: import("../Annotation.js").Annotation<A>
-  ) => Box.Box<A>
+  <B>(
+    annotation: Annotation.Annotation<B>
+  ) => <A>(self: Box.Box<A>) => Box.Box<A | B>,
+  <A, B>(
+    self: Box.Box<A>,
+    annotation: Annotation.Annotation<B>
+  ) => Box.Box<A | B>
 >(
   2,
-  <B, A>(
-    self: Box.Box<B>,
-    annotation: import("../Annotation.js").Annotation<A>
-  ): Box.Box<A> =>
-    make({
+  <A, B>(
+    self: Box.Box<A>,
+    annotation: Annotation.Annotation<B>
+  ): Box.Box<A | B> =>
+    make<A | B>({
       rows: self.rows,
       cols: self.cols,
-      content: self.content as Box.Content<A>, // Cast is safe - content structure is preserved
+      content: self.content,
       annotation,
     })
 );
@@ -1040,11 +1040,11 @@ export interface BorderOptions<A> {
 
 /** @internal */
 export const border = dual<
-  <B>(
+  <B = never>(
     style?: BorderStyle,
     options?: BorderOptions<B>
   ) => <A>(self: Box.Box<A>) => Box.Box<A | B>,
-  <A, B>(
+  <A, B = never>(
     self: Box.Box<A>,
     style?: BorderStyle,
     options?: BorderOptions<B>
@@ -1067,10 +1067,10 @@ export const border = dual<
     const when = (cond: boolean, box: Box.Box<A | B>): Box.Box<A | B> =>
       cond ? box : nullBox;
 
-    const sideCol = vcat(
-      Array.makeBy(self.rows, () => borderChar(chars.vertical)),
-      left
-    );
+    const sideCol =
+      self.rows === 0
+        ? emptyBox(0, 1)
+        : vcat(Array.makeBy(self.rows, () => borderChar(chars.vertical)), left);
 
     const {
       top: wTop = true,
@@ -1185,7 +1185,8 @@ export const pad = dual<
 const truncateWidth = <A>(
   self: Box.Box<A>,
   width: number,
-  onText: (text: string) => Box.Box<A>
+  onText: (text: string) => Box.Box<A>,
+  onRow?: (box: Box.Box<A>) => Box.Box<A>
 ): Box.Box<A> => {
   if (self.cols <= width) return self;
 
@@ -1194,12 +1195,14 @@ const truncateWidth = <A>(
       blank: () => emptyBox(box.rows, width),
       text: (t) => onText(t),
       row: () =>
-        make({
-          rows: box.rows,
-          cols: width,
-          content: { _tag: "SubBox", xAlign: left, yAlign: top, box },
-          annotation: box.annotation,
-        }),
+        onRow
+          ? onRow(box)
+          : make({
+              rows: box.rows,
+              cols: width,
+              content: { _tag: "SubBox", xAlign: left, yAlign: top, box },
+              annotation: box.annotation,
+            }),
       col: (boxes) =>
         make({
           rows: box.rows,
@@ -1489,6 +1492,22 @@ export const truncate = dual<
 >(3, <A>(self: Box.Box<A>, width: number, pos: Box.Alignment): Box.Box<A> => {
   const ellipsis = "…";
 
+  const available = Math.max(0, width - 1); // reserve 1 column for ellipsis
+
+  const [prefixWidth, suffixWidth] = Match.value(pos).pipe(
+    Match.when("AlignFirst", () => [available, 0] as const),
+    Match.when("AlignLast", () => [0, available] as const),
+    Match.when(
+      "AlignCenter1",
+      () => [Math.ceil(available / 2), Math.floor(available / 2)] as const
+    ),
+    Match.when(
+      "AlignCenter2",
+      () => [Math.floor(available / 2), Math.ceil(available / 2)] as const
+    ),
+    Match.exhaustive
+  );
+
   const truncateLine = (text: string): Box.Box<A> => {
     const textWidth = Width.ofString(text);
 
@@ -1500,24 +1519,6 @@ export const truncate = dual<
       return unsafeLine(ellipsis);
     }
 
-    const available = width - 1; // reserve 1 column for ellipsis
-
-    const [prefixWidth, suffixWidth] = Match.value(pos).pipe(
-      Match.when("AlignFirst", () => [available, 0] as const),
-      Match.when("AlignLast", () => [0, available] as const),
-      Match.when(
-        "AlignCenter1",
-        () =>
-          [Math.ceil(available / 2), Math.floor(available / 2)] as const
-      ),
-      Match.when(
-        "AlignCenter2",
-        () =>
-          [Math.floor(available / 2), Math.ceil(available / 2)] as const
-      ),
-      Match.exhaustive
-    );
-
     return unsafeLine(
       Width.sliceColumns(text, 0, prefixWidth) +
         ellipsis +
@@ -1525,7 +1526,29 @@ export const truncate = dual<
     );
   };
 
-  return truncateWidth(self, width, truncateLine);
+  const truncateRow = (row: Box.Box<A>): Box.Box<A> => {
+    if (row.cols <= width) return row;
+    if (width <= 0 || row.rows === 0)
+      return emptyBox(row.rows, Math.max(0, width));
+
+    const content = make({
+      rows: row.rows,
+      cols: row.cols,
+      content: row.content,
+    });
+    const marker = vcat(
+      Array.makeBy(row.rows, () => unsafeLine(ellipsis)),
+      left
+    );
+    const pieces: Box.Box<A>[] = [];
+    if (prefixWidth > 0) pieces.push(cropWidth(content, 0, prefixWidth));
+    pieces.push(marker);
+    if (suffixWidth > 0)
+      pieces.push(cropWidth(content, row.cols - suffixWidth, suffixWidth));
+    return preserveAnnotation(row, hcat(pieces, top));
+  };
+
+  return truncateWidth(self, width, truncateLine, truncateRow);
 });
 
 /** @internal */

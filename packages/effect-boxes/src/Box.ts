@@ -160,17 +160,17 @@ export type SubBox<A = never> = {
  */
 export type Content<A = never> = Blank | Text | Row<A> | Col<A> | SubBox<A>;
 
+type AnnotationOf<T> = T extends Box<infer A> ? A : never;
+
 /**
+ * Collects the annotation types of every box in an array or tuple.
+ * An empty tuple contributes no annotations and resolves to `never`.
+ *
  * @category models
  */
-export type BoxAnnotations<T extends readonly unknown[]> = T extends readonly [
-  infer Head,
-  ...infer Tail,
-]
-  ? Head extends Box<infer A>
-    ? A | BoxAnnotations<Tail>
-    : never
-  : never;
+export type BoxAnnotations<T extends readonly unknown[]> = AnnotationOf<
+  T[number]
+>;
 
 /**
  * The Box data type, representing a rectangular area of text with various combinators for layout and alignment.
@@ -571,9 +571,9 @@ export const match: {
  * @category combinators
  */
 export const hcat: {
-  <T extends readonly Box<unknown>[]>(
+  <Boxes extends readonly Box<unknown>[]>(
     a: Alignment
-  ): (self: T) => Box<BoxAnnotations<T>>;
+  ): <T extends Boxes>(self: T) => Box<BoxAnnotations<T>>;
   <T extends readonly Box<unknown>[]>(
     self: T,
     a: Alignment
@@ -603,9 +603,9 @@ export const hcat: {
  * @category combinators
  */
 export const vcat: {
-  <T extends readonly Box<unknown>[]>(
+  <Boxes extends readonly Box<unknown>[]>(
     a: Alignment
-  ): (self: T) => Box<BoxAnnotations<T>>;
+  ): <T extends Boxes>(self: T) => Box<BoxAnnotations<T>>;
   <T extends readonly Box<unknown>[]>(
     self: T,
     a: Alignment
@@ -751,10 +751,10 @@ export const vcatWithSpace: {
  * @category combinators
  */
 export const punctuateH: {
-  <A, T extends readonly Box<unknown>[]>(
+  <A, Boxes extends readonly Box<unknown>[]>(
     a: Alignment,
     p: Box<A>
-  ): (self: T) => Box<A | BoxAnnotations<T>>;
+  ): <T extends Boxes>(self: T) => Box<A | BoxAnnotations<T>>;
   <A, T extends readonly Box<unknown>[]>(
     self: T,
     a: Alignment,
@@ -794,10 +794,10 @@ export const punctuateH: {
  * @category combinators
  */
 export const punctuateV: {
-  <A, T extends readonly Box<unknown>[]>(
+  <A, Boxes extends readonly Box<unknown>[]>(
     a: Alignment,
     p: Box<A>
-  ): (self: T) => Box<A | BoxAnnotations<T>>;
+  ): <T extends Boxes>(self: T) => Box<A | BoxAnnotations<T>>;
   <A, T extends readonly Box<unknown>[]>(
     self: T,
     a: Alignment,
@@ -1416,7 +1416,7 @@ export const printBox: <A>(
  */
 
 /**
- * Adds an annotation to a box.
+ * Sets the root annotation and preserves annotations on descendants.
  *
  * Annotations provide a way to attach additional data (like styling information)
  * to boxes without affecting their layout properties. Commonly used with the
@@ -1437,8 +1437,8 @@ export const printBox: <A>(
  * @category transformations
  */
 export const annotate: {
-  <B>(annotation: Annotation<B>): <A>(self: Box<A>) => Box<B>;
-  <A, B>(self: Box<A>, annotation: Annotation<B>): Box<B>;
+  <B>(annotation: Annotation<B>): <A>(self: Box<A>) => Box<A | B>;
+  <A, B>(self: Box<A>, annotation: Annotation<B>): Box<A | B>;
 } = internal.annotate;
 
 /**
@@ -1635,11 +1635,11 @@ export const asciiBorder: BorderChars = internal.asciiBorder;
  * @category combinators
  */
 export const border: {
-  <B>(
+  <B = never>(
     style?: BorderStyle,
     options?: BorderOptions<B>
   ): <A>(self: Box<A>) => Box<A | B>;
-  <A, B>(
+  <A, B = never>(
     self: Box<A>,
     style?: BorderStyle,
     options?: BorderOptions<B>

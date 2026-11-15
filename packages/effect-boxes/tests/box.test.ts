@@ -3,13 +3,25 @@ import { pipe, String } from "effect";
 import * as Equal from "effect/Equal";
 import * as Hash from "effect/Hash";
 import * as Inspectable from "effect/Inspectable";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import * as Annotation from "../src/Annotation";
 import type { AnsiStyle } from "../src/Ansi";
 import * as Ansi from "../src/Ansi";
 import * as Box from "../src/Box";
 
 describe("Box", () => {
+  it("includes descendant annotations in the type when annotating a parent", () => {
+    const child = Box.annotate(Box.line("x"), Annotation.createAnnotation(42));
+    const row = Box.hcat([child, Box.line("y")] as const, Box.top);
+    const label = Annotation.createAnnotation("parent");
+    const parent = Box.annotate(row, label);
+    const piped = row.pipe(Box.annotate(label));
+    expectTypeOf(parent).toEqualTypeOf<Box.Box<number | string>>();
+    expectTypeOf(piped).toEqualTypeOf<Box.Box<number | string>>();
+    expect(parent.annotation?.data).toBe("parent");
+    expect(parent.content).toEqual(row.content);
+  });
+
   it("should preserve joined emoji sequences when constructing text", () => {
     const box = Box.text("👩‍💻");
 

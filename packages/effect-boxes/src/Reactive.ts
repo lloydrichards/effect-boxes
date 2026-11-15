@@ -232,8 +232,8 @@ export const reactive: (id: string) => Annotation<Reactive> = internal.reactive;
  * @category transformations
  */
 export const makeReactive: {
-  (id: string): <A>(self: Box<A>) => Box<Reactive>;
-  <A>(self: Box<A>, id: string): Box<Reactive>;
+  (id: string): <A>(self: Box<A>) => Box<A | Reactive>;
+  <A>(self: Box<A>, id: string): Box<A | Reactive>;
 } = internal.makeReactive;
 
 /*

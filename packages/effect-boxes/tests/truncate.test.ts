@@ -197,6 +197,28 @@ describe("Box.truncate", () => {
   // ---------------------------------------------------------------------------
 
   describe("composition", () => {
+    it.each([
+      [Box.left, "abc…"],
+      [Box.right, "…def"],
+      [Box.center1, "ab…f"],
+      [Box.center2, "a…ef"],
+    ] as const)(
+      "inserts the ellipsis across child boundaries for %s",
+      (alignment, expected) => {
+        const row = Box.hcat([Box.line("abc"), Box.line("def")], Box.top);
+        expect(Box.renderPlainSync(Box.truncate(row, 4, alignment))).toBe(
+          expected
+        );
+      }
+    );
+
+    it("keeps whole wide glyphs and inserts one ellipsis on each row", () => {
+      const row = Box.hcat([Box.text("界a\n界b"), Box.text("cd\nef")], Box.top);
+      expect(Box.renderPlainSync(Box.truncate(row, 4, Box.center1))).toBe(
+        "界…d\n界…f"
+      );
+    });
+
     it("does not recurse infinitely when truncating a wide row", () => {
       const row = Box.hcat(
         [Box.text("left panel"), Box.text("right panel")],

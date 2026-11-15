@@ -68,6 +68,8 @@ const WIDE_CHAR_RANGES = [
   [0x31_30, 0x31_8f],
   [0x31_90, 0x31_bf],
   [0x31_c0, 0x31_ef],
+  // Katakana Phonetic Extensions
+  [0x31_f0, 0x31_ff],
   // CJK compatibility
   [0x32_00, 0x32_ff],
   [0x33_00, 0x33_ff],
@@ -78,10 +80,14 @@ const WIDE_CHAR_RANGES = [
   // Yi syllables
   [0xa0_00, 0xa4_8f],
   [0xa4_90, 0xa4_cf],
+  // Hangul Jamo Extended-A
+  [0xa9_60, 0xa9_7c],
   // Hangul syllables
   [0xac_00, 0xd7_af],
   // CJK compatibility ideographs
   [0xf9_00, 0xfa_ff],
+  // Vertical Forms
+  [0xfe_10, 0xfe_19],
   // Halfwidth and fullwidth forms
   [0xfe_30, 0xfe_6f], // Adjusted to include full-width parens
   // Common emoji ranges
