@@ -1635,11 +1635,11 @@ export const asciiBorder: BorderChars = internal.asciiBorder;
  * @category combinators
  */
 export const border: {
-  <B>(
+  <B = never>(
     style?: BorderStyle,
     options?: BorderOptions<B>
   ): <A>(self: Box<A>) => Box<A | B>;
-  <A, B>(
+  <A, B = never>(
     self: Box<A>,
     style?: BorderStyle,
     options?: BorderOptions<B>

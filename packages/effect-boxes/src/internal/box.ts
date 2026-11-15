@@ -1095,11 +1095,11 @@ export interface BorderOptions<A> {
 
 /** @internal */
 export const border = dual<
-  <B>(
+  <B = never>(
     style?: BorderStyle,
     options?: BorderOptions<B>
   ) => <A>(self: Box.Box<A>) => Box.Box<A | B>,
-  <A, B>(
+  <A, B = never>(
     self: Box.Box<A>,
     style?: BorderStyle,
     options?: BorderOptions<B>
