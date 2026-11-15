@@ -1,10 +1,20 @@
 /** @effect-diagnostics unstableApiUsage:skip-file */
-import { Data, Effect, Queue, Schedule, Terminal } from "effect";
+import {
+  Data,
+  Effect,
+  Option,
+  Queue,
+  Ref,
+  Schedule,
+  Stream,
+  Terminal,
+} from "effect";
 import { Prompt } from "effect/cli";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
 import * as Cmd from "effect-boxes/Cmd";
-import { Layer, Stack } from "effect-boxes/Layout";
+import { Layer, Place, Stack } from "effect-boxes/Layout";
+import * as Reactive from "effect-boxes/Reactive";
 import * as Renderer from "effect-boxes/Renderer";
 
 const palette = {
@@ -123,7 +133,9 @@ const ground = Box.vcat(
   Box.left
 );
 
-export const scene = (state: SceneState): Stack<Ansi.AnsiStyle> => {
+export const scene = (
+  state: SceneState
+): Stack<Ansi.AnsiStyle | Reactive.Reactive> => {
   const cars = carsAt(state.tick).map((car) =>
     Layer.make(
       Box.text("[o==o]").pipe(
@@ -163,7 +175,10 @@ export const scene = (state: SceneState): Stack<Ansi.AnsiStyle> => {
   return Stack.make(
     [
       Layer.make(
-        Box.text("o_o").pipe(
+        Box.hcat(
+          [Reactive.makeReactive(Box.line("o_o"), "frog")],
+          Box.top
+        ).pipe(
           Box.annotate(
             Ansi.combine(
               palette.frog,
@@ -269,13 +284,13 @@ export const layerDiagram = (state: SceneState): Box.Box<Ansi.AnsiStyle> => {
 };
 
 export const processInput = (
-  input: Prompt.ProcessInput<void>,
+  input: Prompt.ProcessInput<"tick" | "resize">,
   state: SceneState
 ): Prompt.Action<SceneState, void> => {
   if (input._tag === "Event") {
     return Action.NextFrame({
       state:
-        state.paused || state.outcome !== "playing"
+        input.value === "resize" || state.paused || state.outcome !== "playing"
           ? state
           : settle({ ...state, tick: (state.tick + 1) % period }),
     });
@@ -326,76 +341,99 @@ export const processInput = (
   }
 };
 
-export const renderScene = (state: SceneState) =>
+export const renderScene = (
+  state: SceneState,
+  size: Terminal.Size = { columns: 106, rows: 26 }
+) =>
   Effect.gen(function* () {
-    const frame = yield* Renderer.frame(scene(state), {
-      preserveWhitespace: true,
-    });
-    const board = Box.vcat(
-      [
-        Box.text(
-          state.outcome !== "playing"
-            ? "Round finished - arrows + z still work"
-            : state.paused
-              ? "PAUSED - press Space or Enter to start"
-              : "PLAYING - reach GOAL; Space or Enter pauses"
-        ).pipe(
-          Box.annotate(
-            Ansi.combine(Ansi.bold, state.paused ? palette.amber : palette.frog)
-          )
-        ),
-        Box.text(frame.output).pipe(
-          Box.border("rounded", { annotation: palette.muted })
-        ),
-      ],
-      Box.left
+    const columns = Math.max(0, size.columns - 1);
+    if (columns < 12 || size.rows < 6)
+      return "Resize · q exits".slice(0, columns);
+
+    const viewWidth = Math.min(width, columns - 2);
+    const viewHeight = Math.min(height, size.rows - 5);
+    const left = Math.max(
+      0,
+      Math.min(state.x + 1 - Math.floor(viewWidth / 2), width - viewWidth)
     );
-    const diagram = Box.vcat(
-      [
-        Box.text("Layer stack: higher z draws on top").pipe(
-          Box.annotate(Ansi.combine(palette.text, Ansi.bold))
-        ),
-        layerDiagram(state),
-      ],
-      Box.left
+    const top = Math.max(
+      0,
+      Math.min(state.y - Math.floor(viewHeight / 2), height - viewHeight)
     );
-    const output = Box.vcat(
-      [
-        Box.text("Frogger: play the board, inspect the stack").pipe(
-          Box.annotate(Ansi.combine(palette.text, Ansi.bold))
-        ),
-        Box.hsep([board, diagram], 3, Box.top),
-        Box.text(
-          "Play: arrows move | Space / Enter pause | r restart | q / Esc exit"
-        ),
-        Box.text(
-          `Inspect: z cycles draw order | d: collisions ${state.debug ? "OFF" : "ON"} | Higher z does not prevent collisions.`
-        ),
-        Box.text(
-          `Frog: ${depthLabel(state.frogZ)} (z=${state.frogZ}) | Next: ${depthLabel(nextDepth(state.frogZ))} (z=${nextDepth(state.frogZ)})`
-        ).pipe(Box.annotate(Ansi.combine(palette.frog, Ansi.bold))),
-        Box.text(
-          "Terrain includes grass, road and river. River and bridge are scenery."
-        ).pipe(Box.annotate(palette.muted)),
-      ],
-      Box.left
+    const world = scene(state);
+    const viewport =
+      viewWidth === width && viewHeight === height
+        ? world
+        : Stack.make(
+            world.layers.map((layer) => ({
+              ...layer,
+              x: layer.x - left,
+              y: layer.y - top,
+            })),
+            { width: viewWidth, height: viewHeight }
+          );
+    const frame = yield* Renderer.frame(viewport, { preserveWhitespace: true });
+    const region = Option.getOrThrow(
+      Reactive.getRegion(frame.resolved.regions, "frog")
     );
-    return Box.renderPrettySync(output);
+    const visible = region.visible.reduce(
+      (cells, rect) => cells + rect.cols * rect.rows,
+      0
+    );
+
+    const board = Box.text(frame.output).pipe(
+      Box.border("rounded", { annotation: palette.muted })
+    );
+    const wide = columns >= width + 2 + 3 + 40 && size.rows >= 23;
+    const playfield = wide
+      ? Box.hsep(
+          [
+            board,
+            Box.vcat(
+              [Box.line("Layer stack · highest first"), layerDiagram(state)],
+              Box.left
+            ),
+          ],
+          3,
+          Box.top
+        )
+      : board;
+    const status =
+      state.outcome !== "playing"
+        ? state.outcome === "won"
+          ? "WINNER"
+          : "GAME OVER"
+        : state.paused
+          ? "PAUSED"
+          : "PLAYING";
+    const header = Box.line(
+      `Frogger · ${status} · collisions ${state.debug ? "off" : "on"}`
+    ).pipe(Box.annotate(Ansi.bold));
+    const visibility = Box.line(
+      `${visible}/3 frog cells visible · z=${state.frogZ} · ${depthLabel(state.frogZ)}`
+    ).pipe(Box.annotate(palette.frog));
+    const controls = Box.line(
+      columns < 69
+        ? "z layer · q quit · arrows move · Space pause · d collisions · r reset"
+        : "Arrows move · z layer · d collisions · Space pause · r reset · q quit"
+    );
+    return Box.renderPrettySync(
+      Box.vcat(
+        [
+          header.pipe(Place.horizontal(columns, "left")),
+          playfield,
+          visibility.pipe(Place.horizontal(columns, "left")),
+          controls.pipe(Place.horizontal(columns, "left")),
+        ],
+        Box.left
+      )
+    );
   }).pipe(Effect.provide(Renderer.AnsiRendererLive));
 
 export const main = Effect.gen(function* () {
   const terminal = yield* Terminal.Terminal;
-  const columns = yield* terminal.columns;
-  const rows = yield* terminal.rows;
-  const preview = Box.text(yield* renderScene(initialState));
-  const requiredColumns = preview.cols + 1;
-  const requiredRows = preview.rows + 1;
-  if (columns < requiredColumns || rows < requiredRows) {
-    yield* terminal.display(
-      `Resize to at least ${requiredColumns} columns and ${requiredRows} rows, then run again.\n`
-    );
-    return;
-  }
+  const sizes = yield* terminal.size;
+  const size = yield* Ref.make(yield* Queue.take(sizes));
   yield* Effect.acquireRelease(
     terminal.display(
       Box.renderPrettySync(Box.combine(Cmd.altScreenEnter, Cmd.cursorHide))
@@ -407,27 +445,35 @@ export const main = Effect.gen(function* () {
         )
         .pipe(Effect.orDie)
   );
-  const ticks = yield* Queue.sliding<void>(1);
-  yield* Queue.offer(ticks, undefined).pipe(
+  const events = yield* Queue.sliding<"tick" | "resize">(1);
+  yield* Stream.fromQueue(sizes).pipe(
+    Stream.runForEach((next) =>
+      Ref.set(size, next).pipe(Effect.andThen(Queue.offer(events, "resize")))
+    ),
+    Effect.forkScoped
+  );
+  yield* Queue.offer(events, "tick").pipe(
     Effect.repeat(Schedule.spaced("200 millis")),
     Effect.forkScoped
   );
-  yield* Prompt.Custom<SceneState, void, void>(
+  yield* Prompt.Custom<SceneState, void, "tick" | "resize">(
     initialState,
-    Queue.asDequeue(ticks),
+    Queue.asDequeue(events),
     {
       render: (_state, action) =>
         Action.$match(action, {
           Beep: () => Effect.succeed(""),
           NextFrame: ({ state }) =>
-            renderScene(state).pipe(
+            Ref.get(size).pipe(
+              Effect.flatMap((current) => renderScene(state, current)),
               Effect.map(
                 (output) =>
                   Box.renderPrettySync(Cmd.home) +
                   output
                     .split("\n")
                     .join(`${Box.renderPrettySync(Cmd.eraseEndLine)}\n`) +
-                  Box.renderPrettySync(Cmd.eraseEndLine)
+                  Box.renderPrettySync(Cmd.eraseEndLine) +
+                  "\x1b[J"
               ),
               Effect.orDie
             ),
