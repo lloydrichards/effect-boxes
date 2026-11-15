@@ -63,7 +63,7 @@ const demos = [
     title: "9. Log Viewer",
     value: "log-viewer",
     description:
-      "Scrollable stream log viewer with cropWidth, cropHeight, and sizing constraints",
+      "Resize a live log viewport with Terminal.size and Place.make",
   },
   {
     title: "10. Layout Combinators",

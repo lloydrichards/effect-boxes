@@ -1,10 +1,11 @@
 /** @effect-diagnostics unstableApiUsage:skip-file */
 import { BunServices } from "@effect/platform-bun";
-import { Data, Effect, Match, pipe, Queue, Terminal } from "effect";
+import { Data, Effect, Match, Queue, Stream, Terminal } from "effect";
 import { Prompt } from "effect/cli";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
 import * as Cmd from "effect-boxes/Cmd";
+import { Place } from "effect-boxes/Layout";
 
 // ----------------------------------------------------------------------------
 // Types
@@ -17,7 +18,7 @@ type LogEntry = readonly [timestamp: string, level: LogLevel, message: string];
 type LogViewerState = {
   readonly lines: ReadonlyArray<LogEntry>;
   readonly scrollOffset: number;
-  readonly prevRows: number;
+  readonly size: Terminal.Size;
 };
 
 interface LogViewerOptions {
@@ -38,84 +39,48 @@ const DEFAULT_HEIGHT = 16;
 // Rendering
 // ----------------------------------------------------------------------------
 
-const renderLayout = (
-  state: LogViewerState,
-  title: string,
-  height: number,
-  submitted: boolean
-) =>
-  Effect.gen(function* () {
-    const terminal = yield* Terminal.Terminal;
-    const termWidth = yield* terminal.columns;
-    const innerWidth = termWidth - 4; // border + padding
+const visibleRows = (size: Terminal.Size, height: number) =>
+  Math.max(0, Math.min(height, size.rows - 4));
 
-    if (submitted) {
-      return Box.hsep(
-        [
-          Box.text("\u2714").pipe(Box.annotate(Ansi.green)),
-          Box.text(title).pipe(Box.annotate(Ansi.bold)),
-          Box.text(`(${state.lines.length} lines)`).pipe(
-            Box.annotate(Ansi.dim)
-          ),
-        ],
-        1,
-        Box.top
-      );
-    }
-
-    // Compute visible window
-    const totalLines = state.lines.length;
-
-    // Build content box
-    const contentBox =
-      state.lines.length === 0
-        ? Box.text("Waiting for log data...").pipe(Box.annotate(Ansi.dim))
-        : pipe(
-            state.lines.map((entry) => renderLogLine(entry)),
-            (boxes) => Box.vcat(boxes, Box.left)
-          );
-
-    // Apply constraints: fixed-height viewport and left-edge horizontal crop.
-    const constrainedContent = pipe(
-      contentBox,
-      Box.cropHeight(state.scrollOffset, height),
-      Box.minHeight(height),
-      Box.cropWidth(0, innerWidth),
-      Box.minWidth(innerWidth)
-    );
-
-    // Header
-    const header = Box.hsep(
-      [
-        Box.text(`  ${title}`).pipe(Box.annotate(Ansi.bold)),
-        Box.text(
-          `[${Math.min(state.scrollOffset + 1, totalLines)}–${Math.min(state.scrollOffset + height, totalLines)} / ${totalLines}]`
-        ).pipe(Box.annotate(Ansi.dim)),
-      ],
-      1,
-      Box.top
-    );
-
-    // Footer
-    const footer = Box.hsep(
-      [
-        Box.text("  \u2191/\u2193 scroll").pipe(Box.annotate(Ansi.dim)),
-        Box.text("\u00B7").pipe(Box.annotate(Ansi.dim)),
-        Box.text("enter exit").pipe(Box.annotate(Ansi.dim)),
-      ],
-      1,
-      Box.top
-    );
-
-    return Box.vcat(
-      [
-        header,
-        constrainedContent.pipe(Box.pad(0, 1), Box.border("rounded")),
-        footer,
-      ],
-      Box.left
-    );
-  });
+const renderLayout = (state: LogViewerState, title: string, height: number) => {
+  const width = Math.max(0, state.size.columns - 1);
+  if (width < 8 || state.size.rows < 5) {
+    return Box.line("Resize to view logs").pipe(Place.horizontal(width, "left"));
+  }
+  const rows = visibleRows(state.size, height);
+  const entries = state.lines.slice(
+    state.scrollOffset,
+    state.scrollOffset + rows
+  );
+  const content = entries.length
+    ? Box.vcat(entries.map(renderLogLine), Box.left)
+    : Box.text("Waiting for log data...").pipe(Box.annotate(Ansi.dim));
+  const count = state.lines.length;
+  const header = Box.hsep(
+    [
+      Box.text(title).pipe(Box.annotate(Ansi.bold)),
+      Box.text(
+        `[${count ? state.scrollOffset + 1 : 0}–${state.scrollOffset + entries.length} / ${count}]`
+      ).pipe(Box.annotate(Ansi.dim)),
+    ],
+    1,
+    Box.top
+  );
+  return Box.vcat(
+    [
+      header.pipe(Place.horizontal(width, "left")),
+      Place.make(content, { width: width - 4, height: rows }).pipe(
+        Box.pad(0, 1),
+        Box.border("rounded")
+      ),
+      Box.text("↑/↓ scroll · enter exit").pipe(
+        Place.horizontal(width, "left"),
+        Box.annotate(Ansi.dim)
+      ),
+    ],
+    Box.left
+  );
+};
 
 // Log-level styling
 const levelIcon = Match.type<LogLevel>().pipe(
@@ -166,102 +131,101 @@ const renderLogLine = (entry: LogEntry): Box.Box<Ansi.AnsiStyle> => {
 // LogViewer Prompt
 // ----------------------------------------------------------------------------
 
+type ViewerEvent =
+  | { readonly entry: LogEntry }
+  | { readonly size: Terminal.Size };
+
 export const LogViewer = ({
   title,
   height = DEFAULT_HEIGHT,
   events,
-}: LogViewerOptions): Prompt.Prompt<string> => {
-  const initialState: LogViewerState = {
-    lines: [],
-    scrollOffset: 0,
-    prevRows: 0,
-  };
-
-  return Prompt.Custom<LogViewerState, string, LogEntry>(initialState, events, {
-    render: Effect.fnUntraced(function* (
-      state: LogViewerState,
-      action: Prompt.Action<LogViewerState, string>
-    ) {
-      const rendered = yield* Action.$match(action, {
-        Beep: () => Effect.succeed(Box.nullBox),
-
-        NextFrame: Effect.fnUntraced(function* ({ state: nextState }) {
-          const layout = yield* renderLayout(nextState, title, height, false);
-          const clear =
-            nextState.prevRows > 0
-              ? Cmd.clearLines(nextState.prevRows)
-              : Cmd.cursorHide;
-          return Box.combine(clear, layout);
-        }),
-
-        Submit: Effect.fnUntraced(function* () {
-          const layout = yield* renderLayout(initialState, title, height, true);
-          const clear =
-            state.prevRows > 0 ? Cmd.clearLines(state.prevRows) : Box.nullBox;
-          return Box.combineAll([
-            clear,
-            layout,
-            Box.text("") as Box.Box<Ansi.AnsiStyle>,
-          ]);
-        }),
-      });
-
-      return yield* Box.renderPretty(rendered);
-    }),
-
-    process: Effect.fnUntraced(function* (input, state) {
-      const maxOffset = Math.max(0, state.lines.length - height);
-      const layout = yield* renderLayout(state, title, height, false);
-
-      return Match.value(input).pipe(
-        Match.tag("Input", ({ input }) => {
-          return Match.value(input.key.name).pipe(
-            Match.when("up", () =>
-              Action.NextFrame({
-                state: {
-                  ...state,
-                  scrollOffset: Math.max(0, state.scrollOffset - 1),
-                  prevRows: layout.rows,
-                },
-              })
-            ),
-            Match.when("down", () =>
-              Action.NextFrame({
-                state: {
-                  ...state,
-                  scrollOffset: Math.min(maxOffset, state.scrollOffset + 1),
-                  prevRows: layout.rows,
-                },
-              })
-            ),
-            Match.whenOr("enter", "return", () =>
-              Action.Submit({ value: "done" })
-            ),
-            Match.orElse(() => Action.Beep())
-          );
-        }),
-        Match.tag("Event", ({ value: entry }) => {
-          // Append new log entry
-          const newLines = [...state.lines, entry];
-          const newMaxOffset = Math.max(0, newLines.length - height);
-          // Auto-scroll if user was at the bottom
-          const atBottom = state.scrollOffset >= maxOffset;
-          const newOffset = atBottom ? newMaxOffset : state.scrollOffset;
-          return Action.NextFrame({
-            state: {
-              lines: newLines,
-              scrollOffset: newOffset,
-              prevRows: layout.rows,
-            },
-          });
-        }),
-        Match.exhaustive
-      );
-    }),
-
-    clear: () => Effect.succeed(""),
-  });
-};
+}: LogViewerOptions) =>
+  Effect.gen(function* () {
+    const terminal = yield* Terminal.Terminal;
+    const sizes = yield* terminal.size;
+    const size = yield* Queue.take(sizes);
+    const updates = yield* Queue.make<ViewerEvent>();
+    yield* Stream.fromQueue(sizes).pipe(
+      Stream.runForEach((size) => Queue.offer(updates, { size })),
+      Effect.forkScoped
+    );
+    yield* Stream.fromQueue(events).pipe(
+      Stream.runForEach((entry) => Queue.offer(updates, { entry })),
+      Effect.forkScoped
+    );
+    yield* Effect.acquireRelease(
+      terminal.display(
+        Box.renderPrettySync(Box.combine(Cmd.altScreenEnter, Cmd.cursorHide))
+      ),
+      () =>
+        terminal
+          .display(
+            Box.renderPrettySync(
+              Box.combine(Cmd.altScreenLeave, Cmd.cursorShow)
+            )
+          )
+          .pipe(Effect.orDie)
+    );
+    const initial: LogViewerState = { size, lines: [], scrollOffset: 0 };
+    return yield* Prompt.Custom<LogViewerState, number, ViewerEvent>(
+      initial,
+      updates,
+      {
+        render: (_, action) =>
+          Effect.sync(() =>
+            action._tag === "NextFrame"
+              ? `\x1b[H\x1b[2J${Box.renderPrettySync(renderLayout(action.state, title, height))}`
+              : ""
+          ),
+        clear: () => Effect.succeed(""),
+        process: (input, state) =>
+          Effect.sync(() => {
+            const maxOffset = Math.max(
+              0,
+              state.lines.length - visibleRows(state.size, height)
+            );
+            if (input._tag === "Event") {
+              const update = input.value;
+              const size = "size" in update ? update.size : state.size;
+              const lines =
+                "entry" in update
+                  ? [...state.lines, update.entry]
+                  : state.lines;
+              const nextMax = Math.max(
+                0,
+                lines.length - visibleRows(size, height)
+              );
+              const scrollOffset =
+                state.scrollOffset === maxOffset
+                  ? nextMax
+                  : Math.min(state.scrollOffset, nextMax);
+              return Action.NextFrame({ state: { size, lines, scrollOffset } });
+            }
+            switch (input.input.key.name) {
+              case "up":
+                return Action.NextFrame({
+                  state: {
+                    ...state,
+                    scrollOffset: Math.max(0, state.scrollOffset - 1),
+                  },
+                });
+              case "down":
+                return Action.NextFrame({
+                  state: {
+                    ...state,
+                    scrollOffset: Math.min(maxOffset, state.scrollOffset + 1),
+                  },
+                });
+              case "enter":
+              case "return":
+                return Action.Submit({ value: state.lines.length });
+              default:
+                return Action.Beep();
+            }
+          }),
+      }
+    );
+  }).pipe(Effect.scoped);
 
 // ----------------------------------------------------------------------------
 // Demo: Simulated log stream
@@ -365,11 +329,11 @@ export const main = Effect.gen(function* () {
   }).pipe(Effect.forkScoped);
 
   // Run the viewer — logs will appear as they stream in
-  yield* Prompt.run(
-    LogViewer({
-      title: "Application Logs",
-      height: 10,
-      events: Queue.asDequeue(logQueue),
-    })
-  );
+  const count = yield* LogViewer({
+    title: "Application Logs",
+    height: 10,
+    events: Queue.asDequeue(logQueue),
+  });
+  const terminal = yield* Terminal.Terminal;
+  yield* terminal.display(`✔ Application Logs (${count} lines)\n`);
 }).pipe(Effect.scoped, Effect.provide(BunServices.layer));
