@@ -159,6 +159,16 @@ describe("Box.truncate", () => {
   // ---------------------------------------------------------------------------
 
   describe("edge cases", () => {
+    it.each([
+      ["line", Box.line("abc")],
+      ["text", Box.text("abc")],
+    ] as const)("respects zero- and one-column limits for Box.%s", (_, box) => {
+      const zero = Box.truncate(box, 0, Box.left);
+      expect([zero.cols, Box.renderPlainSync(zero)]).toEqual([0, ""]);
+      const one = Box.truncate(box, 1, Box.left);
+      expect([one.cols, Box.renderPlainSync(one)]).toEqual([1, "…"]);
+    });
+
     it("handles empty box", () => {
       const box = Box.text("");
       const result = pipe(box, Box.truncate(5, Box.left));

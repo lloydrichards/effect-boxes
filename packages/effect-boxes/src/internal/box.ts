@@ -1516,7 +1516,7 @@ export const truncate = dual<
     }
 
     if (width <= 1) {
-      return unsafeLine(ellipsis);
+      return unsafeLine(width < 1 ? "" : ellipsis);
     }
 
     return unsafeLine(
