@@ -474,24 +474,6 @@ export const vsep = dual<
  *  --------------------------------------------------------------------------------
  */
 
-interface ParaContent {
-  readonly fullLines: readonly (readonly string[])[];
-  readonly lastLine: readonly string[];
-}
-
-interface Para {
-  readonly width: number;
-  readonly content: ParaContent;
-}
-
-const emptyPara = (paraWidth: number): Para => ({
-  width: paraWidth,
-  content: {
-    fullLines: [],
-    lastLine: [],
-  },
-});
-
 /** @internal */
 export const columns = dual<
   (a: Box.Alignment, w: number, h: number) => (self: string) => Box.Box[],
@@ -519,63 +501,26 @@ const flow = dual<
   (width: number) => (self: string) => string[],
   (self: string, width: number) => string[]
 >(2, (self, width) => {
-  if (self.trim() === "") {
-    return [""];
+  const [firstWord, ...words] = String.split(self.trim(), whitespaceRegex);
+  const lines: string[] = [];
+  let lineWords = [firstWord];
+  let lineWidth = Width.ofString(firstWord);
+
+  for (const word of words) {
+    const wordWidth = Width.ofString(word);
+    const nextWidth = lineWidth + 1 + wordWidth;
+    if (nextWidth <= width) {
+      lineWords.push(word);
+      lineWidth = nextWidth;
+    } else {
+      lines.push(Width.sliceColumns(lineWords.join(" "), 0, width));
+      lineWords = [word];
+      lineWidth = wordWidth;
+    }
   }
-
-  return pipe(
-    self,
-    String.split(whitespaceRegex),
-    Array.filter((word) => word.length > 0),
-    Array.reduce(emptyPara(width), addWordP),
-    getLines,
-    Array.map((line) => Width.sliceColumns(line, 0, width))
-  );
+  lines.push(Width.sliceColumns(lineWords.join(" "), 0, width));
+  return lines;
 });
-
-const getLines = ({ content: { fullLines, lastLine } }: Para): string[] => {
-  const process = (lines: readonly (readonly string[])[]): string[] =>
-    pipe(
-      Array.fromIterable(lines),
-      Array.reverse,
-      Array.map((line) => pipe(line, Array.reverse, Array.join(" ")))
-    );
-
-  return process(lastLine.length === 0 ? fullLines : [lastLine, ...fullLines]);
-};
-
-const addWordP = (para: Para, word: string): Para => ({
-  width: para.width,
-  content: wordFits(para, word)
-    ? {
-        fullLines: para.content.fullLines,
-        lastLine: [word, ...para.content.lastLine] as readonly string[],
-      }
-    : {
-        fullLines:
-          para.content.lastLine.length === 0
-            ? para.content.fullLines
-            : ([
-                para.content.lastLine,
-                ...para.content.fullLines,
-              ] as readonly (readonly string[])[]),
-        lastLine: [word] as readonly string[],
-      },
-});
-
-const wordFits = (
-  { content: paraContent, width: paraWidth }: Para,
-  word: string
-): boolean => {
-  if (paraContent.lastLine.length === 0) {
-    return Width.ofString(word) <= paraWidth;
-  }
-  const currentLength = paraContent.lastLine.reduce(
-    (acc: number, word: string) => acc + Width.ofString(word),
-    paraContent.lastLine.length - 1
-  );
-  return currentLength + 1 + Width.ofString(word) <= paraWidth;
-};
 
 /*
  *  --------------------------------------------------------------------------------
