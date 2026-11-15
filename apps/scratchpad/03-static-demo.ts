@@ -1,22 +1,41 @@
+/** @effect-diagnostics unstableApiUsage:skip-file */
 /**
  * Static demo showcasing the powerful layout capabilities of Effect Boxes.
  *
  * Demonstrates: word wrapping (para), multi-column text flow (columns),
  * alignment modes, horizontal bar charts, and positional offsets (move*).
  */
-import { Effect } from "effect";
+import { Data, Effect, Queue, Stream, Terminal } from "effect";
+import { Prompt } from "effect/cli";
 import * as Ansi from "effect-boxes/Ansi";
 import * as Box from "effect-boxes/Box";
+import * as Cmd from "effect-boxes/Cmd";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const TOTAL_WIDTH = 76;
+// Keep each bordered cell intact when the next one needs a new row.
+const packRows = <A>(cells: ReadonlyArray<Box.Box<A>>, width: number) => {
+  const rows: Box.Box<A>[] = [];
+  let row: Box.Box<A>[] = [];
+  let used = 0;
+  for (const cell of cells) {
+    if (row.length && used + 1 + cell.cols > width) {
+      rows.push(Box.hsep(row, 1, Box.top));
+      row = [];
+      used = 0;
+    }
+    used += (row.length ? 1 : 0) + cell.cols;
+    row.push(cell);
+  }
+  if (row.length) rows.push(Box.hsep(row, 1, Box.top));
+  return Box.vcat(rows, Box.left);
+};
 
-const sectionLabel = (label: string) =>
+const sectionLabel = (label: string, width: number) =>
   Box.text(` ${label} `).pipe(
-    Box.truncate(TOTAL_WIDTH, Box.left),
+    Box.truncate(width, Box.left),
     Box.annotate(
       Ansi.combine(Ansi.bold, Ansi.bgColorRGB(45, 85, 155), Ansi.white)
     )
@@ -29,16 +48,20 @@ const dimRule = (width: number) =>
 // 1. Header
 // ---------------------------------------------------------------------------
 
-const header = Box.text("Effect Boxes").pipe(
-  Box.annotate(Ansi.combine(Ansi.bold, Ansi.colorRGB(255, 165, 0))),
-  Box.pad(0, 1),
-  Box.border("rounded", { annotation: Ansi.dim }),
-  Box.alignHoriz(Box.center1, TOTAL_WIDTH)
-);
+const header = (width: number) =>
+  Box.text("Effect Boxes").pipe(
+    Box.annotate(Ansi.combine(Ansi.bold, Ansi.colorRGB(255, 165, 0))),
+    Box.pad(0, 1),
+    Box.border("rounded", { annotation: Ansi.dim }),
+    Box.alignHoriz(Box.center1, width)
+  );
 
-const subtitle = Box.text(
-  "A functional layout engine for composable terminal UIs"
-).pipe(Box.annotate(Ansi.dim), Box.alignHoriz(Box.center1, TOTAL_WIDTH));
+const subtitle = (width: number) =>
+  Box.para(
+    "A functional layout engine for composable terminal UIs",
+    Box.center1,
+    width
+  ).pipe(Box.annotate(Ansi.dim), Box.alignHoriz(Box.center1, width));
 
 // ---------------------------------------------------------------------------
 // 2. Word Wrapping — same text at different widths
@@ -49,10 +72,12 @@ const WRAP_TEXT =
   "The same input text reflows to fit any target width, making responsive " +
   "terminal layouts easy to build.";
 
-const wrapWidths = [20, 28, 38] as const;
-
-const wrapDemo = (() => {
-  const wrapped = wrapWidths.map((w) =>
+const wrapDemo = (width: number) => {
+  const space = width - 8; // Three borders and two gaps.
+  const wrapWidths = [0.24, 0.32, 0.44].map((share) =>
+    Math.min(width - 2, Math.max(20, Math.floor(space * share)))
+  );
+  const wrapped = [...new Set(wrapWidths)].map((w) =>
     Box.vcat(
       [
         Box.text(`width=${w}`).pipe(
@@ -67,10 +92,10 @@ const wrapDemo = (() => {
   );
 
   return Box.vcat(
-    [sectionLabel("Word Wrapping (para)"), Box.hsep(wrapped, 2, Box.top)],
+    [sectionLabel("Word Wrapping (para)", width), packRows(wrapped, width)],
     Box.left
   );
-})();
+};
 
 // ---------------------------------------------------------------------------
 // 3. Multi-column text flow (columns)
@@ -85,13 +110,16 @@ const ARTICLE_TEXT =
   "Haskell's Text.PrettyPrint.Boxes, adapted for the Effect ecosystem " +
   "with full TypeScript type safety, pipeable APIs, and ANSI rendering.";
 
-const columnDemo = (() => {
-  const colWidth = 22;
-  const colHeight = 8;
+const columnDemo = (width: number) => {
+  const count = Math.min(3, Math.max(1, Math.floor((width + 3) / 26)));
+  const colWidth = Math.floor((width - (count - 1) * 3) / count);
+  const colHeight = Math.ceil(
+    Box.para(ARTICLE_TEXT, Box.left, colWidth).rows / count
+  );
 
   return Box.vcat(
     [
-      sectionLabel("Multi-Column Flow (columns)"),
+      sectionLabel("Multi-Column Flow (columns)", width),
       Box.punctuateH(
         Box.columns(ARTICLE_TEXT, Box.left, colWidth, colHeight),
         Box.top,
@@ -103,14 +131,16 @@ const columnDemo = (() => {
     ],
     Box.left
   );
-})();
+};
 
 // ---------------------------------------------------------------------------
 // 4. Alignment Showcase
 // ---------------------------------------------------------------------------
 
-const alignmentDemo = (() => {
-  const W = 15; // odd width so center1 vs center2 bias is visible
+const alignmentDemo = (width: number) => {
+  const innerWidth = width - 2;
+  const perRow = Math.min(4, Math.max(1, Math.floor((innerWidth + 1) / 16)));
+  const cellWidth = Math.floor((innerWidth - perRow + 1) / perRow) - 4;
   const modes: Array<[string, Box.Alignment]> = [
     ["left", Box.left],
     ["center1", Box.center1],
@@ -118,17 +148,17 @@ const alignmentDemo = (() => {
     ["right", Box.right],
   ];
 
-  // "ABCD" is 4 chars in a 15-wide box = 11 leftover (odd)
-  // center1 bias left:  5 spaces + ABCD + 6 spaces
-  // center2 bias right: 6 spaces + ABCD + 5 spaces
   const makeRow = (
     txt: string,
     align: Box.Alignment,
     color: Ansi.AnsiAnnotation
   ) => {
-    const aligned = Box.text(txt).pipe(Box.alignHoriz(align, W));
+    const aligned = Box.text(txt).pipe(Box.alignHoriz(align, cellWidth));
     return Box.text(
-      Box.renderPlainSync(aligned).trimEnd().padEnd(W).replace(/ /g, "·")
+      Box.renderPlainSync(aligned)
+        .trimEnd()
+        .padEnd(cellWidth)
+        .replace(/ /g, "·")
     ).pipe(Box.annotate(color));
   };
 
@@ -136,10 +166,10 @@ const alignmentDemo = (() => {
     Box.vcat(
       [
         Box.text(name).pipe(
-          Box.alignHoriz(Box.center1, W),
+          Box.alignHoriz(Box.center1, cellWidth),
           Box.annotate(Ansi.combine(Ansi.bold, Ansi.cyan))
         ),
-        dimRule(W),
+        dimRule(cellWidth),
         makeRow("AB", align, Ansi.green),
         makeRow("ABC", align, Ansi.yellow),
         makeRow("ABCD", align, Ansi.magenta),
@@ -149,16 +179,19 @@ const alignmentDemo = (() => {
   );
 
   return Box.vcat(
-    [sectionLabel("Alignment Modes"), Box.hcat(boxes, Box.top)],
+    [
+      sectionLabel("Alignment Modes", width),
+      packRows(boxes, innerWidth).pipe(Box.border("rounded")),
+    ],
     Box.left
   );
-})();
+};
 
 // ---------------------------------------------------------------------------
 // 5. Horizontal Bar Chart
 // ---------------------------------------------------------------------------
 
-const barChartDemo = (() => {
+const barChartDemo = (width: number) => {
   const data: Array<[string, number]> = [
     ["Rust", 92],
     ["TypeScript", 78],
@@ -169,7 +202,7 @@ const barChartDemo = (() => {
   ];
 
   const maxVal = Math.max(...data.map(([, v]) => v));
-  const barMaxWidth = 40;
+  const barMaxWidth = width - 16;
 
   const barColors: Ansi.AnsiAnnotation[] = [
     Ansi.colorRGB(255, 100, 70),
@@ -197,16 +230,16 @@ const barChartDemo = (() => {
   });
 
   return Box.vcat(
-    [sectionLabel("Bar Chart (scaling with layout width)"), ...rows],
+    [sectionLabel("Bar Chart (scaling with layout width)", width), ...rows],
     Box.left
   );
-})();
+};
 
 // ---------------------------------------------------------------------------
 // 6. Positional Offsets (moveRight / moveDown)
 // ---------------------------------------------------------------------------
 
-const positionDemo = (() => {
+const positionDemo = (width: number) => {
   const makeTag = (label: string, color: Ansi.AnsiAnnotation) =>
     Box.text(label).pipe(
       Box.annotate(Ansi.combine(Ansi.bold, color)),
@@ -216,30 +249,39 @@ const positionDemo = (() => {
     );
 
   const a = makeTag("origin", Ansi.green);
-  const b = Box.moveRight(makeTag("moveRight(28)", Ansi.magenta), 28);
-  const c = Box.moveRight(makeTag("moveRight(12)", Ansi.cyan), 12);
+  const offsetTag = (offset: number, color: Ansi.AnsiAnnotation) =>
+    Box.moveRight(makeTag(`moveRight(${offset})`, color), offset);
+  const available = width - 4 - `moveRight(${width})`.length;
+  const b = offsetTag(available, Ansi.magenta);
+  const c = offsetTag(Math.floor(available / 2), Ansi.cyan);
 
   // Stack them — each box carries its own offset so they form a staircase
   const stacked = Box.vcat([a, b, c], Box.left);
 
   return Box.vcat(
-    [sectionLabel("Positioning (moveRight / moveDown)"), stacked],
+    [sectionLabel("Positioning (moveRight / moveDown)", width), stacked],
     Box.left
   );
-})();
+};
 
 // ---------------------------------------------------------------------------
 // 7. Per-Side Border Toggles
 // ---------------------------------------------------------------------------
 
-const borderSidesDemo = (() => {
+const borderSidesDemo = (width: number) => {
   // Tabbed interface (Lip Gloss style): all tabs skip the bottom border,
   // a connector line joins them to the content panel using junction chars.
-  const labels = ["Overview", "Details", "Settings"];
-  const activeIndex = 2;
+  const labels =
+    width >= 36 ? ["Overview", "Details", "Settings"] : ["Settings"];
+  const activeIndex = labels.length - 1;
 
+  const baseWidth = Math.floor(width / labels.length);
   const tabBoxes = labels.map((label, i) =>
     Box.text(label).pipe(
+      Box.alignHoriz(
+        Box.center1,
+        (i === activeIndex ? width - i * baseWidth : baseWidth) - 4
+      ),
       Box.pad(0, 1),
       Box.border("rounded", {
         sides: { bottom: false },
@@ -291,6 +333,7 @@ const borderSidesDemo = (() => {
     Box.left,
     tabs.cols - 4 // -2 border -2 padding
   ).pipe(
+    Box.alignHoriz(Box.left, tabs.cols - 4),
     Box.pad(0, 1),
     Box.border("rounded", {
       sides: { top: false },
@@ -300,26 +343,111 @@ const borderSidesDemo = (() => {
 
   const tabSection = Box.vcat([tabs, connectorLine, tabContent], Box.left);
 
-  return Box.vcat([sectionLabel("Border Layouts"), tabSection], Box.left);
-})();
+  return Box.vcat(
+    [sectionLabel("Border Layouts", width), tabSection],
+    Box.left
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Assemble
 // ---------------------------------------------------------------------------
 
-const demo = Box.vsep(
-  [
-    header,
-    subtitle,
-    wrapDemo,
-    columnDemo,
-    alignmentDemo,
-    barChartDemo,
-    positionDemo,
-    borderSidesDemo,
-  ],
-  1,
-  Box.left
-);
+const buildDemo = (width: number) =>
+  Box.vsep(
+    [
+      header(width),
+      subtitle(width),
+      wrapDemo(width),
+      columnDemo(width),
+      alignmentDemo(width),
+      barChartDemo(width),
+      positionDemo(width),
+      borderSidesDemo(width),
+    ],
+    1,
+    Box.left
+  );
 
-export const main = Effect.sync(() => console.log(Box.renderPrettySync(demo)));
+const Action = Data.taggedEnum<Prompt.ActionDefinition>();
+
+const view = (size: Terminal.Size, offset: number) => {
+  const demo =
+    size.columns < 20 || size.rows < 2
+      ? Box.text("Resize window · q quits".slice(0, size.columns))
+      : buildDemo(size.columns);
+  const page = Math.max(1, size.rows - 1);
+  const maxOffset = Math.max(0, demo.rows - page);
+  return { size, demo, page, maxOffset, offset: Math.min(offset, maxOffset) };
+};
+
+export const main = Effect.gen(function* () {
+  const terminal = yield* Terminal.Terminal;
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    const width = Math.max(20, process.stdout.columns || 76);
+    yield* terminal.display(`${Box.renderPrettySync(buildDemo(width))}\n`);
+    return;
+  }
+  const sizes = yield* terminal.size;
+  const initial = view(yield* Queue.take(sizes), 0);
+  const changes = yield* Queue.sliding<Terminal.Size>(1);
+  yield* Stream.fromQueue(sizes).pipe(
+    Stream.runForEach((size) => Queue.offer(changes, size)),
+    Effect.forkScoped
+  );
+  yield* Effect.acquireRelease(
+    terminal.display(
+      Box.renderPrettySync(Box.combine(Cmd.altScreenEnter, Cmd.cursorHide))
+    ),
+    () =>
+      terminal
+        .display(
+          Box.renderPrettySync(Box.combine(Cmd.altScreenLeave, Cmd.cursorShow))
+        )
+        .pipe(Effect.orDie)
+  );
+  yield* Prompt.Custom<typeof initial, void, Terminal.Size>(initial, changes, {
+    render: (_, action) =>
+      Effect.sync(() => {
+        if (action._tag !== "NextFrame") return "";
+        const { size, demo, offset, page } = action.state;
+        const body = Box.renderPrettySync(
+          demo.pipe(Box.cropHeight(offset, page))
+        ).replaceAll("\n", "\r\n");
+        const footer =
+          size.rows > 1 && size.columns >= 20
+            ? Box.renderPrettySync(Cmd.cursorTo(0, size.rows - 1)) +
+              (size.columns >= 36
+                ? "↑/↓ scroll · PgUp/PgDn page · q quit"
+                : "↑/↓ scroll · q quit")
+            : "";
+        return Box.renderPrettySync(Cmd.clearScreen) + body + footer;
+      }),
+    process: (input, state) =>
+      Effect.sync(() => {
+        if (input._tag === "Event")
+          return Action.NextFrame({ state: view(input.value, state.offset) });
+        const key = input.input.key.name;
+        if (key === "q" || key === "enter" || key === "return")
+          return Action.Submit({ value: undefined });
+        const scroll: Record<string, number | undefined> = {
+          up: -1,
+          down: 1,
+          pageup: -state.page,
+          pagedown: state.page,
+        };
+        const delta = scroll[key];
+        if (delta === undefined) return Action.Beep();
+        return Action.NextFrame({
+          state: {
+            ...state,
+            offset: Math.max(
+              0,
+              Math.min(state.maxOffset, state.offset + delta)
+            ),
+          },
+        });
+      }),
+    clear: () => Effect.succeed(""),
+  });
+}).pipe(Effect.scoped);
