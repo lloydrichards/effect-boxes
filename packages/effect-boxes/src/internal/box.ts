@@ -1240,7 +1240,8 @@ export const pad = dual<
 const truncateWidth = <A>(
   self: Box.Box<A>,
   width: number,
-  onText: (text: string) => Box.Box<A>
+  onText: (text: string) => Box.Box<A>,
+  onRow?: (box: Box.Box<A>) => Box.Box<A>
 ): Box.Box<A> => {
   if (self.cols <= width) return self;
 
@@ -1249,12 +1250,14 @@ const truncateWidth = <A>(
       blank: () => emptyBox(box.rows, width),
       text: (t) => onText(t),
       row: () =>
-        make({
-          rows: box.rows,
-          cols: width,
-          content: { _tag: "SubBox", xAlign: left, yAlign: top, box },
-          annotation: box.annotation,
-        }),
+        onRow
+          ? onRow(box)
+          : make({
+              rows: box.rows,
+              cols: width,
+              content: { _tag: "SubBox", xAlign: left, yAlign: top, box },
+              annotation: box.annotation,
+            }),
       col: (boxes) =>
         make({
           rows: box.rows,
@@ -1544,6 +1547,22 @@ export const truncate = dual<
 >(3, <A>(self: Box.Box<A>, width: number, pos: Box.Alignment): Box.Box<A> => {
   const ellipsis = "…";
 
+  const available = Math.max(0, width - 1); // reserve 1 column for ellipsis
+
+  const [prefixWidth, suffixWidth] = Match.value(pos).pipe(
+    Match.when("AlignFirst", () => [available, 0] as const),
+    Match.when("AlignLast", () => [0, available] as const),
+    Match.when(
+      "AlignCenter1",
+      () => [Math.ceil(available / 2), Math.floor(available / 2)] as const
+    ),
+    Match.when(
+      "AlignCenter2",
+      () => [Math.floor(available / 2), Math.ceil(available / 2)] as const
+    ),
+    Match.exhaustive
+  );
+
   const truncateLine = (text: string): Box.Box<A> => {
     const textWidth = Width.ofString(text);
 
@@ -1555,24 +1574,6 @@ export const truncate = dual<
       return unsafeLine(ellipsis);
     }
 
-    const available = width - 1; // reserve 1 column for ellipsis
-
-    const [prefixWidth, suffixWidth] = Match.value(pos).pipe(
-      Match.when("AlignFirst", () => [available, 0] as const),
-      Match.when("AlignLast", () => [0, available] as const),
-      Match.when(
-        "AlignCenter1",
-        () =>
-          [Math.ceil(available / 2), Math.floor(available / 2)] as const
-      ),
-      Match.when(
-        "AlignCenter2",
-        () =>
-          [Math.floor(available / 2), Math.ceil(available / 2)] as const
-      ),
-      Match.exhaustive
-    );
-
     return unsafeLine(
       Width.sliceColumns(text, 0, prefixWidth) +
         ellipsis +
@@ -1580,7 +1581,29 @@ export const truncate = dual<
     );
   };
 
-  return truncateWidth(self, width, truncateLine);
+  const truncateRow = (row: Box.Box<A>): Box.Box<A> => {
+    if (row.cols <= width) return row;
+    if (width <= 0 || row.rows === 0)
+      return emptyBox(row.rows, Math.max(0, width));
+
+    const content = make({
+      rows: row.rows,
+      cols: row.cols,
+      content: row.content,
+    });
+    const marker = vcat(
+      Array.makeBy(row.rows, () => unsafeLine(ellipsis)),
+      left
+    );
+    const pieces: Box.Box<A>[] = [];
+    if (prefixWidth > 0) pieces.push(cropWidth(content, 0, prefixWidth));
+    pieces.push(marker);
+    if (suffixWidth > 0)
+      pieces.push(cropWidth(content, row.cols - suffixWidth, suffixWidth));
+    return preserveAnnotation(row, hcat(pieces, top));
+  };
+
+  return truncateWidth(self, width, truncateLine, truncateRow);
 });
 
 /** @internal */
