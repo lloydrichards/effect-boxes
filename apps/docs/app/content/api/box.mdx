@@ -1234,7 +1234,7 @@ declare const alterAnnotation: {
 
 ### annotate
 
-Adds an annotation to a box.
+Sets the root annotation and preserves annotations on descendants.
 
 Annotations provide a way to attach additional data (like styling information)
 to boxes without affecting their layout properties. Commonly used with the
@@ -1254,8 +1254,8 @@ const coloredBox = Box.annotate(Box.text("Hello World"), Ansi.red);
 
 ```ts
 declare const annotate: {
-  <B>(annotation: Annotation<B>): <A>(self: Box<A>) => Box<B>;
-  <A, B>(self: Box<A>, annotation: Annotation<B>): Box<B>;
+  <B>(annotation: Annotation<B>): <A>(self: Box<A>) => Box<A | B>;
+  <A, B>(self: Box<A>, annotation: Annotation<B>): Box<A | B>;
 };
 ```
 

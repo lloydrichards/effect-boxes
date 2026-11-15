@@ -1416,7 +1416,7 @@ export const printBox: <A>(
  */
 
 /**
- * Adds an annotation to a box.
+ * Sets the root annotation and preserves annotations on descendants.
  *
  * Annotations provide a way to attach additional data (like styling information)
  * to boxes without affecting their layout properties. Commonly used with the
@@ -1437,8 +1437,8 @@ export const printBox: <A>(
  * @category transformations
  */
 export const annotate: {
-  <B>(annotation: Annotation<B>): <A>(self: Box<A>) => Box<B>;
-  <A, B>(self: Box<A>, annotation: Annotation<B>): Box<B>;
+  <B>(annotation: Annotation<B>): <A>(self: Box<A>) => Box<A | B>;
+  <A, B>(self: Box<A>, annotation: Annotation<B>): Box<A | B>;
 } = internal.annotate;
 
 /**
