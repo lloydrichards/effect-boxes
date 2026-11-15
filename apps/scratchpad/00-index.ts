@@ -15,6 +15,7 @@ import { main as logViewerDemo } from "./09-log-viewer";
 import { main as layoutDemo } from "./10-layout-demo";
 import { main as boidsDemo } from "./11-boids-flocking";
 import { main as froggerDemo } from "./12-frogger";
+import { main as wireServiceDemo } from "./13-wire-service";
 
 const demos = [
   {
@@ -81,6 +82,12 @@ const demos = [
     value: "frogger",
     description: "Dodge cars on a 2D board and inspect a live layer diagram",
   },
+  {
+    title: "13. Wire-Service Reader",
+    value: "wire-service",
+    description:
+      "Animate a split desk, three-column center spread, or streaming Markdown chat",
+  },
 ] as const;
 
 type DemoId = (typeof demos)[number]["value"];
@@ -109,6 +116,8 @@ const runDemo = (id: DemoId) => {
       return layoutDemo;
     case "frogger":
       return froggerDemo;
+    case "wire-service":
+      return wireServiceDemo;
     case "boids":
       return boidsDemo;
   }
@@ -119,7 +128,7 @@ const root = Command.make(
   {
     run: Flag.Int("run").pipe(
       Flag.optional,
-      Flag.withDescription("Run a demo by number (1-12)")
+      Flag.withDescription("Run a demo by number (1-13)")
     ),
   },
   ({ run }) =>
