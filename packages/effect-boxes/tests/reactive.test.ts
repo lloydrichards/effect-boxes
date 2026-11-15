@@ -278,6 +278,24 @@ describe("Reactive Annotations", () => {
       expect(reactivePos?.col).toBe(6); // After "Normal"
     });
 
+    it("uses the last descendant when a reactive ID is repeated", () => {
+      const first = Reactive.makeReactive(Box.line("first"), "same");
+      const last = Reactive.makeReactive(Box.line("last"), "same");
+      const layout = Reactive.makeReactive(
+        Box.hcat([first, last], Box.top),
+        "same"
+      );
+      expect(HashMap.get(Reactive.getPositions(layout), "same")).toEqual(
+        Option.some({ row: 0, col: 5, rows: 1, cols: 4 })
+      );
+    });
+
+    it("skips descendants behind a zero-width box", () => {
+      const child = Reactive.makeReactive(Box.line("hidden"), "child");
+      const layout = Box.alignHoriz(child, Box.right, 0);
+      expect(HashMap.size(Reactive.getPositions(layout))).toBe(0);
+    });
+
     it("handles empty and zero-dimension boxes", () => {
       const emptyBox = Reactive.makeReactive(Box.nullBox, "empty");
       const positions = Reactive.getPositions(emptyBox);
