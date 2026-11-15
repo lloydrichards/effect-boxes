@@ -1,11 +1,11 @@
-import { Array, HashMap, Match, Option, pipe } from "effect";
+import { HashMap, Option } from "effect";
 import { dual } from "effect/Function";
 import type * as Annotation from "../Annotation.js";
 import type * as Ansi from "../Ansi.js";
 import type * as Box from "../Box.js";
 import type * as Reactive from "../Reactive.js";
 import { createAnnotation } from "./annotation.js";
-import { annotate, merge, resizeBox, resizeBoxAligned } from "./box.js";
+import { annotate } from "./box.js";
 import { cursorTo } from "./cmd.js";
 import * as Width from "./width.js";
 
@@ -59,108 +59,50 @@ export const makeReactive = dual<
 
 /** @internal */
 export const getPositions = <A>(self: Box.Box<A>): Reactive.PositionMap => {
-  const renderBoxWithTracking = <B>(
-    box: Box.Box<B>,
-    offsetRow: number,
-    offsetCol: number
-  ): readonly [string[], Reactive.PositionMap] => {
-    const { cols, content, rows, annotation } = box;
+  let positions: Reactive.PositionMap = HashMap.empty();
 
-    if (rows === 0 || cols === 0) {
-      return [[], HashMap.empty()];
+  const visit = (box: Box.Box<A>, row: number, col: number): void => {
+    const { annotation, cols, content, rows } = box;
+    if (rows === 0 || cols === 0) return;
+
+    if (annotation && isReactive(annotation.data)) {
+      positions = HashMap.set(positions, annotation.data.id, {
+        row,
+        col,
+        rows,
+        cols,
+      });
     }
 
-    const basePositions: Reactive.PositionMap =
-      annotation && isReactive(annotation.data)
-        ? HashMap.make([
-            annotation.data.id,
-            {
-              row: offsetRow,
-              col: offsetCol,
-              rows: box.rows,
-              cols: box.cols,
-            },
-          ])
-        : HashMap.empty();
-
-    return pipe(
-      content,
-      Match.type<Box.Content<B>>().pipe(
-        Match.tag(
-          "Blank",
-          () => [resizeBox([""], rows, cols), basePositions] as const
-        ),
-        Match.tag(
-          "Text",
-          ({ text }) => [resizeBox([text], rows, cols), basePositions] as const
-        ),
-        Match.tag("Row", ({ boxes }) => {
-          const { rendered, acc } = pipe(
-            boxes,
-            Array.reduce(
-              {
-                rendered: [] as string[][],
-                acc: basePositions,
-                cur: offsetCol,
-              },
-              (acc, b) => {
-                const result = renderBoxWithTracking(b, offsetRow, acc.cur);
-                return {
-                  rendered: [...acc.rendered, result[0]],
-                  acc: HashMap.union(acc.acc, result[1]),
-                  cur: acc.cur + b.cols,
-                };
-              }
-            )
-          );
-
-          return [pipe(rendered, merge, resizeBox(rows, cols)), acc] as const;
-        }),
-        Match.tag("Col", ({ boxes }) => {
-          // Use reduce to accumulate rendered boxes and positions
-          const { lines, acc } = pipe(
-            boxes,
-            Array.reduce(
-              {
-                lines: [] as string[],
-                acc: basePositions,
-                currentRow: offsetRow,
-              },
-              (acc, b) => {
-                const result = renderBoxWithTracking(
-                  b,
-                  acc.currentRow,
-                  offsetCol
-                );
-                return {
-                  lines: [...acc.lines, ...result[0]],
-                  acc: HashMap.union(acc.acc, result[1]),
-                  currentRow: acc.currentRow + b.rows,
-                };
-              }
-            )
-          );
-
-          return [resizeBox(lines, rows, cols), acc] as const;
-        }),
-        Match.tag("SubBox", ({ box: subBox, xAlign, yAlign }) => {
-          const result = renderBoxWithTracking(
-            subBox,
-            offsetRow + Width.alignmentOffset(yAlign, subBox.rows, rows),
-            offsetCol + Width.alignmentOffset(xAlign, subBox.cols, cols)
-          );
-
-          return [
-            pipe(result[0], resizeBoxAligned(rows, cols, xAlign, yAlign)),
-            HashMap.union(basePositions, result[1]),
-          ] as const;
-        }),
-        Match.exhaustive
-      )
-    );
+    switch (content._tag) {
+      case "Row": {
+        let childCol = col;
+        for (const child of content.boxes) {
+          visit(child, row, childCol);
+          childCol += child.cols;
+        }
+        break;
+      }
+      case "Col": {
+        let childRow = row;
+        for (const child of content.boxes) {
+          visit(child, childRow, col);
+          childRow += child.rows;
+        }
+        break;
+      }
+      case "SubBox":
+        visit(
+          content.box,
+          row + Width.alignmentOffset(content.yAlign, content.box.rows, rows),
+          col + Width.alignmentOffset(content.xAlign, content.box.cols, cols)
+        );
+        break;
+    }
   };
 
-  return renderBoxWithTracking(self, 0, 0)[1];
+  visit(self, 0, 0);
+  return positions;
 };
 
 /*
