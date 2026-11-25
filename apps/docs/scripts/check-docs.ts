@@ -6,11 +6,14 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { createProcessor } from "@mdx-js/mdx";
-import { FancyAnsi, stripAnsi } from "fancy-ansi";
+import { stripAnsi } from "fancy-ansi";
 import remarkGfm from "remark-gfm";
 import * as ts from "typescript-6";
 import { visit } from "unist-util-visit";
-import { prepareTerminalPreview } from "../app/lib/terminal-preview";
+import {
+  prepareTerminalPreview,
+  renderTerminalPreview,
+} from "../app/lib/terminal-preview";
 import { pages } from "../app/nav.config";
 import { checkCmdExamples } from "./check-cmd-examples";
 import { checkSelectPrompt } from "./check-select-prompt";
@@ -22,7 +25,7 @@ const processor = createProcessor({ remarkPlugins: [remarkGfm] });
 const combinedColors =
   "\u001b[0;38;2;255;255;255;48;2;23;74;120m│ blue │\u001b[0m\n\u001b[38;5;231;48;5;24m indexed \u001b[0m";
 const preparedColors = prepareTerminalPreview(combinedColors);
-const previewHtml = new FancyAnsi().toHtml(preparedColors);
+const previewHtml = renderTerminalPreview(combinedColors);
 assert.equal(stripAnsi(preparedColors), stripAnsi(combinedColors));
 assert.ok(previewHtml.includes("color:rgb(255,255,255)"));
 assert.ok(previewHtml.includes("background-color:rgb(23,74,120)"));
@@ -30,6 +33,25 @@ assert.ok(previewHtml.includes("background-color:rgb(0,95,135)"));
 assert.ok(
   !previewHtml.includes("font-size") && !previewHtml.includes("opacity")
 );
+const unicodePreview = renderTerminalPreview("│你好👩‍💻e\u0301 &\u0301 <b>│");
+assert.deepEqual(
+  Array.from(
+    unicodePreview.matchAll(
+      /class="terminal-cell" style="width:(\d)ch">([^<]+)/g
+    ),
+    ([, columns, text]) => [columns, text]
+  ),
+  [
+    ["1", "│"],
+    ["2", "你"],
+    ["2", "好"],
+    ["2", "👩‍💻"],
+    ["1", "e\u0301"],
+    ["1", "&amp;\u0301"],
+    ["1", "│"],
+  ]
+);
+assert.ok(unicodePreview.includes("&lt;b&gt;"));
 const cacheRoot = path.join(docsRoot, ".cache");
 await mkdir(cacheRoot, { recursive: true });
 const workDir = await mkdtemp(path.join(cacheRoot, "doc-examples-"));

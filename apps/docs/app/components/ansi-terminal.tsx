@@ -1,7 +1,6 @@
 "use client";
 
-import { AnsiHtml } from "fancy-ansi/react";
-import { prepareTerminalPreview } from "~/lib/terminal-preview";
+import { renderTerminalPreview } from "~/lib/terminal-preview";
 import { cn } from "~/lib/utils";
 
 const vscodePalette = {
@@ -54,8 +53,11 @@ export const AnsiTerminal = ({
       )}
     </div>
     {/* Terminal body */}
-    <pre className="font-terminal overflow-x-auto bg-code-block p-4 text-sm leading-[1.2] text-code-block-foreground">
-      <AnsiHtml text={prepareTerminalPreview(input)} style={vscodePalette} />
+    <pre className="font-terminal overflow-x-auto bg-code-block p-4 text-sm leading-none text-code-block-foreground">
+      <span
+        style={vscodePalette}
+        dangerouslySetInnerHTML={{ __html: renderTerminalPreview(input) }}
+      />
     </pre>
   </div>
 );
