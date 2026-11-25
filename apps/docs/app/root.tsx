@@ -176,7 +176,7 @@ function SiteHeader() {
   const sidebarVisible = state === "expanded" && !isMobile;
 
   return (
-    <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/50 bg-background/80 backdrop-blur-sm px-6 py-3">
+    <header className="sticky top-0 z-10 flex h-(--site-header-height) shrink-0 items-center gap-3 border-b border-border/50 bg-background/80 backdrop-blur-sm px-6">
       <SidebarTrigger className="size-11" />
       {!sidebarVisible && (
         <Link
