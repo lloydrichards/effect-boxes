@@ -75,6 +75,7 @@
   display: inline-block;
   line-height: inherit;
   text-align: center;
+  text-decoration: inherit;
 }
 
 :root {

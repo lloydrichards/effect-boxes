@@ -1,8 +1,7 @@
-import * as Box from "effect-boxes/Box";
 import { FancyAnsi } from "fancy-ansi";
+import * as Width from "../../../../packages/effect-boxes/src/internal/width";
 
 const ansi = new FancyAnsi();
-const segmenter = new Intl.Segmenter();
 const entities = new Map([
   ["&amp;", "&"],
   ["&lt;", "<"],
@@ -25,17 +24,19 @@ export function renderTerminalPreview(input: string): string {
       /&(?:amp|lt|gt|quot|#39);/g,
       (entity) => entities.get(entity) ?? entity
     );
-    return Array.from(segmenter.segment(text), ({ segment }) => {
-      const escaped = segment.replace(
-        /[&<>"']/g,
-        (character) => escapedCharacters.get(character) ?? character
-      );
-      if (!/\P{ASCII}/u.test(segment)) return escaped;
-      const columns = Box.char(segment).cols;
-      return columns > 0
-        ? `<span class="terminal-cell" style="width:${columns}ch">${escaped}</span>`
-        : escaped;
-    }).join("");
+    return Width.segments(text)
+      .map((segment) => {
+        const escaped = segment.replace(
+          /[&<>"']/g,
+          (character) => escapedCharacters.get(character) ?? character
+        );
+        if (!/\P{ASCII}/u.test(segment)) return escaped;
+        const columns = Width.ofString(segment);
+        return columns > 0
+          ? `<span class="terminal-cell" style="width:${columns}ch">${escaped}</span>`
+          : escaped;
+      })
+      .join("");
   });
 }
 
