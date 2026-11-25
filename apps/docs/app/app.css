@@ -67,6 +67,7 @@
 }
 
 :root {
+  --site-header-height: calc(4.25rem + 1px);
   --radius: 0;
   --background: oklch(0.98 0.004 250);
   --foreground: oklch(0.18 0.012 250);

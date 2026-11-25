@@ -52,7 +52,7 @@ export function TableOfContents({
     return (
       <nav
         aria-label="On this page"
-        className="hidden xl:block fixed top-16 right-8 max-h-[calc(100vh-4rem)] w-48 overflow-y-auto scrollbar-none"
+        className="hidden xl:block fixed top-[calc(var(--site-header-height)+1rem)] right-8 max-h-[calc(100dvh-var(--site-header-height)-2rem)] w-48 overflow-y-auto scrollbar-none"
       >
         <p className="mb-3 font-heading text-xs font-medium uppercase tracking-[0.05em] text-muted-foreground">
           On this page
